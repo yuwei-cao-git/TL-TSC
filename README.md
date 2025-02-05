@@ -44,3 +44,5 @@
     - generate `perc_specs` field to represent the percentage of common species
 
 - Filter Natural Forest Disturbances
+  - remove harvest areas (overlapped with "harvest_ply")
+  - NTEMS mask
