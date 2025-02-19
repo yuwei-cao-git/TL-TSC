@@ -8,6 +8,23 @@ from resample_pts import farthest_point_sampling
 import argparse
 from multiprocessing import Pool, cpu_count
 
+import os
+
+
+def get_unique_filename(output_folder, polyid):
+    base_path = os.path.join(output_folder, f"{polyid}.laz")
+
+    if not os.path.exists(base_path):
+        return base_path  # Return original filename if it doesn’t exist
+
+    # If file exists, find next available index
+    index = 1
+    while True:
+        new_path = os.path.join(output_folder, f"{polyid}_{index}.laz")
+        if not os.path.exists(new_path):
+            return new_path  # Return first available indexed filename
+        index += 1
+
 
 def resample_points_within_polygon(
     pts, max_pts, min_x, max_x, min_y, max_y, min_z, max_z
@@ -57,9 +74,9 @@ def sample_points_within_polygon(
             extracted_points.append(point)
     extracted_points = np.array(extracted_points)
 
-    output_las_file_path = os.path.join(output_folder, f"{polyid}.laz")
-    if os.path.exists(output_las_file_path):
-        output_las_file_path = output_las_file_path[:4] + "1.laz"
+    output_las_file_path = output_las_file_path = get_unique_filename(
+        output_folder, polyid
+    )
     output_las = laspy.create(
         point_format=inFile.header.point_format, file_version=inFile.header.version
     )

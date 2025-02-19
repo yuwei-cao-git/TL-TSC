@@ -9,10 +9,33 @@ from shapely.affinity import rotate, scale
 from sklearn.model_selection import train_test_split
 
 # ------------------- CONSTANTS ------------------- #
-# SPECIES_ORDER = ["AB","BF","BW","CE","LA","MH","MR","OR","PJ","PO","PR","PW","SB","SW",]
 AUGMENTATION_FACTOR = 3  # Number of augmented copies per plot
 BUFFER_DISTANCE = 50  # Meters from polygon boundary
 PLOT_RADIUS = 11.28  # Meters (≈400m² area)
+SPECIES_ORDER = [
+    "BF",
+    "BW",
+    "MR",
+    "OR",
+    "PO",
+    "PW",
+    "CE",
+    "SW",
+    "MH",
+    "PR",
+    "AB",
+    "BE",
+    "IW",
+    "LA",
+    "SB",
+    "BY",
+    "HE",
+    "BD",
+    "PJ",
+    "AW",
+    "PS",
+    "SR",
+]
 
 
 # ------------------- CORE FUNCTIONS ------------------- #
@@ -28,7 +51,12 @@ def create_points(polygon, number, distance=50):
             polygon.contains(buffered)
             and polygon.boundary.distance(buffered) >= distance
         ):
-            points.append(buffered)
+            # Check if the point is within the polygon and not too close to others
+            if polygon.contains(point) and all(
+                point.distance(existing) >= distance for existing in points
+            ):
+                points.append(point)
+                attempts = 0  # Reset attempts after successful placement
         attempts += 1
     return points
 
@@ -131,10 +159,7 @@ def parse_ospcomp(ospcomp):
 def add_perc_specs(gdf):
     """Add fixed-dimension species proportion vector"""
     perc_specs = []
-    SPECIES_ORDER = (
-        gdf["OSPCOMP"].apply(parse_ospcomp).apply(pd.Series).fillna(0).columns.tolist()
-    )
-    print("Species:", SPECIES_ORDER)
+    # SPECIES_ORDER = (gdf["OSPCOMP"].apply(parse_ospcomp).apply(pd.Series).fillna(0).columns.tolist())
     for _, row in gdf.iterrows():
         species_props = parse_ospcomp(row["OSPCOMP"])
         vector = {s: 0.0 for s in SPECIES_ORDER}
@@ -158,7 +183,7 @@ def balance_compositions(gdf):
         comp_counts.iterrows(),
         total=len(comp_counts),
         colour="green",
-        desc="composition balancing",
+        desc="training dataset composition balancing",
     ):
         comp, count = row["OSPCOMP"], row["count"]
 
@@ -177,6 +202,27 @@ def balance_compositions(gdf):
             balanced_dfs.append(plots)
 
     return gpd.GeoDataFrame(pd.concat(balanced_dfs, ignore_index=True))
+
+
+def gen_plots_nontrain(gdf):
+    comp_counts = gdf.groupby("OSPCOMP").size().reset_index(name="count")
+    plot_dfs = []
+
+    for _, row in tqdm(
+        comp_counts.iterrows(),
+        total=len(comp_counts),
+        colour="green",
+        desc="val/test plot generation",
+    ):
+        comp, count = row["OSPCOMP"], row["count"]
+
+        subset = gdf[gdf["OSPCOMP"] == comp]
+        plots = random_plots(subset, 2, 50)
+        if plots is not None:
+            plots["OSPCOMP"] = comp
+            plot_dfs.append(plots)
+
+    return gpd.GeoDataFrame(pd.concat(plot_dfs, ignore_index=True))
 
 
 def calculate_species_targets(gdf, percentile=75, min_target=100):
@@ -256,8 +302,6 @@ def balance_species_proportions(gdf, species_targets):
 
     # Apply filtering
     return gdf.loc[list(set(indices_to_keep))]
-
-
 """
 
 
@@ -288,6 +332,38 @@ def balance_species_proportions(gdf, species_targets):
     return gdf.iloc[selected_indices]
 
 
+def balance_training_set(train):
+    """
+    Balance the training set using tiered composition balancing.
+    """
+    # Tiered composition balancing
+    comp_balanced = balance_compositions(train)
+
+    # Species-proportion balancing
+    species_targets = calculate_species_targets(
+        comp_balanced, percentile=75, min_target=100
+    )
+    sp_balanced = balance_species_proportions(comp_balanced, species_targets)
+
+    return sp_balanced
+
+
+def ensure_min_samples(gdf, min_samples):
+    """
+    Ensure each class has at least `min_samples` in the validation set.
+    """
+    balanced_samples = []
+    for comp, group in gdf.groupby("OSPCOMP"):
+        if len(group) < min_samples:
+            # Oversample rare classes
+            balanced_samples.append(
+                group.sample(min_samples, replace=True, random_state=42)
+            )
+        else:
+            balanced_samples.append(group)
+    return gpd.GeoDataFrame(pd.concat(balanced_samples, ignore_index=True))
+
+
 def split_dataset(gdf, test_size=0.15, val_size=0.15):
     # Stratify by composition group to preserve balance
     train_val, test = train_test_split(
@@ -299,6 +375,7 @@ def split_dataset(gdf, test_size=0.15, val_size=0.15):
         stratify=train_val["OSPCOMP"],
         random_state=42,
     )
+    val = ensure_min_samples(val, min_samples=2)
     return train, val, test
 
 
@@ -309,39 +386,40 @@ if __name__ == "__main__":
         r"/mnt/d/Sync/research/tree_species_estimation/tree_dataset/ovf/processed/ovf_fri/ovf_fri_prominate10.gpkg"
     )
 
-    # 1. Balance compositions
-    comp_balanced = balance_compositions(ovf_fri_clean)
-
-    # 2. Auto-calculate species targets (75th percentile cap, min 100 samples)
-    species_targets = calculate_species_targets(
-        comp_balanced, percentile=75, min_target=100
+    # 1. Split dataset: as don't want to balance the validation and test dataset
+    _, val_polygons, test_polygons = split_dataset(
+        ovf_fri_clean, test_size=0.3, val_size=0.3
     )
+    val = add_perc_specs(gen_plots_nontrain(val_polygons))
+    print(f"validate plots: {len(val)}")
+    test = add_perc_specs(gen_plots_nontrain(test_polygons))
+    print(f"test plots: {len(test)}")
 
-    # 3. Balance species globally
-    sp_balanced = balance_species_proportions(comp_balanced, species_targets)
+    val.to_file(
+        r"/mnt/d/Sync/research/tree_species_estimation/tree_dataset/ovf/processed/ovf_fri/plot_val_prominant10.gpkg"
+    )
+    test.to_file(
+        r"/mnt/d/Sync/research/tree_species_estimation/tree_dataset/ovf/processed/ovf_fri/plot_test_prominant10.gpkg"
+    )
+"""
+    # 2. Balance training set
+    train_polygons, _, _ = split_dataset(
+        ovf_fri_clean, test_size=0.15, val_size=0.15
+    )
+    train_balanced = balance_training_set(train_polygons)
 
     # 4. Add fixed-dimension vectors
-    sp_balanced = add_perc_specs(sp_balanced)
+    sp_balanced = add_perc_specs(train_balanced)
 
-    # 5. Split dataset
-    train, val, test = split_dataset(sp_balanced)
-
-    # 6. Augment training data
-    train_augmented = augment_dataset(train)
+    # 5. Augment training data
+    train_augmented = augment_dataset(sp_balanced)
     full_train = gpd.GeoDataFrame(
-        pd.concat([train, train_augmented], ignore_index=True), crs=train.crs
+        pd.concat([sp_balanced, train_augmented], ignore_index=True),
+        crs=train_balanced.crs,
     )
 
-    # 7. Save datasets
-    sp_balanced.to_file(
-        r"/mnt/d/Sync/research/tree_species_estimation/tree_dataset/ovf/processed/ovf_fri/balanced_dataset_prominant10.gpkg"
-    )
+    # 6. Save datasets
     full_train.to_file(
         r"/mnt/d/Sync/research/tree_species_estimation/tree_dataset/ovf/processed/ovf_fri/plot_train_prominant10.gpkg"
     )
-    val.to_file(
-        r"/mnt/d/Sync/research/tree_species_estimation/tree_dataset/ovf/processed/ovf_fri/plot_test_prominant10.gpkg"
-    )
-    test.to_file(
-        r"/mnt/d/Sync/research/tree_species_estimation/tree_dataset/ovf/processed/ovf_fri/plot_val_prominant10.gpkg"
-    )
+"""
