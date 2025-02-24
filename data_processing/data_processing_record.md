@@ -42,31 +42,23 @@ fri_comps_prom = list(fri_comps.OSPCOMP)
 | fri_comps[fri_comps["count"] >= 2 | 50810 |  9601  | 28  |
 | fri_comps[fri_comps["count"] >= 10 | 19056|  834  | 22 |
 
-2.4. balancing dataset & extract plots
-| method  | train  | test |val|
-| -------------| ------------- | ------------- | ------------- |
-| method1  | 30264  | 3243  | 3243  |
-| method2  | 51450  | 5513  | 5513  |
+2.4. balancing dataset & extract plots 
 
-species: ['CE', 'LA', 'BF', 'AB', 'PO', 'BW', 'PW', 'OR', 'SW', 'MR', 'MH', 'IW', 'BE', 'BD', 'PR', 'HE', 'BY', 'SB', 'PJ', 'AW', 'SR', 'PS']
+2.5 removing species < 100 among val/test/train & updating calculate proportions
 
-2.5 remove species < 100 among val/test/train & calc perc_specs
+2.6 compare different data balancing & samplling method:
 
-| method  | train  | test |val|
-| -------------| ------------- | ------------- | ------------- |
-| method1  | 27880  | 2993  | 2990  |
-| method2  | 48818  | 5230  | 5233  |
-| non-balance  | 13628  |  - |  - |
+| method  | train  | max/min|
+| -------------| ------------- | ------------- | 
+| raw (dis-25) | 12411  | 13  | 
+| bal-50 (dis-50) | 9592  | 4  | 
+| bal-60 (dis-50) | 24504  | 6  | 
 
-species: ['OR', 'MR', 'BW', 'PO', 'MH', 'SW', 'CE', 'LA', 'BF', 'PW', 'BD', 'BE', 'PR', 'BY', 'SB', 'AB', 'HE', 'IW', 'AW', 'PS', 'PJ', 'SR']
-
-2.5 compare different data balancing & samplling method:
-- no data-balancing
-![alt text](image-3.png)
-- compostion balancing & species count balancing
-![alt text](image.png)
-- composition balancing & proportions balancing
-![alt text](image-1.png)
+species: ['AB', 'PO', 'MR', 'BF', 'CE', 'PW', 'MH', 'BW', 'SW', 'OR', 'PR']
 
 compare training data:
-![alt text](image-2.png)
+![alt text](../vis/data_balancing.png)
+
+selected: 60
+compare train/val/test:
+![alt text](../vis/dataset.png)

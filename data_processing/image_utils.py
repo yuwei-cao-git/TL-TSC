@@ -366,6 +366,7 @@ def resample_raster(
         # Get the original pixel size and bounds
         orig_pixel_size = (src.res[0], src.res[1])
         orig_bounds = src.bounds
+        print(orig_bounds)
 
         # If reference raster is provided, use its pixel size and extent
         if reference_raster_path:
@@ -397,7 +398,7 @@ def resample_raster(
                 "height": new_height,
                 "transform": dst_transform,
                 "crs": dst_crs,
-                "nodata": src.nodata,  # Preserve NoData value
+                "nodata": 0,  # Preserve NoData value
             }
         )
 
@@ -405,9 +406,7 @@ def resample_raster(
         with rasterio.open(output_path, "w", **profile) as dst:
             for i in range(1, src.count + 1):
                 data = src.read(i)
-                dst_data = np.full(
-                    (new_height, new_width), src.nodata, dtype=data.dtype
-                )
+                dst_data = np.full((new_height, new_width), 0, dtype=data.dtype)
 
                 reproject(
                     source=data,
@@ -543,7 +542,7 @@ def rasterize_shapefile(
                     shapes.append(geom)
                     for attribute, band_index in attribute_bands.items():
                         attributes.setdefault(attribute, []).append(
-                            attr.get(attribute, 0)
+                            attr.get(attribute, -1)
                         )
 
             for attribute, band_index in tqdm(
@@ -553,8 +552,8 @@ def rasterize_shapefile(
                 colour="green",
             ):
                 attribute_values = attributes[attribute]
-                # attribute_values = [x * 0.01 for x in attribute_values]
-                attribute_values = [x for x in attribute_values]
+                attribute_values = [x * 0.01 for x in attribute_values]
+                # attribute_values = [x for x in attribute_values]
                 burned = np.zeros(
                     out_shape, dtype=np.float32
                 )  # Create an empty array for rasterization
@@ -568,9 +567,9 @@ def rasterize_shapefile(
                     out_shape=out_shape,
                     transform=dst.transform,
                     all_touched=True,
-                    fill=0,
+                    fill=-1,
                     out=burned,
-                    default_value=0,
+                    default_value=-1,
                 )
 
                 dst.write(burned, indexes=band_index)

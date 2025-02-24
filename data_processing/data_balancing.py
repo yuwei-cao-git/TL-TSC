@@ -13,38 +13,38 @@ AUGMENTATION_FACTOR = 3  # Number of augmented copies per plot
 BUFFER_DISTANCE = 50  # Meters from polygon boundary
 PLOT_RADIUS = 11.28  # Meters (≈400m² area)
 SPECIES_ORDER = [
-    "BF",
-    "BW",
-    "MR",
-    "OR",
-    "PO",
-    "PW",
-    "CE",
-    "SW",
-    "MH",
-    "PR",
     "AB",
-    "BE",
-    "IW",
+    "PO",
+    "SW",
+    "BW",
+    "BF",
+    "CE",
     "LA",
-    "SB",
-    "BY",
+    "MR",
+    "PW",
+    "MH",
+    "IW",
     "HE",
-    "BD",
-    "PJ",
+    "OR",
+    "BY",
     "AW",
+    "PR",
+    "BD",
+    "SB",
+    "BE",
+    "PJ",
     "PS",
     "SR",
 ]
 
 
 # ------------------- CORE FUNCTIONS ------------------- #
-def create_points(polygon, number, distance=50):
+def create_points(polygon, number, distance):
     """Generate spatially constrained random points within a polygon"""
     points = []
     min_x, min_y, max_x, max_y = polygon.bounds
     attempts = 0
-    while len(points) < number and attempts < 100:
+    while len(points) < number and attempts < 200:
         point = Point(random.uniform(min_x, max_x), random.uniform(min_y, max_y))
         buffered = point.buffer(11.28)  # 11.28m radius ≈ 0.04ha plot
         if (
@@ -61,7 +61,7 @@ def create_points(polygon, number, distance=50):
     return points
 
 
-def random_plots(boundary, target_samples, distance=50):
+def random_plots(boundary, target_samples, distance):
     """Generate balanced samples for a composition group"""
     if len(boundary) == 0:
         return None
@@ -77,7 +77,7 @@ def random_plots(boundary, target_samples, distance=50):
     for idx in range(len(boundary)):
         poly_data = boundary.iloc[idx]
         n = min(base_samples + 1 if idx < remainder else base_samples, max_per_poly)
-        points = create_points(poly_data.geometry, n)
+        points = create_points(poly_data.geometry, n, distance)
         if points:
             points_gdf = gpd.GeoDataFrame(
                 {
@@ -94,6 +94,27 @@ def random_plots(boundary, target_samples, distance=50):
         if all_points
         else None
     )
+
+
+def gen_plots_nontrain(gdf):
+    comp_counts = gdf.groupby("OSPCOMP").size().reset_index(name="count")
+    plot_dfs = []
+
+    for _, row in tqdm(
+        comp_counts.iterrows(),
+        total=len(comp_counts),
+        colour="green",
+        desc="val/test plot generation",
+    ):
+        comp = row["OSPCOMP"]
+
+        subset = gdf[gdf["OSPCOMP"] == comp]
+        plots = random_plots(subset, 2, 50)
+        if plots is not None:
+            plots["OSPCOMP"] = comp
+            plot_dfs.append(plots)
+
+    return gpd.GeoDataFrame(pd.concat(plot_dfs, ignore_index=True))
 
 
 # ------------------- DATA AUGMENTATION ------------------- #
@@ -196,33 +217,12 @@ def balance_compositions(gdf):
             target = 200
 
         subset = gdf[gdf["OSPCOMP"] == comp]
-        plots = random_plots(subset, target, 25)
+        plots = random_plots(subset, target, 50)
         if plots is not None:
             plots["OSPCOMP"] = comp
             balanced_dfs.append(plots)
 
     return gpd.GeoDataFrame(pd.concat(balanced_dfs, ignore_index=True))
-
-
-def gen_plots_nontrain(gdf):
-    comp_counts = gdf.groupby("OSPCOMP").size().reset_index(name="count")
-    plot_dfs = []
-
-    for _, row in tqdm(
-        comp_counts.iterrows(),
-        total=len(comp_counts),
-        colour="green",
-        desc="val/test plot generation",
-    ):
-        comp, count = row["OSPCOMP"], row["count"]
-
-        subset = gdf[gdf["OSPCOMP"] == comp]
-        plots = random_plots(subset, 2, 50)
-        if plots is not None:
-            plots["OSPCOMP"] = comp
-            plot_dfs.append(plots)
-
-    return gpd.GeoDataFrame(pd.concat(plot_dfs, ignore_index=True))
 
 
 def calculate_species_targets(gdf, percentile=75, min_target=100):
@@ -256,55 +256,6 @@ def calculate_species_targets(gdf, percentile=75, min_target=100):
     return targets
 
 
-"""
-def balance_species_proportions(gdf, species_targets):
-    # Species-aware proportional balancing
-    species_props = []
-    for _, row in gdf.iterrows():
-        props = parse_ospcomp(row["OSPCOMP"])
-        species_props.append(props)
-
-    # Calculate overrepresentation
-    sp_counts = {}
-    for props in species_props:
-        for s, p in props.items():
-            key = f"{s}_{p}%"
-            sp_counts[key] = sp_counts.get(key, 0) + 1
-
-    # Downsample overrepresented species-proportions
-    gdf = gdf.copy()
-    indices_to_keep = []
-    for sp_key, count in tqdm(
-        sp_counts.items(),
-        total=len(sp_counts),
-        colour="red",
-        desc="proportions balancing",
-    ):
-        species = sp_key.split("_")[0]
-        target = species_targets.get(species, 100)
-        if count <= target:
-            indices_to_keep.extend(gdf.index.tolist())
-            continue
-
-        # Get contributing indices
-        contributing = [
-            i
-            for i, props in enumerate(species_props)
-            if species in props
-            and props[species] == int(sp_key.split("_")[1].replace("%", ""))
-        ]
-
-        # Downsample
-        keep_rate = target / count
-        np.random.seed(42)
-        keep_indices = np.random.choice(contributing, int(target), replace=False)
-        indices_to_keep.extend(keep_indices)
-
-    # Apply filtering
-    return gdf.loc[list(set(indices_to_keep))]
-"""
-
-
 def balance_species_proportions(gdf, species_targets):
     # Downsample plots to meet species-level targets.
     # Track remaining quota for each species
@@ -332,7 +283,7 @@ def balance_species_proportions(gdf, species_targets):
     return gdf.iloc[selected_indices]
 
 
-def balance_training_set(train):
+def balance_training_set(train, percentile):
     """
     Balance the training set using tiered composition balancing.
     """
@@ -341,13 +292,14 @@ def balance_training_set(train):
 
     # Species-proportion balancing
     species_targets = calculate_species_targets(
-        comp_balanced, percentile=75, min_target=100
+        comp_balanced, percentile=percentile, min_target=100
     )
     sp_balanced = balance_species_proportions(comp_balanced, species_targets)
 
     return sp_balanced
 
 
+# ------------------- SPLIT DATASET ------------------- #
 def ensure_min_samples(gdf, min_samples):
     """
     Ensure each class has at least `min_samples` in the validation set.
@@ -385,7 +337,6 @@ if __name__ == "__main__":
     ovf_fri_clean = gpd.read_file(
         r"/mnt/d/Sync/research/tree_species_estimation/tree_dataset/ovf/processed/ovf_fri/ovf_fri_prominate10.gpkg"
     )
-
     # 1. Split dataset: as don't want to balance the validation and test dataset
     _, val_polygons, test_polygons = split_dataset(
         ovf_fri_clean, test_size=0.3, val_size=0.3
@@ -394,32 +345,31 @@ if __name__ == "__main__":
     print(f"validate plots: {len(val)}")
     test = add_perc_specs(gen_plots_nontrain(test_polygons))
     print(f"test plots: {len(test)}")
-
+    train = add_perc_specs(gen_plots_nontrain(ovf_fri_clean))
+    print(f"train plots: {len(train)}")
+    train.to_file(
+        r"/mnt/d/Sync/research/tree_species_estimation/tree_dataset/ovf/processed/plots/plot_train_prominant10_raw.gpkg"
+    )
     val.to_file(
-        r"/mnt/d/Sync/research/tree_species_estimation/tree_dataset/ovf/processed/ovf_fri/plot_val_prominant10.gpkg"
+        r"/mnt/d/Sync/research/tree_species_estimation/tree_dataset/ovf/processed/plots/plot_val_prominant10.gpkg"
     )
     test.to_file(
-        r"/mnt/d/Sync/research/tree_species_estimation/tree_dataset/ovf/processed/ovf_fri/plot_test_prominant10.gpkg"
+        r"/mnt/d/Sync/research/tree_species_estimation/tree_dataset/ovf/processed/plots/plot_test_prominant10.gpkg"
     )
-"""
     # 2. Balance training set
-    train_polygons, _, _ = split_dataset(
-        ovf_fri_clean, test_size=0.15, val_size=0.15
-    )
-    train_balanced = balance_training_set(train_polygons)
+    train_balanced = balance_training_set(ovf_fri_clean, percentile=60)
 
-    # 4. Add fixed-dimension vectors
+    # 3. Add fixed-dimension vectors
     sp_balanced = add_perc_specs(train_balanced)
 
-    # 5. Augment training data
+    # 4. Augment training data
     train_augmented = augment_dataset(sp_balanced)
     full_train = gpd.GeoDataFrame(
         pd.concat([sp_balanced, train_augmented], ignore_index=True),
         crs=train_balanced.crs,
     )
 
-    # 6. Save datasets
+    # Save datasets
     full_train.to_file(
-        r"/mnt/d/Sync/research/tree_species_estimation/tree_dataset/ovf/processed/ovf_fri/plot_train_prominant10.gpkg"
+        r"/mnt/d/Sync/research/tree_species_estimation/tree_dataset/ovf/processed/plots/plot_train_prominant10_perc60_balanced.gpkg"
     )
-"""
