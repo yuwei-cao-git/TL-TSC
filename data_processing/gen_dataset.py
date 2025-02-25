@@ -44,9 +44,12 @@ def get_plot_labels(specs_perc):
 
 def process_pixel(pixel_label):
     """Validate individual pixel and return mask value"""
-    # Check label sum validity
+    # Check if all bands are -1 (no data)
+    if np.all(pixel_label == -1):
+        return False
+    # Check sum is approximately 1.0 with tolerance
     label_sum = np.sum(pixel_label)
-    return label_sum == 1.0
+    return np.isclose(label_sum, 1.0, rtol=1e-5, atol=1e-5)
 
 
 def resample_points_within_polygon(pts, max_pts):
@@ -111,7 +114,9 @@ def process_plot(plot, plot_6661, plot_fid, las_files_directory, max_pts):
             height=TILE_SIZE,
         )
         label_tile = src.read(window=window_label, boundless=True)
-        results["pixel_labels"] = label_tile.transpose(1, 2, 0)  # HWC format
+        results["pixel_labels"] = label_tile.transpose(1, 2, 0).astype(
+            np.float32
+        )  # Convert entire array upfront  # HWC format
 
     # 3. Create validity mask
     valid_mask = np.zeros((TILE_SIZE, TILE_SIZE), dtype=bool)
@@ -119,8 +124,8 @@ def process_plot(plot, plot_6661, plot_fid, las_files_directory, max_pts):
         for j in range(TILE_SIZE):
             valid_mask[i, j] = process_pixel(results["pixel_labels"][i, j])
 
-    # Skip if no valid pixels remain
-    if not np.any(valid_mask):
+    # Skip if valid pixels < 13 (10000m2)
+    if np.sum(valid_mask) < 13:
         print(f"Skipping plot {plot_fid} - no valid pixels")
         return None
 
