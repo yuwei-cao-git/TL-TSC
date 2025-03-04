@@ -111,13 +111,28 @@ def process_plot(plot, plot_6661, plot_fid, label_path, las_files_directory, max
     # 2. Process label raster
     with rasterio.open(label_path) as src:
         row_label, col_label = src.index(centroid.x, centroid.y)
+        # Calculate the window boundaries
+        col_off = max(0, col_label - TILE_SIZE // 2)
+        row_off = max(0, row_label - TILE_SIZE // 2)
+        width = min(TILE_SIZE, src.width - col_off)
+        height = min(TILE_SIZE, src.height - row_off)
         window_label = Window(
-            col_off=col_label - TILE_SIZE // 2,
-            row_off=row_label - TILE_SIZE // 2,
-            width=TILE_SIZE,
-            height=TILE_SIZE,
+            col_off=col_off,
+            row_off=row_off,
+            width=width,
+            height=height,
         )
         label_tile = src.read(window=window_label)
+        # If the tile is smaller than TILE_SIZE, pad it with no-data values
+        if label_tile.shape[1] < TILE_SIZE or label_tile.shape[2] < TILE_SIZE:
+            padded_label_tile = np.full(
+                (label_tile.shape[0], TILE_SIZE, TILE_SIZE),
+                NODATA_LABEL,
+                dtype=label_tile.dtype,
+            )
+            padded_label_tile[:, :height, :width] = label_tile
+            label_tile = padded_label_tile
+
         results["pixel_labels"] = label_tile.transpose(
             1, 2, 0
         )  # Convert entire array upfront  # HWC format
@@ -126,7 +141,10 @@ def process_plot(plot, plot_6661, plot_fid, label_path, las_files_directory, max
     valid_mask = np.zeros((TILE_SIZE, TILE_SIZE), dtype=bool)
     for i in range(TILE_SIZE):
         for j in range(TILE_SIZE):
-            valid_mask[i, j] = process_pixel(results["pixel_labels"][i, j])
+            if results["pixel_labels"][i, j] != NODATA_LABEL:
+                valid_mask[i, j] = process_pixel(results["pixel_labels"][i, j])
+            else:
+                valid_mask[i, j] = False  # Mark as invalid if it's a no-data value
 
     # Skip if valid pixels < 13 (10000m2)
     if np.sum(valid_mask) < 13:
@@ -142,16 +160,31 @@ def process_plot(plot, plot_6661, plot_fid, label_path, las_files_directory, max
                 # Convert plot centroid to pixel coordinates
                 px, py = src.index(centroid.x, centroid.y)
                 # Calculate window bounds
+                col_off = max(0, py - TILE_SIZE // 2)
+                row_off = max(0, px - TILE_SIZE // 2)
+                width = min(TILE_SIZE, src.width - col_off)
+                height = min(TILE_SIZE, src.height - row_off)
+
+                # Create the window
                 window = Window(
-                    col_off=py - TILE_SIZE // 2,
-                    row_off=px - TILE_SIZE // 2,
-                    width=TILE_SIZE,
-                    height=TILE_SIZE,
+                    col_off=col_off, row_off=row_off, width=width, height=height
                 )
 
-                # Read tile and handle out-of-bounds
+                # Read the data within the window
                 tile = src.read(window=window, boundless=True, fill_value=NODATA_IMG)
-                results[f"img_{name}"] = tile.transpose(1, 2, 0)  # HWB format
+
+                # If the tile is smaller than TILE_SIZE, pad it with no-data values
+                if tile.shape[1] < TILE_SIZE or tile.shape[2] < TILE_SIZE:
+                    padded_tile = np.full(
+                        (tile.shape[0], TILE_SIZE, TILE_SIZE),
+                        NODATA_IMG,
+                        dtype=tile.dtype,
+                    )
+                    padded_tile[:, :height, :width] = tile
+                    tile = padded_tile
+
+                # Store the result in HWC format
+                results[f"img_{name}"] = tile.transpose(1, 2, 0)  # HWC format
 
         # 4. Apply mask to S2 and labels
         for name in IMG_PATHS:
