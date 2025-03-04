@@ -141,7 +141,7 @@ def process_plot(plot, plot_6661, plot_fid, label_path, las_files_directory, max
     valid_mask = np.zeros((TILE_SIZE, TILE_SIZE), dtype=bool)
     for i in range(TILE_SIZE):
         for j in range(TILE_SIZE):
-            if results["pixel_labels"][i, j] != NODATA_LABEL:
+            if np.all(results["pixel_labels"][i, j]) != NODATA_LABEL:
                 valid_mask[i, j] = process_pixel(results["pixel_labels"][i, j])
             else:
                 valid_mask[i, j] = False  # Mark as invalid if it's a no-data value
