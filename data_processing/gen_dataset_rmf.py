@@ -16,19 +16,19 @@ from pyproj import CRS
 TILE_SIZE = 32
 SPECIES_COUNT = 22
 IMG_PATHS = {
-    "s2_2020_spring": "/mnt/d/Sync/research/tree_species_estimation/tree_dataset/ovf/processed/ovf_img/ovf_s2_10m_2020_spring.tif",
-    "s2_2020_summer": "/mnt/d/Sync/research/tree_species_estimation/tree_dataset/ovf/processed/ovf_img/ovf_s2_10m_2020_summer.tif",
-    "s2_2020_fall": "/mnt/d/Sync/research/tree_species_estimation/tree_dataset/ovf/processed/ovf_img/ovf_s2_10m_2020_fall.tif",
-    "s2_2020_winter": "/mnt/d/Sync/research/tree_species_estimation/tree_dataset/ovf/processed/ovf_img/ovf_s2_10m_2020_winter.tif",
-    "dem": "/mnt/d/Sync/research/tree_species_estimation/tree_dataset/ovf/processed/ovf_img/ovf_spldem_10m.tif",
+    "s2_2020_spring": "/mnt/d/Sync/research/tree_species_estimation/tree_dataset/rmf/rmf_s2/spring/masked/mosaic_10m_FOR_ntems.tif",
+    "s2_2020_summer": "/mnt/d/Sync/research/tree_species_estimation/tree_dataset/rmf/rmf_s2/summer/masked//mosaic_10m_FOR_ntems.tif",
+    "s2_2020_fall": "/mnt/d/Sync/research/tree_species_estimation/tree_dataset/rmf/rmf_s2/fall/masked//mosaic_10m_FOR_ntems.tif",
+    "s2_2020_winter": "/mnt/d/Sync/research/tree_species_estimation/tree_dataset/rmf/rmf_s2/winter/masked//mosaic_10m_FOR_ntems.tif",
+    "dem": "/mnt/d/Sync/research/tree_species_estimation/tree_dataset/rmf/imagery/rmf_spl_dem/masked/rmf_spl_dem_10m_ntems.tif",
 }
 LABEL_RASTER_PATH = os.path.abspath(
-    "/mnt/d/Sync/research/tree_species_estimation/tree_dataset/ovf/processed/ovf_fri/masked/ovf_label_10m.tif"
+    "/mnt/d/Sync/research/tree_species_estimation/tree_dataset/rmf/rmf_fri/masked/RMF_PolygonForest_ntems_10m.tif"
 )
-LAS_FILES_DIR = r"/mnt/g/ovf/raw_laz"
-OUTPUT_DIR = r"/mnt/g/ovf/dataset/test"
+LAS_FILES_DIR = r"/mnt/g/rmf/raw_laz"
+OUTPUT_DIR = r"/mnt/g/rmf/tl_dataset/train"
 MAX_POINTS = 7168  # Max points to sample per plot
-NODATA_IMG = -np.inf
+NODATA_IMG = 0
 NODATA_LABEL = -1
 # Ensure output directory exists
 os.makedirs(OUTPUT_DIR, exist_ok=True)
@@ -208,7 +208,7 @@ def main_workflow(plots_file):
 # Run the pipeline
 if __name__ == "__main__":
     main_workflow(
-        plots_file="/mnt/d/Sync/research/tree_species_estimation/tree_dataset/ovf/processed/plots/plot_test_prom10_rem100_Tilename_2958.gpkg"
+        plots_file="/mnt/d/Sync/research/tree_species_estimation/tree_dataset/rmf/rmf_plots/tl/plot_train_prom10_perc60_rem100_Tilename_2958.gpkg"
     )
 
     """

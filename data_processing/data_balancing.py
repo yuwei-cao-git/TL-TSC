@@ -12,30 +12,8 @@ from sklearn.model_selection import train_test_split
 AUGMENTATION_FACTOR = 3  # Number of augmented copies per plot
 BUFFER_DISTANCE = 50  # Meters from polygon boundary
 PLOT_RADIUS = 11.28  # Meters (≈400m² area)
-SPECIES_ORDER = [
-    "AB",
-    "PO",
-    "SW",
-    "BW",
-    "BF",
-    "CE",
-    "LA",
-    "MR",
-    "PW",
-    "MH",
-    "IW",
-    "HE",
-    "OR",
-    "BY",
-    "AW",
-    "PR",
-    "BD",
-    "SB",
-    "BE",
-    "PJ",
-    "PS",
-    "SR",
-]
+# SPECIES_ORDER = ["AB", "PO","SW","BW","BF","CE","LA","MR","PW","MH","IW","HE","OR","BY","AW","PR","BD","SB","BE","PJ","PS","SR",]
+SPECIES_ORDER = ["BF", "BW", "CE", "LA", "PT", "PJ", "PO", "SB", "SW"]
 
 
 # ------------------- CORE FUNCTIONS ------------------- #
@@ -83,7 +61,7 @@ def random_plots(boundary, target_samples, distance):
                 {
                     "geometry": points,
                     "POLYID": poly_data["POLYID"],  # Inherit POLYID
-                    "OSPCOMP": poly_data["OSPCOMP"],  # Inherit composition
+                    "SPCOMP": poly_data["SPCOMP"],  # Inherit composition
                 },
                 crs=crs,
             )
@@ -97,7 +75,7 @@ def random_plots(boundary, target_samples, distance):
 
 
 def gen_plots_nontrain(gdf):
-    comp_counts = gdf.groupby("OSPCOMP").size().reset_index(name="count")
+    comp_counts = gdf.groupby("SPCOMP").size().reset_index(name="count")
     plot_dfs = []
 
     for _, row in tqdm(
@@ -106,12 +84,12 @@ def gen_plots_nontrain(gdf):
         colour="green",
         desc="val/test plot generation",
     ):
-        comp = row["OSPCOMP"]
+        comp = row["SPCOMP"]
 
-        subset = gdf[gdf["OSPCOMP"] == comp]
-        plots = random_plots(subset, 2, 50)
+        subset = gdf[gdf["SPCOMP"] == comp]
+        plots = random_plots(subset, 1, 50)
         if plots is not None:
-            plots["OSPCOMP"] = comp
+            plots["SPCOMP"] = comp
             plot_dfs.append(plots)
 
     return gpd.GeoDataFrame(pd.concat(plot_dfs, ignore_index=True))
@@ -153,8 +131,8 @@ def augment_dataset(gdf):
     """Augment plots while retaining attributes"""
     augmented_rows = []
 
-    for comp in tqdm(gdf["OSPCOMP"].unique(), desc="Augmenting"):
-        comp_subset = gdf[gdf["OSPCOMP"] == comp]
+    for comp in tqdm(gdf["SPCOMP"].unique(), desc="Augmenting"):
+        comp_subset = gdf[gdf["SPCOMP"] == comp]
         parent_poly = comp_subset.union_all()
 
         for _, row in comp_subset.iterrows():
@@ -182,7 +160,7 @@ def add_perc_specs(gdf):
     perc_specs = []
     # SPECIES_ORDER = (gdf["OSPCOMP"].apply(parse_ospcomp).apply(pd.Series).fillna(0).columns.tolist())
     for _, row in gdf.iterrows():
-        species_props = parse_ospcomp(row["OSPCOMP"])
+        species_props = parse_ospcomp(row["SPCOMP"])
         vector = {s: 0.0 for s in SPECIES_ORDER}
         for s, p in species_props.items():
             if s in vector:
@@ -197,7 +175,7 @@ def add_perc_specs(gdf):
 # ------------------- BALANCING ALGORITHM ------------------- #
 def balance_compositions(gdf):
     """Tiered composition balancing"""
-    comp_counts = gdf.groupby("OSPCOMP").size().reset_index(name="count")
+    comp_counts = gdf.groupby("SPCOMP").size().reset_index(name="count")
     balanced_dfs = []
 
     for _, row in tqdm(
@@ -206,7 +184,7 @@ def balance_compositions(gdf):
         colour="green",
         desc="training dataset composition balancing",
     ):
-        comp, count = row["OSPCOMP"], row["count"]
+        comp, count = row["SPCOMP"], row["count"]
 
         # Tiered target formula
         if count >= 1000:
@@ -216,7 +194,7 @@ def balance_compositions(gdf):
         else:
             target = 200
 
-        subset = gdf[gdf["OSPCOMP"] == comp]
+        subset = gdf[gdf["SPCOMP"] == comp]
         plots = random_plots(subset, target, 50)
         if plots is not None:
             plots["OSPCOMP"] = comp
@@ -237,7 +215,7 @@ def calculate_species_targets(gdf, percentile=75, min_target=100):
     # Step 1: Calculate total species counts
     species_counts = {}
     for _, row in gdf.iterrows():
-        species_props = parse_ospcomp(row["OSPCOMP"])
+        species_props = parse_ospcomp(row["SPCOMP"])
         for species in species_props:
             species_counts[species] = species_counts.get(species, 0) + 1
 
@@ -264,7 +242,7 @@ def balance_species_proportions(gdf, species_targets):
     # Prioritize plots with rare species
     plot_scores = []
     for idx, row in gdf.iterrows():
-        species = list(parse_ospcomp(row["OSPCOMP"]).keys())
+        species = list(parse_ospcomp(row["SPCOMP"]).keys())
         score = sum(1 / quota[s] for s in species)  # Lower score = more rare
         plot_scores.append((idx, score))
 
@@ -274,7 +252,7 @@ def balance_species_proportions(gdf, species_targets):
     # Select plots until quotas are filled
     selected_indices = []
     for idx, score in plot_scores:
-        species = list(parse_ospcomp(gdf.iloc[idx]["OSPCOMP"]).keys())
+        species = list(parse_ospcomp(gdf.iloc[idx]["SPCOMP"]).keys())
         if all(quota[s] > 0 for s in species):
             selected_indices.append(idx)
             for s in species:
@@ -305,7 +283,7 @@ def ensure_min_samples(gdf, min_samples):
     Ensure each class has at least `min_samples` in the validation set.
     """
     balanced_samples = []
-    for comp, group in gdf.groupby("OSPCOMP"):
+    for comp, group in gdf.groupby("SPCOMP"):  # OSPCOMP
         if len(group) < min_samples:
             # Oversample rare classes
             balanced_samples.append(
@@ -319,12 +297,12 @@ def ensure_min_samples(gdf, min_samples):
 def split_dataset(gdf, test_size=0.15, val_size=0.15):
     # Stratify by composition group to preserve balance
     train_val, test = train_test_split(
-        gdf, test_size=test_size, stratify=gdf["OSPCOMP"], random_state=42
+        gdf, test_size=test_size, stratify=gdf["SPCOMP"], random_state=42
     )
     train, val = train_test_split(
         train_val,
         test_size=val_size / (1 - test_size),
-        stratify=train_val["OSPCOMP"],
+        stratify=train_val["SPCOMP"],
         random_state=42,
     )
     val = ensure_min_samples(val, min_samples=2)
@@ -334,12 +312,13 @@ def split_dataset(gdf, test_size=0.15, val_size=0.15):
 # ------------------- MAIN WORKFLOW ------------------- #
 if __name__ == "__main__":
     # Load data
+    # ovf_fri_clean = gpd.read_file(r"/mnt/d/Sync/research/tree_species_estimation/tree_dataset/ovf/processed/ovf_fri/ovf_fri_prominate10.gpkg")
     ovf_fri_clean = gpd.read_file(
-        r"/mnt/d/Sync/research/tree_species_estimation/tree_dataset/ovf/processed/ovf_fri/ovf_fri_prominate10.gpkg"
+        r"/mnt/d/Sync/research/tree_species_estimation/tree_dataset/rmf/rmf_fri/fri_rmf_cleaned_9class.gpkg"
     )
     # 1. Split dataset: as don't want to balance the validation and test dataset
     _, val_polygons, test_polygons = split_dataset(
-        ovf_fri_clean, test_size=0.3, val_size=0.3
+        ovf_fri_clean, test_size=0.4, val_size=0.4
     )
     val = add_perc_specs(gen_plots_nontrain(val_polygons))
     print(f"validate plots: {len(val)}")
@@ -347,15 +326,20 @@ if __name__ == "__main__":
     print(f"test plots: {len(test)}")
     train = add_perc_specs(gen_plots_nontrain(ovf_fri_clean))
     print(f"train plots: {len(train)}")
+    # train.to_file(r"/mnt/d/Sync/research/tree_species_estimation/tree_dataset/ovf/processed/plots/plot_train_prominant10_raw.gpkg")
+    # val.to_file(r"/mnt/d/Sync/research/tree_species_estimation/tree_dataset/ovf/processed/plots/plot_val_prominant10.gpkg")
+    # test.to_file(r"/mnt/d/Sync/research/tree_species_estimation/tree_dataset/ovf/processed/plots/plot_test_prominant10.gpkg")
+
     train.to_file(
-        r"/mnt/d/Sync/research/tree_species_estimation/tree_dataset/ovf/processed/plots/plot_train_prominant10_raw.gpkg"
+        r"/mnt/d/Sync/research/tree_species_estimation/tree_dataset/rmf/rmf_plots/tl/plot_train_prominant10_raw.gpkg"
     )
     val.to_file(
-        r"/mnt/d/Sync/research/tree_species_estimation/tree_dataset/ovf/processed/plots/plot_val_prominant10.gpkg"
+        r"/mnt/d/Sync/research/tree_species_estimation/tree_dataset/rmf/rmf_plots/tl/plot_val_prominant10.gpkg"
     )
     test.to_file(
-        r"/mnt/d/Sync/research/tree_species_estimation/tree_dataset/ovf/processed/plots/plot_test_prominant10.gpkg"
+        r"/mnt/d/Sync/research/tree_species_estimation/tree_dataset/rmf/rmf_plots/tl/plot_test_prominant10.gpkg"
     )
+    """
     # 2. Balance training set
     train_balanced = balance_training_set(ovf_fri_clean, percentile=60)
 
@@ -370,6 +354,8 @@ if __name__ == "__main__":
     )
 
     # Save datasets
+    # full_train.to_file(r"/mnt/d/Sync/research/tree_species_estimation/tree_dataset/ovf/processed/plots/plot_train_prominant10_perc60_balanced.gpkg")
     full_train.to_file(
-        r"/mnt/d/Sync/research/tree_species_estimation/tree_dataset/ovf/processed/plots/plot_train_prominant10_perc60_balanced.gpkg"
+        r"/mnt/d/Sync/research/tree_species_estimation/tree_dataset/rmf/rmf_plots/tl/plot_train_prominant10_perc60_balanced.gpkg"
     )
+    """
