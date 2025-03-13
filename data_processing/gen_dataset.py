@@ -5,12 +5,12 @@ from rasterio.windows import Window
 from shapely.geometry import Point
 from tqdm import tqdm
 import os
-from pathlib import Path
 from joblib import Parallel, delayed
 from multiprocessing import cpu_count
 from resample_pts import farthest_point_sampling
 import laspy
 from pyproj import CRS
+from pts_utils import normalize_point_cloud, center_point_cloud
 
 # Configuration
 TILE_SIZE = 32
@@ -26,9 +26,9 @@ LABEL_RASTER_PATH = os.path.abspath(
     "/mnt/d/Sync/research/tree_species_estimation/tree_dataset/ovf/processed/ovf_fri/masked/ovf_label_10m.tif"
 )
 LAS_FILES_DIR = r"/mnt/g/ovf/raw_laz"
-OUTPUT_DIR = r"/mnt/g/ovf/dataset/test"
+OUTPUT_DIR = r"/mnt/g/ovf/dataset/train"
 MAX_POINTS = 7168  # Max points to sample per plot
-NODATA_IMG = -np.inf
+NODATA_IMG = 255
 NODATA_LABEL = -1
 # Ensure output directory exists
 os.makedirs(OUTPUT_DIR, exist_ok=True)
@@ -70,13 +70,10 @@ def resample_points_within_polygon(pts, max_pts):
         else:
             use_idx = np.random.choice(pts.shape[0], num_points, replace=True)
             pts = pts[use_idx, :]
-        xyz = pts
-        xyz_min = np.amin(xyz, axis=0, keepdims=True)
-        xyz_max = np.amax(xyz, axis=0, keepdims=True)
-        xyz_center = (xyz_min + xyz_max) / 2
-        xyz_center[0][-1] = xyz_min[0][-1]
-        xyz = xyz - xyz_center
-        pts = np.hstack((pts, xyz))
+
+        xyz_normalized = normalize_point_cloud(pts)
+        xyz_cercered = center_point_cloud(pts)
+        pts = np.hstack((xyz_normalized, xyz_cercered))
         return pts
 
 
@@ -171,20 +168,39 @@ def process_plot(plot, plot_6661, plot_fid, label_path, las_files_directory, max
                 )
 
                 # Read the data within the window
-                tile = src.read(window=window, boundless=True, fill_value=NODATA_IMG)
+                tile = src.read(window=window, boundless=True, fill_value=src.nodata)
 
-                # If the tile is smaller than TILE_SIZE, pad it with no-data values
-                if tile.shape[1] < TILE_SIZE or tile.shape[2] < TILE_SIZE:
-                    padded_tile = np.full(
-                        (tile.shape[0], TILE_SIZE, TILE_SIZE),
-                        NODATA_IMG,
-                        dtype=tile.dtype,
-                    )
-                    padded_tile[:, :height, :width] = tile
-                    tile = padded_tile
+                # Convert to uint8 with dynamic scaling
+                uint8_tile = np.full(tile.shape, NODATA_IMG, dtype=np.uint8)
 
-                # Store the result in HWC format
-                results[f"img_{name}"] = tile.transpose(1, 2, 0)  # HWC format
+                for band_idx in range(tile.shape[0]):
+                    band_data = tile[band_idx]
+
+                    # Create mask of valid pixels
+                    valid_mask = band_data != src.nodata
+                    valid_pixels = band_data[valid_mask]
+
+                    if valid_pixels.size == 0:
+                        continue  # Entire band is nodata
+
+                    # Calculate dynamic range (2nd-98th percentile)
+                    p_low, p_high = np.percentile(valid_pixels, [1, 99])
+                    if p_high <= p_low:
+                        p_low, p_high = valid_pixels.min(), valid_pixels.max()
+                        if p_high <= p_low:
+                            p_high = p_low + 1  # Prevent division by zero
+
+                    # Scale and convert valid pixels
+                    scaled = (band_data.astype(np.float32) - p_low) / (p_high - p_low)
+                    scaled = np.clip(scaled * 254, 0, 254).astype(
+                        np.uint8
+                    )  # 0-254 = valid
+
+                    # Apply to output (only valid pixels)
+                    uint8_tile[band_idx][valid_mask] = scaled[valid_mask]
+
+            # Store result in HWC format with uint8 type
+            results[f"img_{name}"] = uint8_tile.transpose(1, 2, 0)
 
         # 4. Apply mask to S2 and labels
         for name in IMG_PATHS:
@@ -195,7 +211,7 @@ def process_plot(plot, plot_6661, plot_fid, label_path, las_files_directory, max
         results["pixel_labels"][~valid_mask] = NODATA_LABEL
 
         # 6. Add plot-level labels
-        results["plot_label"] = np.array(plot["perc_specs"])
+        results["plot_label"] = get_plot_labels(plot["perc_specs"])
 
         # 7. Add point cloud data
         tilename = plot_6661["Tilename"]
@@ -241,16 +257,16 @@ def main_workflow(plots_file):
 # Run the pipeline
 if __name__ == "__main__":
     main_workflow(
-        plots_file="/mnt/d/Sync/research/tree_species_estimation/tree_dataset/ovf/processed/plots/plot_test_prom10_rem100_Tilename_2958.gpkg"
+        plots_file="/mnt/d/Sync/research/tree_species_estimation/tree_dataset/ovf/processed/plots/plot_train_prom10_rem100_Tilename_2958.gpkg"
     )
 
     """
     {
         's2_spring': (32, 32, bands),  # -1 for invalid pixels
         's2_summer': (32, 32, bands),
-        'pixel_labels': (32, 32, 22),  # -1 for invalid pixels
+        'pixel_labels': (32, 32, classes),  # -1 for invalid pixels
         'valid_mask': (32, 32),        # Binary mask (1 = valid, 0 = invalid)
-        'plot_label': (22,),           # Original plot composition
+        'plot_label': (classes,),           # Original plot composition
         'point_cloud': (N, 3+)         # XYZ + attributes
     }
     data = np.load('plot_0.npz')

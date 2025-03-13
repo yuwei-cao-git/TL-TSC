@@ -5,30 +5,29 @@ from rasterio.windows import Window
 from shapely.geometry import Point
 from tqdm import tqdm
 import os
-from pathlib import Path
 from joblib import Parallel, delayed
 from multiprocessing import cpu_count
 from resample_pts import farthest_point_sampling
 import laspy
-from pyproj import CRS
+from pts_utils import normalize_point_cloud, center_point_cloud
 
 # Configuration
-TILE_SIZE = 32
+TILE_SIZE = 64
 SPECIES_COUNT = 22
 IMG_PATHS = {
-    "s2_2020_spring": "/mnt/d/Sync/research/tree_species_estimation/tree_dataset/rmf/rmf_s2/spring/masked/mosaic_10m_FOR_ntems.tif",
-    "s2_2020_summer": "/mnt/d/Sync/research/tree_species_estimation/tree_dataset/rmf/rmf_s2/summer/masked//mosaic_10m_FOR_ntems.tif",
-    "s2_2020_fall": "/mnt/d/Sync/research/tree_species_estimation/tree_dataset/rmf/rmf_s2/fall/masked//mosaic_10m_FOR_ntems.tif",
-    "s2_2020_winter": "/mnt/d/Sync/research/tree_species_estimation/tree_dataset/rmf/rmf_s2/winter/masked//mosaic_10m_FOR_ntems.tif",
+    "s2_spring": "/mnt/d/Sync/research/tree_species_estimation/tree_dataset/rmf/rmf_s2/spring/masked/mosaic_10m_FOR_ntems.tif",
+    "s2_summer": "/mnt/d/Sync/research/tree_species_estimation/tree_dataset/rmf/rmf_s2/summer/masked//mosaic_10m_FOR_ntems.tif",
+    "s2_fall": "/mnt/d/Sync/research/tree_species_estimation/tree_dataset/rmf/rmf_s2/fall/masked//mosaic_10m_FOR_ntems.tif",
+    "s2_winter": "/mnt/d/Sync/research/tree_species_estimation/tree_dataset/rmf/rmf_s2/winter/masked//mosaic_10m_FOR_ntems.tif",
     "dem": "/mnt/d/Sync/research/tree_species_estimation/tree_dataset/rmf/imagery/rmf_spl_dem/masked/rmf_spl_dem_10m_ntems.tif",
 }
 LABEL_RASTER_PATH = os.path.abspath(
     "/mnt/d/Sync/research/tree_species_estimation/tree_dataset/rmf/rmf_fri/masked/RMF_PolygonForest_ntems_10m.tif"
 )
 LAS_FILES_DIR = r"/mnt/g/rmf/raw_laz"
-OUTPUT_DIR = r"/mnt/g/rmf/tl_dataset/train"
+OUTPUT_DIR = r"/mnt/g/rmf/tl_dataset/tile_64/val"
 MAX_POINTS = 7168  # Max points to sample per plot
-NODATA_IMG = 0
+NODATA_IMG = 255
 NODATA_LABEL = -1
 # Ensure output directory exists
 os.makedirs(OUTPUT_DIR, exist_ok=True)
@@ -70,13 +69,9 @@ def resample_points_within_polygon(pts, max_pts):
         else:
             use_idx = np.random.choice(pts.shape[0], num_points, replace=True)
             pts = pts[use_idx, :]
-        xyz = pts
-        xyz_min = np.amin(xyz, axis=0, keepdims=True)
-        xyz_max = np.amax(xyz, axis=0, keepdims=True)
-        xyz_center = (xyz_min + xyz_max) / 2
-        xyz_center[0][-1] = xyz_min[0][-1]
-        xyz = xyz - xyz_center
-        pts = np.hstack((pts, xyz))
+        xyz_normalized = normalize_point_cloud(pts)
+        xyz_cercered = center_point_cloud(pts)
+        pts = np.hstack((xyz_normalized, xyz_cercered))
         return pts
 
 
@@ -103,41 +98,12 @@ def sample_points_within_polygon(las_file_path, polygon, max_pts):
     return resample_points_within_polygon(extracted_points, max_pts)
 
 
-def process_plot(plot, plot_6661, plot_fid, label_path, las_files_directory, max_pts):
+def process_plot(plot, plot_fid, label_path, las_files_directory, max_pts):
     """Process a single plot into training samples"""
     results = {}
     centroid = plot.geometry.centroid
 
     # 2. Process label raster
-    with rasterio.open(label_path) as src:
-        row_label, col_label = src.index(centroid.x, centroid.y)
-        window_label = Window(
-            col_off=col_label - TILE_SIZE // 2,
-            row_off=row_label - TILE_SIZE // 2,
-            width=TILE_SIZE,
-            height=TILE_SIZE,
-        )
-        label_tile = src.read(window=window_label)
-        results["pixel_labels"] = label_tile.transpose(
-            1, 2, 0
-        )  # Convert entire array upfront  # HWC format
-
-    # 3. Create validity mask
-    valid_mask = np.zeros((TILE_SIZE, TILE_SIZE), dtype=bool)
-    for i in range(TILE_SIZE):
-        for j in range(TILE_SIZE):
-            valid_mask[i, j] = process_pixel(results["pixel_labels"][i, j])
-
-    # Skip if valid pixels < 13 (10000m2)
-    if np.sum(valid_mask) < 13:
-        print(f"Skipping plot {plot_fid} - no valid pixels")
-        return None
-
-    else:
-        # 5. Add validity mask to results
-        results["valid_mask"] = valid_mask.astype(np.uint8)  # Save as binary (0 or 1)
-        # 1. Process imagery
-        # 2. Process label raster
     with rasterio.open(label_path) as src:
         row_label, col_label = src.index(centroid.x, centroid.y)
         # Calculate the window boundaries
@@ -162,9 +128,9 @@ def process_plot(plot, plot_6661, plot_fid, label_path, las_files_directory, max
             padded_label_tile[:, :height, :width] = label_tile
             label_tile = padded_label_tile
 
-        results["pixel_labels"] = label_tile.transpose(
-            1, 2, 0
-        )  # Convert entire array upfront  # HWC format
+        results["pixel_labels"] = (
+            label_tile  # Convert entire array upfront  # CHW format
+        ).transpose(1, 2, 0)
 
     # 3. Create validity mask
     valid_mask = np.zeros((TILE_SIZE, TILE_SIZE), dtype=bool)
@@ -200,20 +166,39 @@ def process_plot(plot, plot_6661, plot_fid, label_path, las_files_directory, max
                 )
 
                 # Read the data within the window
-                tile = src.read(window=window, boundless=True, fill_value=NODATA_IMG)
+                tile = src.read(window=window, boundless=True, fill_value=src.nodata)
 
-                # If the tile is smaller than TILE_SIZE, pad it with no-data values
-                if tile.shape[1] < TILE_SIZE or tile.shape[2] < TILE_SIZE:
-                    padded_tile = np.full(
-                        (tile.shape[0], TILE_SIZE, TILE_SIZE),
-                        NODATA_IMG,
-                        dtype=tile.dtype,
-                    )
-                    padded_tile[:, :height, :width] = tile
-                    tile = padded_tile
+                # Convert to uint8 with dynamic scaling
+                uint8_tile = np.full(tile.shape, NODATA_IMG, dtype=np.uint8)
 
-                # Store the result in HWC format
-                results[f"img_{name}"] = tile.transpose(1, 2, 0)  # HWC format
+                for band_idx in range(tile.shape[0]):
+                    band_data = tile[band_idx]
+
+                    # Create mask of valid pixels
+                    valid_mask = band_data != src.nodata
+                    valid_pixels = band_data[valid_mask]
+
+                    if valid_pixels.size == 0:
+                        continue  # Entire band is nodata
+
+                    # Calculate dynamic range (2nd-98th percentile)
+                    p_low, p_high = np.percentile(valid_pixels, [1, 99])
+                    if p_high <= p_low:
+                        p_low, p_high = valid_pixels.min(), valid_pixels.max()
+                        if p_high <= p_low:
+                            p_high = p_low + 1  # Prevent division by zero
+
+                    # Scale and convert valid pixels
+                    scaled = (band_data.astype(np.float32) - p_low) / (p_high - p_low)
+                    scaled = np.clip(scaled * 254, 0, 254).astype(
+                        np.uint8
+                    )  # 0-254 = valid
+
+                    # Apply to output (only valid pixels)
+                    uint8_tile[band_idx][valid_mask] = scaled[valid_mask]
+
+                # Store result in HWC format with uint8 type
+                results[f"img_{name}"] = uint8_tile.transpose(1, 2, 0)
 
         # 4. Apply mask to S2 and labels
         for name in IMG_PATHS:
@@ -224,15 +209,16 @@ def process_plot(plot, plot_6661, plot_fid, label_path, las_files_directory, max
         results["pixel_labels"][~valid_mask] = NODATA_LABEL
 
         # 6. Add plot-level labels
-        results["plot_label"] = np.array(plot["perc_specs"])
+        results["plot_label"] = get_plot_labels(plot["perc_specs"])
 
         # 7. Add point cloud data
-        tilename = plot_6661["Tilename"]
-        polygon = plot_6661.geometry.buffer(11.28)
+        tilename = plot["Tilename"]
+        polygon = plot.geometry.buffer(11.28)
         las_file_path = os.path.join(las_files_directory, f"{tilename}.laz")
         if os.path.exists(las_file_path):
             point_cloud = sample_points_within_polygon(las_file_path, polygon, max_pts)
             if point_cloud is None:
+                print("do not have point cloud in this area")
                 pass
             else:
                 results["point_cloud"] = point_cloud  # From process_polygon
@@ -249,19 +235,11 @@ def main_workflow(plots_file):
     """End-to-end processing workflow"""
     plots = gpd.read_file(plots_file)
     print(f"Loaded {len(plots)} plots")
-    plots_6661 = plots.copy()
-
-    las_crs = CRS.from_epsg(6661)
-    plots_6661 = plots_6661.to_crs(las_crs)  # Convert polygon to assumed LAS CRS
 
     # Process plots with valid point clouds
-    final_results = Parallel(n_jobs=4)(
-        delayed(process_plot)(
-            plot, plot_6661, idx, LABEL_RASTER_PATH, LAS_FILES_DIR, MAX_POINTS
-        )
-        for (idx, plot), (_, plot_6661) in tqdm(
-            zip(plots.iterrows(), plots_6661.iterrows()), total=len(plots)
-        )
+    final_results = Parallel(n_jobs=6)(
+        delayed(process_plot)(plot, idx, LABEL_RASTER_PATH, LAS_FILES_DIR, MAX_POINTS)
+        for idx, plot in tqdm(plots.iterrows(), total=len(plots))
     )
 
     print(f"Processed {len([r for r in final_results if r])} valid plots")
@@ -270,7 +248,7 @@ def main_workflow(plots_file):
 # Run the pipeline
 if __name__ == "__main__":
     main_workflow(
-        plots_file="/mnt/d/Sync/research/tree_species_estimation/tree_dataset/rmf/rmf_plots/tl/plot_train_prom10_perc60_rem100_Tilename_2958.gpkg"
+        plots_file="/mnt/d/Sync/research/tree_species_estimation/tree_dataset/rmf/rmf_plots/tl/plot_val_prom10_rem100_Tilename_2958.gpkg"
     )
 
     """

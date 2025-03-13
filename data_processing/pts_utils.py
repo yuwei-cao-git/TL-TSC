@@ -7,6 +7,7 @@ import laspy
 import os
 from osgeo import gdal
 
+
 def print_color(text, color):
     # ANSI escape sequences for different colors
     color_codes = {
@@ -25,8 +26,8 @@ def print_color(text, color):
         print(color_code + text + reset_code)
     else:
         print(text)
-        
-        
+
+
 def pixel_centers(raster_path, shapefile_path):
     # Open the raster file
     with rasterio.open(raster_path) as src:
@@ -43,13 +44,18 @@ def pixel_centers(raster_path, shapefile_path):
 
         # Get the CRS of the raster
         crs = src.crs
-        #print("the shape of input raster: " + str(src.shape))
+        # print("the shape of input raster: " + str(src.shape))
         # Create the shapefile with the same CRS as the raster
-        schema = {"geometry": "Point", "properties": {"tile_name": "str", "tile_i": "int", "tile_j": "int"}}
+        schema = {
+            "geometry": "Point",
+            "properties": {"tile_name": "str", "tile_i": "int", "tile_j": "int"},
+        }
         # Check if the shapefile exists
         if not os.path.exists(shapefile_path):
             # Create the shapefile first if it doesn't exist
-            with fiona.open(shapefile_path, "w", "ESRI Shapefile", schema, crs=crs) as dst:
+            with fiona.open(
+                shapefile_path, "w", "ESRI Shapefile", schema, crs=crs
+            ) as dst:
                 # Optionally, you can write an initial feature if needed
                 pass
         with fiona.open(shapefile_path, "a", "ESRI Shapefile", schema, crs=crs) as dst:
@@ -57,25 +63,28 @@ def pixel_centers(raster_path, shapefile_path):
             raster_data = src.read(1)
 
             # Iterate over each pixel and write the center point to the shapefile if the pixel value is non-zero
-            for i, j in list(np.ndindex(src.shape)): # src.shape: (5807, 5196)
+            for i, j in list(np.ndindex(src.shape)):  # src.shape: (5807, 5196)
                 pixel_value = raster_data[i, j]
-                if (pixel_value != (src.nodatavals[0] or -1 or np.nan)):
+                if pixel_value != (src.nodatavals[0] or -1 or np.nan):
                     # Calculate the center coordinates of the pixel
                     x = transform.c + (j + 0.5) * transform.a
                     y = transform.f + (i + 0.5) * transform.e
-                    
+
                     # Create the point geometry
                     point = {"type": "Point", "coordinates": (x, y)}
 
                     # Create the feature and write it to the shapefile
                     feature = {
                         "geometry": point,
-                        "properties": {"tile_name": os.path.basename(raster_path)[:-4],
-                                       "tile_i": i,
-                                       "tile_j": j}
+                        "properties": {
+                            "tile_name": os.path.basename(raster_path)[:-4],
+                            "tile_i": i,
+                            "tile_j": j,
+                        },
                     }
                     dst.write(feature)
-    #print("Center Points Created")
+    # print("Center Points Created")
+
 
 def buffer_points(input_shapefile, output_shapefile, buffer_distance=10):
     """
@@ -99,10 +108,12 @@ def buffer_points(input_shapefile, output_shapefile, buffer_distance=10):
     # Save the buffered polygons to a new shapefile
     buffered_gdf.to_file(output_shapefile)
 
+
 # ref: https://pysal.org/tobler/_modules/tobler/area_weighted/area_join.html#area_join
 import numpy as np
 import pandas as pd
 import warnings
+
 
 def area_join(source_df, target_df, variables):
     """
@@ -121,7 +132,7 @@ def area_join(source_df, target_df, variables):
     -------
     joined : geopandas.GeoDataFrame
          target_df GeoDataFrame with joined variables as additional columns
-    
+
     """
     if not pd.api.types.is_list_like(variables):
         variables = [variables]
@@ -162,11 +173,16 @@ def area_join(source_df, target_df, variables):
             )
         target_df[v] = arr
     # Create the new 'POLYID' field by concatenating 'tile_name', 'tile_i', and 'tile_j'
-    target_df['POLYID'] = target_df['tile_name'].astype(str) + '_' +\
-                        target_df['tile_i'].astype(str) + '_' + \
-                        target_df['tile_j'].astype(str)
-                        
+    target_df["POLYID"] = (
+        target_df["tile_name"].astype(str)
+        + "_"
+        + target_df["tile_i"].astype(str)
+        + "_"
+        + target_df["tile_j"].astype(str)
+    )
+
     return target_df
+
 
 def read_las(pointcloudfile, get_attributes=False, useevery=1):
     """
@@ -195,7 +211,8 @@ def read_las(pointcloudfile, get_attributes=False, useevery=1):
         for las_field in las_fields:  # get all fields
             attributes[las_field] = inFile.points[las_field][::useevery]
         return (coords, attributes)
-    
+
+
 def write_las(outpoints, outfilepath, attribute_dict={}):
     """
     :param outpoints: 3D array of points to be written to output file
@@ -227,4 +244,22 @@ def write_las(outpoints, outfilepath, attribute_dict={}):
             las[key] = vals
 
     las.write(outfilepath)
-    
+
+
+def normalize_point_cloud(xyz):
+    # Center and scale spatial coordinates
+    centroid = np.mean(xyz, axis=0)
+    xyz_centered = xyz - centroid
+    max_distance = np.max(np.linalg.norm(xyz_centered, axis=1))
+    xyz_normalized = xyz_centered / (max_distance + 1e-8)
+
+    return xyz_normalized
+
+
+def center_point_cloud(xyz):
+    xyz_min = np.amin(xyz, axis=0, keepdims=True)
+    xyz_max = np.amax(xyz, axis=0, keepdims=True)
+    xyz_center = (xyz_min + xyz_max) / 2
+    xyz_center[0][-1] = xyz_min[0][-1]
+    xyz = xyz - xyz_center
+    return xyz
