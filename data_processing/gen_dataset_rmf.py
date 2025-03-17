@@ -25,7 +25,7 @@ LABEL_RASTER_PATH = os.path.abspath(
     "/mnt/d/Sync/research/tree_species_estimation/tree_dataset/rmf/rmf_fri/masked/RMF_PolygonForest_ntems_10m.tif"
 )
 LAS_FILES_DIR = r"/mnt/g/rmf/raw_laz"
-OUTPUT_DIR = r"/mnt/g/rmf/tl_dataset/tile_64/val"
+OUTPUT_DIR = r"/mnt/g/rmf/tl_dataset/tile_64/test"
 MAX_POINTS = 7168  # Max points to sample per plot
 NODATA_IMG = 255
 NODATA_LABEL = -1
@@ -165,12 +165,21 @@ def process_plot(plot, plot_fid, label_path, las_files_directory, max_pts):
                     col_off=col_off, row_off=row_off, width=width, height=height
                 )
 
-                # Read the data within the window
+                # Read and pad the tile (keep original uint16 type)
                 tile = src.read(window=window, boundless=True, fill_value=src.nodata)
+
+                # If the tile is smaller than TILE_SIZE, pad it with no-data values
+                if tile.shape[1] < TILE_SIZE or tile.shape[2] < TILE_SIZE:
+                    padded_tile = np.full(
+                        (tile.shape[0], TILE_SIZE, TILE_SIZE),
+                        NODATA_IMG,
+                        dtype=tile.dtype,
+                    )
+                    padded_tile[:, :height, :width] = tile
+                    tile = padded_tile
 
                 # Convert to uint8 with dynamic scaling
                 uint8_tile = np.full(tile.shape, NODATA_IMG, dtype=np.uint8)
-
                 for band_idx in range(tile.shape[0]):
                     band_data = tile[band_idx]
 
@@ -248,7 +257,7 @@ def main_workflow(plots_file):
 # Run the pipeline
 if __name__ == "__main__":
     main_workflow(
-        plots_file="/mnt/d/Sync/research/tree_species_estimation/tree_dataset/rmf/rmf_plots/tl/plot_val_prom10_rem100_Tilename_2958.gpkg"
+        plots_file="/mnt/d/Sync/research/tree_species_estimation/tree_dataset/rmf/rmf_plots/tl/plot_test_prom10_rem100_Tilename_2958.gpkg"
     )
 
     """
