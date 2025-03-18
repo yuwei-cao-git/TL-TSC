@@ -48,7 +48,9 @@ def main():
     parser.add_argument("--encoder", default="b", choices=["s", "b", "l", "xl"])
 
     parser.add_argument("--fusion_dim", type=int, default=128)
-    parser.add_argument("--optimizer", default="adamW", choices=["adam", "adamW", "sgd"])
+    parser.add_argument(
+        "--optimizer", default="adamW", choices=["adam", "adamW", "sgd"]
+    )
     parser.add_argument(
         "--scheduler",
         default="cosine",
@@ -120,7 +122,7 @@ def main():
 
     # Parse arguments
     params = vars(parser.parse_args())
-    params["save_dir"] = os.path.join(os.getcwd(), "fuse_train_logs")
+    params["save_dir"] = os.path.join(os.getcwd(), "tl_logs")
     params["data_dir"] = (
         params["data_dir"]
         if params["data_dir"] is not None
