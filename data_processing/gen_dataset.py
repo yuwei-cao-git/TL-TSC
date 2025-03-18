@@ -180,37 +180,8 @@ def process_plot(plot, plot_6661, plot_fid, label_path, las_files_directory, max
                     padded_tile[:, :height, :width] = tile
                     tile = padded_tile
 
-                # Convert to uint8 with dynamic scaling
-                uint8_tile = np.full(tile.shape, NODATA_IMG, dtype=np.uint8)
-
-                for band_idx in range(tile.shape[0]):
-                    band_data = tile[band_idx]
-
-                    # Create mask of valid pixels
-                    valid_mask = band_data != src.nodata
-                    valid_pixels = band_data[valid_mask]
-
-                    if valid_pixels.size == 0:
-                        continue  # Entire band is nodata
-
-                    # Calculate dynamic range (2nd-98th percentile)
-                    p_low, p_high = np.percentile(valid_pixels, [1, 99])
-                    if p_high <= p_low:
-                        p_low, p_high = valid_pixels.min(), valid_pixels.max()
-                        if p_high <= p_low:
-                            p_high = p_low + 1  # Prevent division by zero
-
-                    # Scale and convert valid pixels
-                    scaled = (band_data.astype(np.float32) - p_low) / (p_high - p_low)
-                    scaled = np.clip(scaled * 254, 0, 254).astype(
-                        np.uint8
-                    )  # 0-254 = valid
-
-                    # Apply to output (only valid pixels)
-                    uint8_tile[band_idx][valid_mask] = scaled[valid_mask]
-
             # Store result in HWC format with uint8 type
-            results[f"img_{name}"] = uint8_tile.transpose(1, 2, 0)
+            results[f"img_{name}"] = tile.transpose(1, 2, 0)
 
         # 4. Apply mask to S2 and labels
         for name in IMG_PATHS:
