@@ -31,7 +31,7 @@ def main():
         "--resolution",
         type=int,
         choices=[20, 10],
-        default=20,
+        default=10,
         help="Resolution to use for the data",
     )
     parser.add_argument(
@@ -45,23 +45,23 @@ def main():
     )
     parser.add_argument("--emb_dims", type=int, default=768)
     parser.add_argument("--num_points", type=int, default=7168)
-    parser.add_argument("--encoder", default="l", choices=["s", "b", "l", "xl"])
+    parser.add_argument("--encoder", default="b", choices=["s", "b", "l", "xl"])
 
     parser.add_argument("--fusion_dim", type=int, default=128)
-    parser.add_argument("--optimizer", default="adam", choices=["adam", "adamW", "sgd"])
+    parser.add_argument("--optimizer", default="adamW", choices=["adam", "adamW", "sgd"])
     parser.add_argument(
         "--scheduler",
-        default="steplr",
+        default="cosine",
         choices=["plateau", "steplr", "asha", "cosine"],
     )
     parser.add_argument(
-        "--img_lr", type=float, default=5e-4, help="initial learning rate"
+        "--img_lr", type=float, default=5e-3, help="initial learning rate"
     )
     parser.add_argument(
-        "--pc_lr", type=float, default=5e-4, help="initial learning rate"
+        "--pc_lr", type=float, default=5e-3, help="initial learning rate"
     )
     parser.add_argument(
-        "--fuse_lr", type=float, default=1e-5, help="initial learning rate"
+        "--fuse_lr", type=float, default=1e-4, help="initial learning rate"
     )
     parser.add_argument("--pc_loss_weight", type=float, default=10)
     parser.add_argument("--img_loss_weight", type=float, default=1)
