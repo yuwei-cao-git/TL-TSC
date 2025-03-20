@@ -27,14 +27,15 @@ echo "Data transfered"
 
 # Load python module, and additional required modules
 echo "load modules"
-module load python StdEnv gcc arrow
+#module load python StdEnv gcc arrow
+module load python StdEnv gcc arrow cuda
 virtualenv --no-download $SLURM_TMPDIR/env
 source $SLURM_TMPDIR/env/bin/activate
 pip install --no-index --upgrade pip
-pip install --no-index torch==2.5.0
-pip install --no-index ray[tune] tensorboardX lightning pytorch_lightning torchaudio==2.5.0 torchdata torcheval torchmetrics torchtext torchvision==0.20.0 rasterio imageio wandb numpy pandas
-pip install --no-index scikit-learn seaborn
-pip install --no-index mamba-ssm
+pip install --no-index lightning pytorch_lightning torch torchaudio torchdata torcheval torchmetrics torchvision
+pip install pointnext==0.0.5 
+pip install --no-index ray[tune] 
+pip install --no-index mamba-ssm tensorboardX scikit-learn seaborn rasterio imageio wandb
 
 echo "Virtual Env created!"
 
