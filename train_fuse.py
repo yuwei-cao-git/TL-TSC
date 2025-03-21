@@ -101,7 +101,7 @@ def main():
         action="store_true",
         help="Use mamba fusion (set flag to enable)",
     )
-    parser.add_argument("--linear_layers_dims", type=list_of_ints)
+    parser.add_argument("--linear_layers_dims", type=list_of_ints, default=[256, 128])
     parser.add_argument(
         "--img_transforms", default="compose", choices=["compose", "random", "None"]
     )
