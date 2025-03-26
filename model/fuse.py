@@ -16,7 +16,7 @@ from torchmetrics.functional import r2_score
 from torchmetrics.classification import (
     ConfusionMatrix,
 )
-from .loss import apply_mask, calc_loss, calc_nwmse_loss
+from .loss import apply_mask, calc_loss
 
 
 class FusionModel(pl.LightningModule):
@@ -24,8 +24,6 @@ class FusionModel(pl.LightningModule):
         super().__init__()
         self.save_hyperparameters(config)
         self.config = config
-        self.use_mamba_fuse = self.config["mamba_fuse"]
-        self.fuse_feature = self.config["fuse_feature"]
         self.f = self.config["linear_layers_dims"]  # f = [512, 128]
 
         # Initialize s2 model
@@ -37,10 +35,11 @@ class FusionModel(pl.LightningModule):
         self.spatial_attention = False
 
         # Using standard UNet
-        self.s2_model = ResUnet(
+        self.s2_model = UNet(
             n_channels=total_input_channels, n_classes=self.config["n_classes"]
         )
         self.pc_model = PointNextModel(self.config, in_dim=3)
+
         # Fusion and classification layers with additional linear layer
         self.fuse_head = MambaFusionBlock(
             in_img_chs=512,
@@ -147,7 +146,6 @@ class FusionModel(pl.LightningModule):
         else:  # stage == "test"
             r2_metric = self.test_r2
 
-        # Point cloud stream
         # Compute point cloud loss
         if self.config["weighted_loss"] and stage == "train":
             self.weights = self.weights.to(pc_preds.device)

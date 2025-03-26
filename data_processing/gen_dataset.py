@@ -46,14 +46,14 @@ def get_plot_labels(specs_perc):
 
 def process_pixel(pixel_label):
     """Validate individual pixel and return mask value"""
-    # Convet data type
+    # Convert data type
     pixel_label = pixel_label.astype(np.float32)
     # Check if all bands are -1 (no data)
     if np.all(pixel_label == -1.0):
         return False
-    # Check sum is approximately 1.0 with tolerance
+    # Check sum is 1.0
     label_sum = np.sum(pixel_label)
-    return np.isclose(label_sum, 1.0, rtol=1e-5, atol=1e-5)
+    return label_sum == 1.0
 
 
 def resample_points_within_polygon(pts, max_pts):

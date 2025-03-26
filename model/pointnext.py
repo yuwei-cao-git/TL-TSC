@@ -45,7 +45,6 @@ class PointNextModel(nn.Module):
         )
 
     def forward(self, pc_feat, xyz):
-        # TODO: test add a conv layer before norm (self.conv=nn.Conv1d(self.config["emb_dims"], self.config["emb_dims"]))
         pc_feats = self.norm(self.backbone(pc_feat, xyz))
         out = pc_feats.mean(dim=-1)
         out = self.act(out)
