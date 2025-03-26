@@ -22,41 +22,6 @@ def calc_loss(y_true, y_pred, weights):
     return loss
 
 
-class NormWeightedMSELoss(nn.Module):
-    def __init__(self, weights):
-        super().__init__()
-        self.weights = weights
-        self.eps = 1e-6  # Stability epsilon
-
-    def forward(self, y_pred, y_true):
-        # 1. Input validation
-        if torch.isnan(y_pred).any() or torch.isnan(y_true).any():
-            raise RuntimeError("NaN in loss inputs")
-
-        # 2. Error calculation with clamping
-        errors = y_pred - y_true
-        clipped_errors = torch.clamp(errors, -1e3, 1e3)  # Prevent explosive gradients
-
-        # 3. Safe squared calculation
-        squared_errors = clipped_errors.pow(2)
-        weighted_errors = squared_errors * self.weights
-
-        # 4. Protected normalization
-        valid_elements = (
-            torch.numel(weighted_errors) - torch.isnan(weighted_errors).sum()
-        )
-        loss = weighted_errors.nansum() / (valid_elements + self.eps)
-
-        return loss
-
-
-def calc_nwmse_loss(valid_outputs, valid_targets, weights):
-    weighted_mse = NormWeightedMSELoss(weights)
-    loss = weighted_mse(valid_outputs, valid_targets)
-
-    return loss
-
-
 def apply_mask(outputs, targets, mask, multi_class=True, keep_shp=False):
     """
     Applies the mask to outputs and targets to exclude invalid data points.

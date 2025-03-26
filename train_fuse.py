@@ -57,21 +57,21 @@ def main():
         choices=["plateau", "steplr", "asha", "cosine"],
     )
     parser.add_argument(
-        "--img_lr", type=float, default=5e-3, help="initial learning rate"
+        "--img_lr", type=float, default=1e-4, help="initial learning rate"
     )
     parser.add_argument(
-        "--pc_lr", type=float, default=5e-3, help="initial learning rate"
+        "--pc_lr", type=float, default=1e-4, help="initial learning rate"
     )
     parser.add_argument(
         "--fuse_lr", type=float, default=1e-4, help="initial learning rate"
     )
-    parser.add_argument("--pc_loss_weight", type=float, default=10)
-    parser.add_argument("--img_loss_weight", type=float, default=1)
-    parser.add_argument("--fuse_loss_weight", type=float, default=10)
+    parser.add_argument("--pc_loss_weight", type=float, default=1.0)
+    parser.add_argument("--img_loss_weight", type=float, default=1.0)
+    parser.add_argument("--fuse_loss_weight", type=float, default=1.0)
     parser.add_argument("--leading_loss", action="store_true")
     parser.add_argument("--lead_loss_weight", type=float, default=0.15)
     parser.add_argument("--leading_class_weights", default=True)
-    parser.add_argument("--weighted_loss", default=True)
+    parser.add_argument("--weighted_loss", action="store_true")
     parser.add_argument("--patience", type=int, default=10)
     parser.add_argument("--step_size", type=int, default=10)
     parser.add_argument("--momentum", type=float, default=0.9)
