@@ -16,7 +16,7 @@ from torchmetrics.functional import r2_score
 from torchmetrics.classification import (
     ConfusionMatrix,
 )
-from .loss import apply_mask, calc_loss
+from .loss import apply_mask, calc_loss, calc_pinball_loss
 
 
 class FusionModel(pl.LightningModule):
@@ -150,6 +150,7 @@ class FusionModel(pl.LightningModule):
         if self.config["weighted_loss"] and stage == "train":
             self.weights = self.weights.to(pc_preds.device)
             loss_point = self.pc_loss_weight * calc_loss(labels, pc_preds, self.weights)
+            # loss_point = self.pc_loss_weight * calc_pinball_loss(labels, pc_preds)
         else:
             loss_point = self.pc_loss_weight * self.criterion(pc_preds, labels)
         loss += loss_point
@@ -179,6 +180,7 @@ class FusionModel(pl.LightningModule):
             loss_pixel = self.img_loss_weight * calc_loss(
                 valid_pixel_true, valid_pixel_preds, self.weights
             )
+            # loss_pixel = self.img_loss_weight * calc_pinball_loss(valid_pixel_true, valid_pixel_preds)
         else:
             loss_pixel = self.img_loss_weight * self.criterion(
                 valid_pixel_preds, valid_pixel_true
@@ -205,6 +207,7 @@ class FusionModel(pl.LightningModule):
             loss_fuse = self.fuse_loss_weight * calc_loss(
                 labels, fuse_preds, self.weights
             )
+            # loss_fuse = self.fuse_loss_weight * calc_pinball_loss(labels, fuse_preds)
         else:
             loss_fuse = self.fuse_loss_weight * self.criterion(fuse_preds, labels)
         loss += loss_fuse

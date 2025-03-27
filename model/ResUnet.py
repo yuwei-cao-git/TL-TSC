@@ -5,11 +5,16 @@ from .blocks import Stem, ResidualBlock, ConvBlock, UpSampleConcat
 
 # ResidualUNet model
 class ResUnet(nn.Module):
-    def __init__(self, n_channels=52, n_classes=9):
+    def __init__(self, n_channels=52, n_classes=9, block_expansion=1):
         super(ResUnet, self).__init__()
-        # f = [16, 32, 64, 128, 256]  # Filter sizes
         # f = [64, 128, 256, 512, 1024]
-        f = [32, 64, 128, 256, 512]
+        f = [
+            32 * block_expansion,
+            64 * block_expansion,
+            128 * block_expansion,
+            256 * block_expansion,
+            512 * block_expansion,
+        ]
         # Encoder
         self.stem = Stem(n_channels, f[0])
         self.residual_block1 = ResidualBlock(f[0], f[1], stride=2)
