@@ -45,15 +45,16 @@ class BalancedDataset(Dataset):
         data = np.load(self.dataset_files[idx], allow_pickle=True)
         # Select the images based on the data2use list
         images = [self.transforms(data[image_key]) for image_key in self.images_list]
-        images = torch.stack(
-            images, axis=0
-        )  # Shape: (num_seasons, num_channels, tile_size, tile_size)
+        # images = torch.stack( images, axis=0)  # Shape: (num_seasons, num_channels, tile_size, tile_size)
 
         # Apply transforms if needed
         if self.image_transform != None:
-            images = image_augment(
-                images, self.image_transform, tile_size=self.tile_size
-            )
+            images = [
+                image_augment(
+                    data[image_key], self.image_transform, ile_size=self.tile_size
+                )
+                for image_key in self.images_list
+            ]
 
         per_pixel_labels = data["pixel_labels"].transpose(2, 0, 1)
         per_pixel_labels = torch.from_numpy(
@@ -162,7 +163,6 @@ class BalancedDataModule(LightningDataModule):
             shuffle=True,
             num_workers=self.num_workers,
             drop_last=True,
-            collate_fn=self.collate_fn,
         )
 
     def val_dataloader(self):
@@ -172,7 +172,6 @@ class BalancedDataModule(LightningDataModule):
             shuffle=False,
             num_workers=self.num_workers,
             drop_last=True,
-            collate_fn=self.collate_fn,
         )
 
     def test_dataloader(self):
@@ -182,9 +181,9 @@ class BalancedDataModule(LightningDataModule):
             shuffle=False,
             num_workers=self.num_workers,
             drop_last=False,
-            collate_fn=self.collate_fn,
         )
 
+    """
     def collate_fn(self, batch):
         # Implement custom collate function if necessary
         batch = [b for b in batch if b is not None]  # Remove None samples if any
@@ -216,3 +215,4 @@ class BalancedDataModule(LightningDataModule):
             "per_pixel_labels": per_pixel_labels,
             "nodata_mask": nodata_masks,
         }
+"""

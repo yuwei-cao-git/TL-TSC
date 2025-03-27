@@ -28,13 +28,6 @@ def main():
         help="classes",
     )
     parser.add_argument(
-        "--resolution",
-        type=int,
-        choices=[20, 10],
-        default=10,
-        help="Resolution to use for the data",
-    )
-    parser.add_argument(
         "--max_epochs",
         type=int,
         default=150,
@@ -79,7 +72,7 @@ def main():
     parser.add_argument("--dp_fuse", type=float, default=0.7)
     parser.add_argument("--dp_pc", type=float, default=0.5)
     parser.add_argument(
-        "--use_mf", action="store_true", help="Use multi-fusion (set flag to enable)"
+        "--use_mf", action="store_true", help="Use multisesason fusion stack)"
     )
     parser.add_argument(
         "--spatial_attention",

@@ -46,7 +46,7 @@ class PointNextModel(nn.Module):
 
     def forward(self, pc_feat, xyz):
         pc_feats = self.norm(self.backbone(pc_feat, xyz))
-        out = pc_feats.mean(dim=-1)
+        out = pc_feats.mean(dim=-1)  # (bs, emb_dim)
         out = self.act(out)
         logits = self.cls_head(out)
 

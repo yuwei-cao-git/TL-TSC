@@ -6,7 +6,7 @@ import torch
 import torch.nn as nn
 import pytorch_lightning as pl
 
-from .blocks import MambaFusionBlock
+from .blocks import MambaFusionBlock, FusionBlock
 from .unet import UNet
 from .ResUnet import ResUnet
 from .pointnext import PointNextModel
@@ -32,8 +32,10 @@ class FusionModel(pl.LightningModule):
         total_input_channels = (
             self.n_bands * 4
         )  # If no MF module, concatenating all seasons directly
-        self.spatial_attention = False
-
+        self.spatial_attention = self.config["spatial_attention"]
+        if self.spatial_attention:
+            self.mf_module = FusionBlock(n_inputs=4, in_ch=self.n_bands, n_filters=64)
+            total_input_channels = 64
         # Using standard UNet
         self.s2_model = UNet(
             n_channels=total_input_channels, n_classes=self.config["n_classes"]
@@ -48,7 +50,7 @@ class FusionModel(pl.LightningModule):
             hidden_ch=self.config["linear_layers_dims"],
             num_classes=self.config["n_classes"],
             drop=self.config["dp_fuse"],
-            last_feat_size=4,
+            last_feat_size=4,  # tile_size=64, last_feat_size=4
         )
 
         # Define loss functions
@@ -93,16 +95,21 @@ class FusionModel(pl.LightningModule):
         pc_emb = None
 
         # Process images
-        batch_size, num_seasons, num_channels, width, height = images.shape
-        stacked_features = images.reshape(
-            batch_size, num_seasons * num_channels, width, height
-        )
+        if (
+            self.spatial_attention
+        ):  # Apply the MF module first to extract features from input
+            stacked_features = self.mf_module(images)
+        else:
+            # batch_size, num_seasons, num_channels, width, height = images.shape
+            # stacked_features = images.reshape(batch_size, num_seasons * num_channels, width, height)
+            stacked_features = torch.cat(images, dim=1)
         image_outputs, img_emb = self.s2_model(
             stacked_features
-        )  # shape: image_outputs: torch.Size([8, 48, 32, 32])
+        )  # shape: image_outputs: torch.Size([8, 9, 64, 64]), img_emb: torch.Size([8, 512, 4, 4])
         # Process point clouds
-        point_outputs, pc_emb = self.pc_model(pc_feat, xyz)  #
-        pc_emb = torch.max(pc_emb, dim=2)[0]  # Shape: (batch_size, feature_dim)
+        point_outputs, pc_emb = self.pc_model(
+            pc_feat, xyz
+        )  # torch.Size([8, 9]), torch.Size([8, 768, 28])
 
         # Fusion and classification
         class_output = self.fuse_head(img_emb, pc_emb)
