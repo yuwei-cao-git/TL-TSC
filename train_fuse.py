@@ -50,13 +50,13 @@ def main():
         choices=["plateau", "steplr", "asha", "cosine"],
     )
     parser.add_argument(
-        "--img_lr", type=float, default=1e-4, help="initial learning rate"
+        "--img_lr", type=float, default=1e-5, help="initial learning rate"
     )
     parser.add_argument(
-        "--pc_lr", type=float, default=1e-4, help="initial learning rate"
+        "--pc_lr", type=float, default=1e-5, help="initial learning rate"
     )
     parser.add_argument(
-        "--fuse_lr", type=float, default=1e-4, help="initial learning rate"
+        "--fuse_lr", type=float, default=1e-5, help="initial learning rate"
     )
     parser.add_argument("--pc_loss_weight", type=float, default=1.0)
     parser.add_argument("--img_loss_weight", type=float, default=1.0)
