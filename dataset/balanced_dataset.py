@@ -11,6 +11,8 @@ from .augment import (
     image_augment,
 )
 
+TILE_SIZE = 128
+
 
 class BalancedDataset(Dataset):
     def __init__(
@@ -50,10 +52,8 @@ class BalancedDataset(Dataset):
         # Apply transforms if needed
         if self.image_transform != None:
             images = [
-                image_augment(
-                    data[image_key], self.image_transform, ile_size=self.tile_size
-                )
-                for image_key in self.images_list
+                image_augment(image, self.image_transform, tile_size=self.tile_size)
+                for image in images
             ]
 
         per_pixel_labels = data["pixel_labels"].transpose(2, 0, 1)
@@ -132,7 +132,7 @@ class BalancedDataModule(LightningDataModule):
             self.datasets[split] = BalancedDataset(
                 superpixel_files,
                 data2use=self.dataset2use,
-                tile_size=64,
+                tile_size=TILE_SIZE,
                 point_cloud_transform=None,
             )
             if split == "train":
@@ -142,13 +142,13 @@ class BalancedDataModule(LightningDataModule):
                     aug_img_dataset = BalancedDataset(
                         superpixel_files,
                         data2use=self.dataset2use,
-                        tile_size=64,
+                        tile_size=TILE_SIZE,
                         point_cloud_transform=False,
                     )
                     aug_pc_dataset = BalancedDataset(
                         superpixel_files,
                         data2use=self.dataset2use,
-                        tile_size=64,
+                        tile_size=TILE_SIZE,
                         image_transform=None,
                         point_cloud_transform=self.point_cloud_transform,
                     )

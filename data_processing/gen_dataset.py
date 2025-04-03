@@ -13,7 +13,7 @@ from pyproj import CRS
 from pts_utils import normalize_point_cloud, center_point_cloud
 
 # Configuration
-TILE_SIZE = 64
+TILE_SIZE = 128
 SPECIES_COUNT = 22
 IMG_PATHS = {
     "s2_2020_spring": "/mnt/d/Sync/research/tree_species_estimation/tree_dataset/ovf/processed/ovf_img/ovf_s2_10m_2020_spring.tif",
@@ -26,7 +26,7 @@ LABEL_RASTER_PATH = os.path.abspath(
     "/mnt/d/Sync/research/tree_species_estimation/tree_dataset/ovf/processed/ovf_fri/masked/ovf_label_10m.tif"
 )
 LAS_FILES_DIR = r"/mnt/g/ovf/raw_laz"
-OUTPUT_DIR = r"/mnt/g/ovf/dataset/tile_64/train"
+OUTPUT_DIR = r"/mnt/g/ovf/dataset/tile_128/train"
 MAX_POINTS = 7168  # Max points to sample per plot
 NODATA_IMG = 255
 NODATA_LABEL = -1

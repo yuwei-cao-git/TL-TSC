@@ -11,8 +11,7 @@ import laspy
 from pts_utils import normalize_point_cloud, center_point_cloud
 
 # Configuration
-TILE_SIZE = 64
-SPECIES_COUNT = 22
+TILE_SIZE = 128
 IMG_PATHS = {
     "s2_spring": "/mnt/d/Sync/research/tree_species_estimation/tree_dataset/rmf/rmf_s2/spring/masked/mosaic_10m_FOR_ntems.tif",
     "s2_summer": "/mnt/d/Sync/research/tree_species_estimation/tree_dataset/rmf/rmf_s2/summer/masked//mosaic_10m_FOR_ntems.tif",
@@ -24,7 +23,7 @@ LABEL_RASTER_PATH = os.path.abspath(
     "/mnt/d/Sync/research/tree_species_estimation/tree_dataset/rmf/rmf_fri/masked/RMF_PolygonForest_ntems_10m.tif"
 )
 LAS_FILES_DIR = r"/mnt/g/rmf/raw_laz"
-OUTPUT_DIR = r"/mnt/g/rmf/tl_dataset/tile_64/test"
+OUTPUT_DIR = r"/mnt/g/rmf/tl_dataset/tile_128/test"
 MAX_POINTS = 7168  # Max points to sample per plot
 NODATA_IMG = 255
 NODATA_LABEL = -1
