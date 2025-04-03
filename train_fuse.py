@@ -51,7 +51,7 @@ def main():
     parser.add_argument("--img_transforms", default="compose", choices=["compose", "random", "None"])
     parser.add_argument("--pc_transforms", default=True)
     parser.add_argument("--rotate", default=False)
-    parser.add_argument("--tile_size", default=64, choices=[32, 64, 128])
+    parser.add_argument("--tile_size", default=64, type=int, choices=[32, 64, 128])
     parser.add_argument("--seasons", default=["img_s2_spring", "img_s2_summer", "img_s2_fall", "img_s2_winter"])
     parser.add_argument("--gpus", type=int, default=torch.cuda.device_count())
     parser.add_argument("--log_name", default="Fuse_ff_mamba_pointnext_b_Unet_10")

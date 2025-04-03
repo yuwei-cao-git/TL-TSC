@@ -181,6 +181,7 @@ class BalancedDataModule(LightningDataModule):
             batch_size=self.batch_size,
             shuffle=True,
             drop_last=True,
+            num_workers=8
         )
 
     def val_dataloader(self):
@@ -189,6 +190,7 @@ class BalancedDataModule(LightningDataModule):
             batch_size=self.batch_size,
             shuffle=False,
             drop_last=True,
+            num_workers=8
         )
 
     def test_dataloader(self):
@@ -197,6 +199,7 @@ class BalancedDataModule(LightningDataModule):
             batch_size=self.batch_size,
             shuffle=False,
             drop_last=False,
+            num_workers=8
         )
 
     """

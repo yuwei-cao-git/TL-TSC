@@ -46,7 +46,7 @@ class FusionModel(pl.LightningModule):
             hidden_ch=self.config["linear_layers_dims"],
             num_classes=self.config["n_classes"],
             drop=self.config["dp_fuse"],
-            last_feat_size=self.config["dp_fuse"]/16,  # tile_size=64, last_feat_size=4
+            last_feat_size=self.config["tile_size"] // 16,  # tile_size=64, last_feat_size=4
         )
 
         # Define loss functions

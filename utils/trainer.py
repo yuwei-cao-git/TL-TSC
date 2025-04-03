@@ -10,7 +10,7 @@ from model.fuse import FusionModel
 
 
 def train(config):
-    seed_everything(42, workers=True)
+    seed_everything(123)
     log_name = config["log_name"]
     save_dir = os.path.join(config["save_dir"], log_name)
     log_dir = os.path.join(save_dir, "wandblogs")
@@ -53,8 +53,7 @@ def train(config):
         callbacks=early_stopping,  # [early_stopping, checkpoint_callback],
         devices=config["gpus"],
         num_nodes=1,
-        strategy="ddp",
-        deterministic=True
+        strategy="ddp"
     )
     # Train the model
     trainer.fit(model, data_module)
