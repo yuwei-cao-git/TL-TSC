@@ -39,7 +39,7 @@ def main():
     parser.add_argument("--patience", type=int, default=10)
     parser.add_argument("--step_size", type=int, default=10)
     parser.add_argument("--momentum", type=float, default=0.9)
-    parser.add_argument("--weight_decay", type=float, default=5e-2)
+    parser.add_argument("--weight_decay", type=float, default=1e-4)
     parser.add_argument("--dp_fuse", type=float, default=0.7)
     parser.add_argument("--dp_pc", type=float, default=0.5)
     parser.add_argument("--use_mf", action="store_true", help="Use multisesason fusion stack)")
