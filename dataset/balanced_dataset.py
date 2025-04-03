@@ -11,9 +11,6 @@ from .augment import (
     image_augment,
 )
 
-TILE_SIZE = 128
-
-
 class BalancedDataset(Dataset):
     def __init__(
         self,
@@ -97,7 +94,7 @@ class BalancedDataModule(LightningDataModule):
         super().__init__()
         self.config = config
         self.batch_size = config["batch_size"]
-        self.num_workers = config["num_workers"]
+        self.tile_size = config["tile_size"]
         self.image_transform = (
             config["img_transforms"] if config["img_transforms"] != "None" else None
         )
@@ -122,64 +119,83 @@ class BalancedDataModule(LightningDataModule):
     def setup(self, stage=None):
         # Create datasets for train, validation, and test
         self.datasets = {}
-        for split in ["train", "val", "test"]:
-            data_dir = self.data_dirs[split]
-            superpixel_files = [
-                os.path.join(data_dir, f)
-                for f in os.listdir(data_dir)
+        if stage == "fit":
+            train_superpixel_files = [
+                os.path.join(self.data_dirs["train"], f)
+                for f in os.listdir(self.data_dirs["train"])
                 if f.endswith(".npz")
             ]
-            self.datasets[split] = BalancedDataset(
-                superpixel_files,
+            val_superpixel_files = [
+                os.path.join(self.data_dirs["val"], f)
+                for f in os.listdir(self.data_dirs["val"])
+                if f.endswith(".npz")
+            ]
+            self.train_datasets = BalancedDataset(
+                train_superpixel_files,
                 data2use=self.dataset2use,
-                tile_size=TILE_SIZE,
+                tile_size=self.tile_size,
                 point_cloud_transform=None,
             )
-            if split == "train":
-                if not (
-                    self.image_transform is None or self.point_cloud_transform is False
-                ):
-                    aug_img_dataset = BalancedDataset(
-                        superpixel_files,
-                        data2use=self.dataset2use,
-                        tile_size=TILE_SIZE,
-                        point_cloud_transform=False,
-                    )
-                    aug_pc_dataset = BalancedDataset(
-                        superpixel_files,
-                        data2use=self.dataset2use,
-                        tile_size=TILE_SIZE,
-                        image_transform=None,
-                        point_cloud_transform=self.point_cloud_transform,
-                    )
-                    self.datasets["train"] = torch.utils.data.ConcatDataset(
-                        [self.datasets["train"], aug_img_dataset, aug_pc_dataset]
-                    )
+            if not (
+                self.image_transform is None or self.point_cloud_transform is False
+            ):
+                aug_img_dataset = BalancedDataset(
+                    train_superpixel_files,
+                    data2use=self.dataset2use,
+                    tile_size=self.tile_size,
+                    point_cloud_transform=False,
+                )
+                aug_pc_dataset = BalancedDataset(
+                    train_superpixel_files,
+                    data2use=self.dataset2use,
+                    tile_size=self.tile_size,
+                    image_transform=None,
+                    point_cloud_transform=self.point_cloud_transform,
+                )
+                self.train_datasets = torch.utils.data.ConcatDataset(
+                    [self.train_datasets, aug_img_dataset, aug_pc_dataset]
+                )
+                self.val_datasets = BalancedDataset(
+                    val_superpixel_files,
+                    data2use=self.dataset2use,
+                    tile_size=self.tile_size,
+                    point_cloud_transform=None,
+                )
+        if stage == "test":
+            test_superpixel_files = [
+                os.path.join(self.data_dirs["test"], f)
+                for f in os.listdir(self.data_dirs["test"])
+                if f.endswith(".npz")
+            ]
+            self.test_datasets = BalancedDataset(
+                test_superpixel_files,
+                data2use=self.dataset2use,
+                tile_size=self.tile_size,
+                image_transform=None,
+                point_cloud_transform=None,
+            )
 
     def train_dataloader(self):
         return DataLoader(
-            self.datasets["train"],
+            self.train_datasets,
             batch_size=self.batch_size,
             shuffle=True,
-            num_workers=self.num_workers,
             drop_last=True,
         )
 
     def val_dataloader(self):
         return DataLoader(
-            self.datasets["val"],
+            self.val_datasets,
             batch_size=self.batch_size,
             shuffle=False,
-            num_workers=self.num_workers,
             drop_last=True,
         )
 
     def test_dataloader(self):
         return DataLoader(
-            self.datasets["test"],
+            self.test_datasets,
             batch_size=self.batch_size,
             shuffle=False,
-            num_workers=self.num_workers,
             drop_last=False,
         )
 

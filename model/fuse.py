@@ -16,7 +16,7 @@ from torchmetrics.functional import r2_score
 from torchmetrics.classification import (
     ConfusionMatrix,
 )
-from .loss import apply_mask, calc_loss, calc_pinball_loss
+from .loss import apply_mask, calc_loss
 
 
 class FusionModel(pl.LightningModule):
@@ -24,11 +24,7 @@ class FusionModel(pl.LightningModule):
         super().__init__()
         self.save_hyperparameters(config)
         self.config = config
-        self.f = self.config["linear_layers_dims"]  # f = [512, 128]
-
-        # Initialize s2 model
         self.n_bands = 12
-
         total_input_channels = (
             self.n_bands * 4
         )  # If no MF module, concatenating all seasons directly
@@ -50,7 +46,7 @@ class FusionModel(pl.LightningModule):
             hidden_ch=self.config["linear_layers_dims"],
             num_classes=self.config["n_classes"],
             drop=self.config["dp_fuse"],
-            last_feat_size=4,  # tile_size=64, last_feat_size=4
+            last_feat_size=self.config["dp_fuse"]/16,  # tile_size=64, last_feat_size=4
         )
 
         # Define loss functions
@@ -105,7 +101,7 @@ class FusionModel(pl.LightningModule):
             stacked_features = torch.cat(images, dim=1)
         image_outputs, img_emb = self.s2_model(
             stacked_features
-        )  # shape: image_outputs: torch.Size([8, 9, 64, 64]), img_emb: torch.Size([8, 512, 4, 4])
+        )  # shape: image_outputs: torch.Size([8, 9, 64, 64]), img_emb: torch.Size([8, 512, tile_size/2/2/2, 4])
         # Process point clouds
         point_outputs, pc_emb = self.pc_model(
             pc_feat, xyz
@@ -153,6 +149,7 @@ class FusionModel(pl.LightningModule):
         else:  # stage == "test"
             r2_metric = self.test_r2
 
+        """
         # Compute point cloud loss
         if self.config["weighted_loss"] and stage == "train":
             self.weights = self.weights.to(pc_preds.device)
@@ -161,6 +158,7 @@ class FusionModel(pl.LightningModule):
         else:
             loss_point = self.pc_loss_weight * self.criterion(pc_preds, labels)
         loss += loss_point
+        
 
         # Compute R² metric
         pc_preds_rounded = torch.round(pc_preds, decimals=2)
@@ -173,7 +171,7 @@ class FusionModel(pl.LightningModule):
                 f"pc_{stage}_r2": pc_r2,
             }
         )
-
+        """
         # Image stream
         # Apply mask to predictions and labels
         valid_pixel_preds, valid_pixel_true = apply_mask(
@@ -395,7 +393,7 @@ class FusionModel(pl.LightningModule):
 
         # Include parameters from the point cloud model
         point_params = list(self.pc_model.parameters())
-        params.append({"params": point_params, "lr": self.pc_lr})
+        params.append({"params": point_params, "lr": self.fusion_lr})
 
         # Include parameters from the fusion layers
         fusion_params = list(self.fuse_head.parameters())
@@ -409,7 +407,9 @@ class FusionModel(pl.LightningModule):
                 eps=1e-08,
             )
         elif self.optimizer_type == "adamW":
-            optimizer = torch.optim.AdamW(params)
+            optimizer = torch.optim.AdamW(
+                params, weight_decay=self.config["weight_decay"]
+            )
         elif self.optimizer_type == "sgd":
             optimizer = torch.optim.SGD(
                 params,
@@ -440,9 +440,11 @@ class FusionModel(pl.LightningModule):
             scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(
                 optimizer,
                 T_max=50,
-                eta_min=0,
-                last_epoch=-1,
-                verbose=False,
+            )
+            return {"optimizer": optimizer, "lr_scheduler": scheduler}
+        elif self.scheduler_type == "cosinewarmup":
+            scheduler = torch.optim.lr_scheduler.CosineAnnealingWarmRestarts(
+                optimizer, T_0=30
             )
             return {"optimizer": optimizer, "lr_scheduler": scheduler}
         else:

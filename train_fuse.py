@@ -15,49 +15,20 @@ def main():
 
     # Add arguments
     parser.add_argument("--task", type=str, default="regression")
-    parser.add_argument(
-        "--data_dir",
-        type=str,
-        default=None,  # "/mnt/d/Sync/research/tree_species_estimation/tree_dataset/rmf/processed",
-        help="path to data dir",
-    )
+    parser.add_argument("--data_dir", type=str, default=None, help="path to data dir") 
     parser.add_argument("--n_classes", type=int, default=9, help="number classes")
-    parser.add_argument(
-        "--classes",
-        default=["BF", "BW", "CE", "LA", "PT", "PJ", "PO", "SB", "SW"],
-        help="classes",
-    )
-    parser.add_argument(
-        "--max_epochs",
-        type=int,
-        default=150,
-        help="Number of epochs to train the model",
-    )
-    parser.add_argument(
-        "--batch_size", type=int, default=8, help="Number of epochs to train the model"
-    )
+    parser.add_argument("--classes", default=["BF", "BW", "CE", "LA", "PT", "PJ", "PO", "SB", "SW"], help="classes")
+    parser.add_argument("--max_epochs", type=int, default=150, help="Number of epochs to train the model")
+    parser.add_argument("--batch_size", type=int, default=8, help="Number of epochs to train the model")
     parser.add_argument("--emb_dims", type=int, default=768)
     parser.add_argument("--num_points", type=int, default=7168)
     parser.add_argument("--encoder", default="b", choices=["s", "b", "l", "xl"])
-
     parser.add_argument("--fusion_dim", type=int, default=128)
-    parser.add_argument(
-        "--optimizer", default="adamW", choices=["adam", "adamW", "sgd"]
-    )
-    parser.add_argument(
-        "--scheduler",
-        default="cosine",
-        choices=["plateau", "steplr", "asha", "cosine"],
-    )
-    parser.add_argument(
-        "--img_lr", type=float, default=1e-5, help="initial learning rate"
-    )
-    parser.add_argument(
-        "--pc_lr", type=float, default=1e-5, help="initial learning rate"
-    )
-    parser.add_argument(
-        "--fuse_lr", type=float, default=1e-5, help="initial learning rate"
-    )
+    parser.add_argument("--optimizer", default="adamW", choices=["adam", "adamW", "sgd"])
+    parser.add_argument("--scheduler", default="cosinewarmup", choices=["plateau", "steplr", "asha", "cosine", "cosinewarmup"])
+    parser.add_argument("--img_lr", type=float, default=1e-4, help="initial learning rate")
+    parser.add_argument("--pc_lr", type=float, default=1e-4, help="initial learning rate")
+    parser.add_argument("--fuse_lr", type=float, default=1e-4, help="initial learning rate")
     parser.add_argument("--pc_loss_weight", type=float, default=1.0)
     parser.add_argument("--img_loss_weight", type=float, default=1.0)
     parser.add_argument("--fuse_loss_weight", type=float, default=1.0)
@@ -68,50 +39,22 @@ def main():
     parser.add_argument("--patience", type=int, default=10)
     parser.add_argument("--step_size", type=int, default=10)
     parser.add_argument("--momentum", type=float, default=0.9)
-    parser.add_argument("--weight_decay", type=float, default=1e-4)
+    parser.add_argument("--weight_decay", type=float, default=5e-2)
     parser.add_argument("--dp_fuse", type=float, default=0.7)
     parser.add_argument("--dp_pc", type=float, default=0.5)
-    parser.add_argument(
-        "--use_mf", action="store_true", help="Use multisesason fusion stack)"
-    )
-    parser.add_argument(
-        "--spatial_attention",
-        action="store_true",
-        help="Use spatial attention in mf fusion",
-    )
-    parser.add_argument(
-        "--use_residual",
-        action="store_true",
-        help="Use residual connections (set flag to enable)",
-    )
-    parser.add_argument(
-        "--fuse_feature",
-        default=True,
-        help="feature fusion",
-    )
-    parser.add_argument(
-        "--mamba_fuse",
-        action="store_true",
-        help="Use mamba fusion (set flag to enable)",
-    )
-    parser.add_argument("--linear_layers_dims", type=list_of_ints, default=[256, 128])
-    parser.add_argument(
-        "--img_transforms", default="compose", choices=["compose", "random", "None"]
-    )
+    parser.add_argument("--use_mf", action="store_true", help="Use multisesason fusion stack)")
+    parser.add_argument("--spatial_attention", action="store_true", help="Use spatial attention in mf fusion")
+    parser.add_argument("--use_residual", action="store_true", help="Use residual connections (set flag to enable)",)
+    parser.add_argument("--fuse_feature", default=True, help="feature fusion",)
+    parser.add_argument("--mamba_fuse", action="store_true", help="Use mamba fusion (set flag to enable)",)
+    parser.add_argument("--linear_layers_dims", type=list_of_ints, default=[512, 256])
+    parser.add_argument("--img_transforms", default="compose", choices=["compose", "random", "None"])
     parser.add_argument("--pc_transforms", default=True)
     parser.add_argument("--rotate", default=False)
-    parser.add_argument(
-        "--seasons",
-        default=[
-            "img_s2_spring",
-            "img_s2_summer",
-            "img_s2_fall",
-            "img_s2_winter",
-        ],
-    )
+    parser.add_argument("--tile_size", default=64, choices=[32, 64, 128])
+    parser.add_argument("--seasons", default=["img_s2_spring", "img_s2_summer", "img_s2_fall", "img_s2_winter"])
     parser.add_argument("--gpus", type=int, default=torch.cuda.device_count())
-    parser.add_argument("--num_workers", type=int, default=8)
-    parser.add_argument("--log_name", default="Fuse_ff_mamba_pointnext_l_Unet_20")
+    parser.add_argument("--log_name", default="Fuse_ff_mamba_pointnext_b_Unet_10")
 
     # Parse arguments
     params = vars(parser.parse_args())
@@ -145,4 +88,4 @@ def main():
 
 if __name__ == "__main__":
     main()
-    # python train_fuse.py --data_dir '/mnt/g/rmf/tl_dataset/tile_64' --linear_layers_dims 256,128 --pc_transforms True --spatial_attention
+    # python train_fuse.py --data_dir '/mnt/g/rmf/tl_dataset/tile_64' --pc_transforms True --spatial_attention --tile_size 64 --linear_layers_dims 256,128 

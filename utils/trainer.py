@@ -10,7 +10,7 @@ from model.fuse import FusionModel
 
 
 def train(config):
-    seed_everything(1)
+    seed_everything(42, workers=True)
     log_name = config["log_name"]
     save_dir = os.path.join(config["save_dir"], log_name)
     log_dir = os.path.join(save_dir, "wandblogs")
@@ -42,9 +42,6 @@ def train(config):
     # Initialize the DataModule
     data_module = BalancedDataModule(config)
 
-    # Call setup explicitly to initialize datasets
-    data_module.setup(stage="fit")
-
     # Use the calculated input channels from the DataModule to initialize the model
     model = FusionModel(config)
     # print(ModelSummary(model, max_depth=-1))  # Prints the full model summary
@@ -57,6 +54,7 @@ def train(config):
         devices=config["gpus"],
         num_nodes=1,
         strategy="ddp",
+        deterministic=True
     )
     # Train the model
     trainer.fit(model, data_module)
