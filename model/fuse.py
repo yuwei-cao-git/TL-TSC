@@ -149,7 +149,6 @@ class FusionModel(pl.LightningModule):
         else:  # stage == "test"
             r2_metric = self.test_r2
 
-        """
         # Compute point cloud loss
         if self.config["weighted_loss"] and stage == "train":
             self.weights = self.weights.to(pc_preds.device)
@@ -171,7 +170,6 @@ class FusionModel(pl.LightningModule):
                 f"pc_{stage}_r2": pc_r2,
             }
         )
-        """
         # Image stream
         # Apply mask to predictions and labels
         valid_pixel_preds, valid_pixel_true = apply_mask(
@@ -393,7 +391,7 @@ class FusionModel(pl.LightningModule):
 
         # Include parameters from the point cloud model
         point_params = list(self.pc_model.parameters())
-        params.append({"params": point_params, "lr": self.fusion_lr})
+        params.append({"params": point_params, "lr": self.pc_lr})
 
         # Include parameters from the fusion layers
         fusion_params = list(self.fuse_head.parameters())
