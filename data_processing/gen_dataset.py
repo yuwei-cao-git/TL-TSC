@@ -26,7 +26,7 @@ LABEL_RASTER_PATH = os.path.abspath(
     "/mnt/d/Sync/research/tree_species_estimation/tree_dataset/ovf/processed/ovf_fri/masked/ovf_label_10m.tif"
 )
 LAS_FILES_DIR = r"/mnt/g/ovf/raw_laz"
-OUTPUT_DIR = r"/mnt/g/ovf/dataset/tile_128/train"
+OUTPUT_DIR = r"/mnt/g/ovf/dataset/tile_128/val"
 MAX_POINTS = 7168  # Max points to sample per plot
 NODATA_IMG = 255
 NODATA_LABEL = -1
@@ -238,7 +238,7 @@ def main_workflow(plots_file):
 # Run the pipeline
 if __name__ == "__main__":
     main_workflow(
-        plots_file="/mnt/d/Sync/research/tree_species_estimation/tree_dataset/ovf/processed/plots/plot_train_prom10_rem100_Tilename_2958.gpkg"
+        plots_file="/mnt/d/Sync/research/tree_species_estimation/tree_dataset/ovf/processed/plots/plot_val_prom10_rem100_Tilename_2958.gpkg"
     )
 
     """

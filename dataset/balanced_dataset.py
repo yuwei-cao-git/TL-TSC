@@ -103,14 +103,17 @@ class BalancedDataModule(LightningDataModule):
         self.data_dirs = {
             "train": join(
                 config["data_dir"],
+                f"tile_{self.tile_size}"
                 "train",
             ),
             "val": join(
                 config["data_dir"],
+                f"tile_{self.tile_size}"
                 "val",
             ),
             "test": join(
                 config["data_dir"],
+                f"tile_{self.tile_size}"
                 "test",
             ),
         }
