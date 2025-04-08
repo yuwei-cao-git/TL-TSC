@@ -88,4 +88,4 @@ def main():
 
 if __name__ == "__main__":
     main()
-    # python train_fuse.py --data_dir '/mnt/g/rmf/tl_dataset/tile_64' --pc_transforms True --spatial_attention --tile_size 64 --linear_layers_dims 256,128 
+    # python train_fuse.py --data_dir '/mnt/g/rmf/rmf_tl_dataset' --pc_transforms True --spatial_attention --tile_size 64 --linear_layers_dims 256,128 
