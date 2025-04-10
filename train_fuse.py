@@ -15,9 +15,8 @@ def main():
 
     # Add arguments
     parser.add_argument("--task", type=str, default="regression")
-    parser.add_argument("--data_dir", type=str, default=None, help="path to data dir") 
-    parser.add_argument("--n_classes", type=int, default=9, help="number classes")
-    parser.add_argument("--classes", default=["BF", "BW", "CE", "LA", "PT", "PJ", "PO", "SB", "SW"], help="classes")
+    parser.add_argument("--dataset", type=str, default="rmf")
+    parser.add_argument("--data_dir", type=str, default=None, help="path to data dir")
     parser.add_argument("--max_epochs", type=int, default=150, help="Number of epochs to train the model")
     parser.add_argument("--batch_size", type=int, default=8, help="Number of epochs to train the model")
     parser.add_argument("--emb_dims", type=int, default=768)
@@ -52,7 +51,6 @@ def main():
     parser.add_argument("--pc_transforms", default=True)
     parser.add_argument("--rotate", default=False)
     parser.add_argument("--tile_size", default=64, type=int, choices=[32, 64, 128])
-    parser.add_argument("--seasons", default=["img_s2_spring", "img_s2_summer", "img_s2_fall", "img_s2_winter"])
     parser.add_argument("--gpus", type=int, default=torch.cuda.device_count())
     parser.add_argument("--log_name", default="Fuse_ff_mamba_pointnext_b_Unet_10")
 
@@ -80,6 +78,11 @@ def main():
     params["train_weights"] = class_weights
     if not os.path.exists(params["save_dir"]):
         os.makedirs(params["save_dir"])
+    
+    params["classes"] = ["BF", "BW", "CE", "LA", "PT", "PJ", "PO", "SB", "SW"] if params["dataset"] == "rmf" else ['AB', 'PO', 'MR', 'BF', 'CE', 'PW', 'MH', 'BW', 'SW', 'OR', 'PR']
+    params["n_classes"] = 9 if params["dataset"] == "rmf" else 11
+    params["seasons"] = ["img_s2_spring", "img_s2_summer", "img_s2_fall", "img_s2_winter"] if params["dataset"] == "rmf" else ["img_s2_2020_spring", "img_s2_2020_summer", "img_s2_2020_fall", "img_s2_2020_winter"]
+    
     print(params)
 
     # Call the train function with parsed arguments
@@ -88,4 +91,5 @@ def main():
 
 if __name__ == "__main__":
     main()
-    # python train_fuse.py --data_dir '/mnt/g/rmf/rmf_tl_dataset' --pc_transforms True --spatial_attention --tile_size 64 --linear_layers_dims 256,128 
+    # python train_fuse.py --dataset 'rmf' --data_dir '/mnt/g/rmf/rmf_tl_dataset' --pc_transforms True --spatial_attention --tile_size 64 --linear_layers_dims 256,128 
+    # python train_fuse.py --dataset 'ovf' --data_dir '/mnt/g/ovf/ovf_tl_dataset' --pc_transforms True --spatial_attention --tile_size 64 --linear_layers_dims 256,128 

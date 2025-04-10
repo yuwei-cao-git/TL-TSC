@@ -6,7 +6,6 @@ from shapely.geometry import Point
 from tqdm import tqdm
 import os
 from joblib import Parallel, delayed
-from multiprocessing import cpu_count
 from resample_pts import farthest_point_sampling
 import laspy
 from pyproj import CRS
@@ -14,7 +13,6 @@ from pts_utils import normalize_point_cloud, center_point_cloud
 
 # Configuration
 TILE_SIZE = 128
-SPECIES_COUNT = 22
 IMG_PATHS = {
     "s2_2020_spring": "/mnt/d/Sync/research/tree_species_estimation/tree_dataset/ovf/processed/ovf_img/ovf_s2_10m_2020_spring.tif",
     "s2_2020_summer": "/mnt/d/Sync/research/tree_species_estimation/tree_dataset/ovf/processed/ovf_img/ovf_s2_10m_2020_summer.tif",
@@ -49,7 +47,7 @@ def process_pixel(pixel_label):
     # Convert data type
     pixel_label = pixel_label.astype(np.float32)
     # Check if all bands are -1 (no data)
-    if np.all(pixel_label == -1.0):
+    if np.all(pixel_label == -1.0) or np.all(pixel_label == 0):
         return False
     # Check sum is 1.0
     label_sum = np.sum(pixel_label)

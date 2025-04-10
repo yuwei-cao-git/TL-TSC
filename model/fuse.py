@@ -24,7 +24,7 @@ class FusionModel(pl.LightningModule):
         super().__init__()
         self.save_hyperparameters(config)
         self.config = config
-        self.n_bands = 12
+        self.n_bands = 12 if self.config["dataset"] == "rmf" else 9
         total_input_channels = (
             self.n_bands * 4
         )  # If no MF module, concatenating all seasons directly

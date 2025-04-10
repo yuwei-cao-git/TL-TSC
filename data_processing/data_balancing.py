@@ -12,7 +12,7 @@ from sklearn.model_selection import train_test_split
 AUGMENTATION_FACTOR = 3  # Number of augmented copies per plot
 BUFFER_DISTANCE = 50  # Meters from polygon boundary
 PLOT_RADIUS = 11.28  # Meters (≈400m² area)
-# SPECIES_ORDER = ["AB", "PO","SW","BW","BF","CE","LA","MR","PW","MH","IW","HE","OR","BY","AW","PR","BD","SB","BE","PJ","PS","SR",]
+# SPECIES_ORDER = ['AB', 'PO', 'MR', 'BF', 'CE', 'PW', 'MH', 'BW', 'SW', 'OR', 'PR']
 SPECIES_ORDER = ["BF", "BW", "CE", "LA", "PT", "PJ", "PO", "SB", "SW"]
 
 
