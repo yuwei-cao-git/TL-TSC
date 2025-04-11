@@ -131,9 +131,7 @@ class FusionModel(pl.LightningModule):
         """
         # Permute point cloud data if available
         pc_feat = pc_feat.permute(0, 2, 1) if pc_feat is not None else None
-        point_clouds = (
-            point_clouds.permute(0, 2, 1) if point_clouds is not None else None
-        )
+        point_clouds = (point_clouds.permute(0, 2, 1) if point_clouds is not None else None)
 
         # Forward pass
         pixel_preds, pc_preds, fuse_preds = self.forward(images, pc_feat, point_clouds)
@@ -437,7 +435,7 @@ class FusionModel(pl.LightningModule):
         elif self.scheduler_type == "cosine":
             scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(
                 optimizer,
-                T_max=50,
+                T_max=10,
             )
             return {"optimizer": optimizer, "lr_scheduler": scheduler}
         elif self.scheduler_type == "cosinewarmup":

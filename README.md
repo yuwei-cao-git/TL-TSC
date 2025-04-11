@@ -46,3 +46,12 @@
 - Filter Natural Forest Disturbances
   - remove harvest areas (overlapped with "harvest_ply")
   - NTEMS mask
+
+### Imagery data:
+| **Feature**     | **Before (Dataset 1)** | **Before (Dataset 2)** | **Unified Plan**        |
+|------------------|------------------------|--------------------------|---------------------------|
+| Input dtype       | float32                | uint16                   | float32 (temporary)       |
+| No-data           | -inf                   | 0                        | 255 (after scaling)       |
+| Output dtype      | float32                | uint8                    | uint8                     |
+| Scale range       | Unknown                | dynamic (1–99%)          | dynamic (1–99%)           |
+

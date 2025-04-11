@@ -11,15 +11,24 @@ from .augment import (
     image_augment,
 )
 
+def safe_mask_image(image, nodata_val=None):
+    if nodata_val is None:
+        nodata_val = np.finfo(image.dtype).min
+    mask = (image == nodata_val)
+    image = np.where(mask, 0.0, image)
+    return image
+
 class BalancedDataset(Dataset):
     def __init__(
         self,
         dataset_files,
         data2use,
         tile_size,
+        dataset='ovf',
         image_transform=None,
         point_cloud_transform=None,
     ):
+        self.dataset = dataset
         self.dataset_files = dataset_files
         self.images_list = data2use
         self.image_transform = image_transform
@@ -30,9 +39,7 @@ class BalancedDataset(Dataset):
         self.transforms = transforms.Compose(
             [
                 transforms.ToImage(),  # Convert to tensor and handle HWC to CHW
-                transforms.ToDtype(
-                    torch.float32, scale=True
-                ),  # Convert to float32 and scale to [0, 1]
+                transforms.ToDtype(torch.float32, scale=True),  # Convert to float32 and scale to [0, 1]
             ]
         )
 
@@ -43,7 +50,19 @@ class BalancedDataset(Dataset):
         # Load data from the .npz file
         data = np.load(self.dataset_files[idx], allow_pickle=True)
         # Select the images based on the data2use list
-        images = [self.transforms(data[image_key]) for image_key in self.images_list]
+        if self.dataset =="ovf":
+            images = [
+                np.nan_to_num(
+                    np.where(np.logical_or(np.isinf(data[k]), data[k] == 255.0), np.nan, data[k]),
+                    nan=0.0
+                )
+                for k in self.images_list
+            ]
+            images = [self.transforms(img) for img in images]
+
+        else:
+            images = [self.transforms(data[image_key]) for image_key in self.images_list]
+            print(images[0])
         # images = torch.stack( images, axis=0)  # Shape: (num_seasons, num_channels, tile_size, tile_size)
 
         # Apply transforms if needed
@@ -93,6 +112,7 @@ class BalancedDataModule(LightningDataModule):
     def __init__(self, config):
         super().__init__()
         self.config = config
+        self.dataset = config["dataset"]
         self.batch_size = config["batch_size"]
         self.tile_size = config["tile_size"]
         self.image_transform = (
@@ -136,6 +156,7 @@ class BalancedDataModule(LightningDataModule):
             self.train_datasets = BalancedDataset(
                 train_superpixel_files,
                 data2use=self.dataset2use,
+                dataset=self.dataset,
                 tile_size=self.tile_size,
                 point_cloud_transform=None,
             )
@@ -145,6 +166,7 @@ class BalancedDataModule(LightningDataModule):
                 aug_img_dataset = BalancedDataset(
                     train_superpixel_files,
                     data2use=self.dataset2use,
+                    dataset=self.dataset,
                     tile_size=self.tile_size,
                     point_cloud_transform=False,
                 )
@@ -152,6 +174,7 @@ class BalancedDataModule(LightningDataModule):
                     train_superpixel_files,
                     data2use=self.dataset2use,
                     tile_size=self.tile_size,
+                    dataset=self.dataset,
                     image_transform=None,
                     point_cloud_transform=self.point_cloud_transform,
                 )
@@ -161,6 +184,7 @@ class BalancedDataModule(LightningDataModule):
                 self.val_datasets = BalancedDataset(
                     val_superpixel_files,
                     data2use=self.dataset2use,
+                    dataset=self.dataset,
                     tile_size=self.tile_size,
                     point_cloud_transform=None,
                 )
@@ -174,6 +198,7 @@ class BalancedDataModule(LightningDataModule):
                 test_superpixel_files,
                 data2use=self.dataset2use,
                 tile_size=self.tile_size,
+                dataset=self.dataset,
                 image_transform=None,
                 point_cloud_transform=None,
             )

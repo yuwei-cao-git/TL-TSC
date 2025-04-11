@@ -4,7 +4,7 @@ from .blocks import DoubleConv, Down, Up, OutConv
 
 
 class UNet(nn.Module):
-    def __init__(self, n_channels=52, n_classes=9, return_logits=False, bilinear=True):
+    def __init__(self, n_channels, n_classes, return_logits=False, bilinear=True):
         super(UNet, self).__init__()
         self.n_channels = n_channels
         self.n_classes = n_classes

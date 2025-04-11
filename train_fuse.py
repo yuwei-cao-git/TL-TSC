@@ -60,7 +60,7 @@ def main():
     params["data_dir"] = (
         params["data_dir"]
         if params["data_dir"] is not None
-        else os.path.join(os.getcwd(), "data")
+        else os.path.join(os.getcwd(), "data", f"{params['dataset']}_tl_dataset")
     )
     class_weights = [
         0.13429631,

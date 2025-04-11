@@ -166,20 +166,48 @@ def process_plot(plot, plot_6661, plot_fid, label_path, las_files_directory, max
                 )
 
                 # Read the data within the window
-                tile = src.read(window=window, boundless=True, fill_value=src.nodata)
+                tile = src.read(window=window, boundless=True, fill_value=np.nan)  # replace -inf with NaN
 
                 # If the tile is smaller than TILE_SIZE, pad it with no-data values
                 if tile.shape[1] < TILE_SIZE or tile.shape[2] < TILE_SIZE:
                     padded_tile = np.full(
                         (tile.shape[0], TILE_SIZE, TILE_SIZE),
-                        NODATA_IMG,
+                        np.nan,
                         dtype=tile.dtype,
                     )
                     padded_tile[:, :height, :width] = tile
                     tile = padded_tile
 
-            # Store result in HWC format with uint8 type
-            results[f"img_{name}"] = tile.transpose(1, 2, 0)
+                # Convert to uint8 with dynamic scaling
+                uint8_tile = np.full(tile.shape, NODATA_IMG, dtype=np.uint8)
+                for band_idx in range(tile.shape[0]):
+                    band_data = tile[band_idx]
+
+                    # Create mask of valid pixels
+                    valid_mask = ~np.isnan(band_data)
+                    valid_pixels = band_data[valid_mask]
+
+                    if valid_pixels.size == 0:
+                        continue  # Entire band is nodata
+
+                    # Calculate dynamic range (2nd-98th percentile)
+                    p_low, p_high = np.percentile(valid_pixels, [1, 99])
+                    if p_high <= p_low:
+                        p_low, p_high = valid_pixels.min(), valid_pixels.max()
+                        if p_high <= p_low:
+                            p_high = p_low + 1  # Prevent division by zero
+
+                    # Scale and convert valid pixels
+                    scaled = (band_data - p_low) / (p_high - p_low)
+                    scaled = np.clip(scaled * 254, 0, 254).astype(
+                        np.uint8
+                    )  # 0-254 = valid
+
+                    # Apply to output (only valid pixels)
+                    uint8_tile[band_idx][valid_mask] = scaled[valid_mask]
+
+                # Store result in HWC format with uint8 type
+                results[f"img_{name}"] = uint8_tile.transpose(1, 2, 0)
 
         # 4. Apply mask to S2 and labels
         for name in IMG_PATHS:
