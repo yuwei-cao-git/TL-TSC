@@ -11,13 +11,6 @@ from .augment import (
     image_augment,
 )
 
-def safe_mask_image(image, nodata_val=None):
-    if nodata_val is None:
-        nodata_val = np.finfo(image.dtype).min
-    mask = (image == nodata_val)
-    image = np.where(mask, 0.0, image)
-    return image
-
 class BalancedDataset(Dataset):
     def __init__(
         self,
@@ -39,7 +32,7 @@ class BalancedDataset(Dataset):
         self.transforms = transforms.Compose(
             [
                 transforms.ToImage(),  # Convert to tensor and handle HWC to CHW
-                transforms.ToDtype(torch.float32, scale=True),  # Convert to float32 and scale to [0, 1]
+                transforms.ToDtype(torch.float32, scale=True) if self.dataset=="rmf" else transforms.ToTensor(),  # Convert to float32 and scale to [0, 1]
             ]
         )
 
@@ -54,15 +47,13 @@ class BalancedDataset(Dataset):
             images = [
                 np.nan_to_num(
                     np.where(np.logical_or(np.isinf(data[k]), data[k] == 255.0), np.nan, data[k]),
-                    nan=0.0
+                    nan=1.0
                 )
                 for k in self.images_list
             ]
             images = [self.transforms(img) for img in images]
-
         else:
             images = [self.transforms(data[image_key]) for image_key in self.images_list]
-            print(images[0])
         # images = torch.stack( images, axis=0)  # Shape: (num_seasons, num_channels, tile_size, tile_size)
 
         # Apply transforms if needed
@@ -119,7 +110,6 @@ class BalancedDataModule(LightningDataModule):
             config["img_transforms"] if config["img_transforms"] != "None" else None
         )
         self.point_cloud_transform = config["pc_transforms"]
-        self.aug_rotate = config["pc_transforms"]
         self.data_dirs = {
             "train": join(
                 config["data_dir"],
@@ -160,9 +150,7 @@ class BalancedDataModule(LightningDataModule):
                 tile_size=self.tile_size,
                 point_cloud_transform=None,
             )
-            if not (
-                self.image_transform is None or self.point_cloud_transform is False
-            ):
+            if not (self.image_transform is None or self.point_cloud_transform is False):
                 aug_img_dataset = BalancedDataset(
                     train_superpixel_files,
                     data2use=self.dataset2use,
@@ -186,6 +174,7 @@ class BalancedDataModule(LightningDataModule):
                     data2use=self.dataset2use,
                     dataset=self.dataset,
                     tile_size=self.tile_size,
+                    image_transform=None,
                     point_cloud_transform=None,
                 )
         if stage == "test":
