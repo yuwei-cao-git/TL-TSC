@@ -103,91 +103,71 @@ class BalancedDataModule(LightningDataModule):
     def __init__(self, config):
         super().__init__()
         self.config = config
-        self.dataset = config["dataset"]
-        self.batch_size = config["batch_size"]
         self.tile_size = config["tile_size"]
-        self.image_transform = (
-            config["img_transforms"] if config["img_transforms"] != "None" else None
-        )
-        self.point_cloud_transform = config["pc_transforms"]
-        self.data_dirs = {
-            "train": join(
-                config["data_dir"],
-                f"tile_{self.tile_size}",
-                "train",
-            ),
-            "val": join(
-                config["data_dir"],
-                f"tile_{self.tile_size}",
-                "val",
-            ),
-            "test": join(
-                config["data_dir"],
-                f"tile_{self.tile_size}",
-                "test",
-            ),
-        }
         self.dataset2use = config["seasons"]
+        self.data_dir_root = config["data_dir"]
+        self.image_transform = config.get("image_transform", None)
+        self.point_cloud_transform = config.get("point_cloud_transform", None)
+        self.mode = config.get("mode", "rmf")
 
     def setup(self, stage=None):
-        # Create datasets for train, validation, and test
-        self.datasets = {}
         if stage == "fit":
-            train_superpixel_files = [
-                os.path.join(self.data_dirs["train"], f)
-                for f in os.listdir(self.data_dirs["train"])
-                if f.endswith(".npz")
-            ]
-            val_superpixel_files = [
-                os.path.join(self.data_dirs["val"], f)
-                for f in os.listdir(self.data_dirs["val"])
-                if f.endswith(".npz")
-            ]
-            self.train_datasets = BalancedDataset(
-                train_superpixel_files,
-                data2use=self.dataset2use,
-                dataset=self.dataset,
-                tile_size=self.tile_size,
-                point_cloud_transform=None,
+            if self.mode in ["rmf", "ovf"]:
+                self.train_datasets = self.load_single_dataset("train", self.mode)
+                self.val_datasets = self.load_single_dataset("val", self.mode)
+            elif self.mode in ["rmf+ovf_test_rmf", "rmf+ovf_test_ovf"]:
+                rmf_train = self.load_single_dataset("train", "rmf")
+                ovf_train = self.load_single_dataset("train", "ovf")
+                self.train_datasets = torch.utils.data.ConcatDataset([rmf_train, ovf_train])
+                test_target = "rmf" if self.mode == "rmf+ovf_test_rmf" else "ovf"
+                self.val_datasets = self.load_single_dataset("val", test_target)
+
+        if stage == "test":
+            test_target = self.mode if self.mode in ["rmf", "ovf"] else (
+                "rmf" if self.mode == "rmf+ovf_test_rmf" else "ovf"
             )
-            if not (self.image_transform is None or self.point_cloud_transform is False):
-                aug_img_dataset = BalancedDataset(
-                    train_superpixel_files,
-                    data2use=self.dataset2use,
-                    dataset=self.dataset,
-                    tile_size=self.tile_size,
-                    point_cloud_transform=False,
-                )
-                aug_pc_dataset = BalancedDataset(
-                    train_superpixel_files,
+            self.test_datasets = self.load_single_dataset("test", test_target)
+
+    def load_single_dataset(self, split, dataset_name):
+        path = os.path.join(self.data_dir_root, dataset_name, f"tile_{self.tile_size}", split)
+        files = [os.path.join(path, f) for f in os.listdir(path) if f.endswith(".npz")]
+        if split=="train":
+            no_aug_dataset=BalancedDataset(
+                    dataset_files=files,
                     data2use=self.dataset2use,
                     tile_size=self.tile_size,
-                    dataset=self.dataset,
-                    image_transform=None,
-                    point_cloud_transform=self.point_cloud_transform,
-                )
-                self.train_datasets = torch.utils.data.ConcatDataset(
-                    [self.train_datasets, aug_img_dataset, aug_pc_dataset]
-                )
-                self.val_datasets = BalancedDataset(
-                    val_superpixel_files,
-                    data2use=self.dataset2use,
-                    dataset=self.dataset,
-                    tile_size=self.tile_size,
+                    dataset=dataset_name,
                     image_transform=None,
                     point_cloud_transform=None,
                 )
-        if stage == "test":
-            test_superpixel_files = [
-                os.path.join(self.data_dirs["test"], f)
-                for f in os.listdir(self.data_dirs["test"])
-                if f.endswith(".npz")
-            ]
-            self.test_datasets = BalancedDataset(
-                test_superpixel_files,
+            if not (self.image_transform is None or self.point_cloud_transform is False):
+                aug_img_dataset=BalancedDataset(
+                    dataset_files=files,
+                    data2use=self.dataset2use,
+                    tile_size=self.tile_size,
+                    dataset=dataset_name,
+                    image_transform=self.image_transform if split == "train" else None,
+                    point_cloud_transform=None,
+                )
+                aug_pc_dataset=BalancedDataset(
+                    dataset_files=files,
+                    data2use=self.dataset2use,
+                    tile_size=self.tile_size,
+                    dataset=dataset_name,
+                    image_transform=self.image_transform if split == "train" else None,
+                    point_cloud_transform=None,
+                )
+                return torch.utils.data.ConcatDataset(
+                    [no_aug_dataset, aug_img_dataset, aug_pc_dataset]
+                )
+            else:
+                return no_aug_dataset
+        else:
+            return BalancedDataset(
+                dataset_files=files,
                 data2use=self.dataset2use,
                 tile_size=self.tile_size,
-                dataset=self.dataset,
+                dataset=dataset_name,
                 image_transform=None,
                 point_cloud_transform=None,
             )
@@ -218,37 +198,3 @@ class BalancedDataModule(LightningDataModule):
             drop_last=False,
             num_workers=8
         )
-
-    """
-    def collate_fn(self, batch):
-        # Implement custom collate function if necessary
-        batch = [b for b in batch if b is not None]  # Remove None samples if any
-
-        images = torch.stack(
-            [item["images"] for item in batch]
-        )  # Shape: (batch_size, num_seasons, num_channels, tile_size, tile_size)
-        point_clouds = torch.stack(
-            [item["point_cloud"] for item in batch]
-        )  # Shape: (batch_size, num_points, 3)
-        pc_feats = torch.stack(
-            [item["pc_feat"] for item in batch]
-        )  # Shape: (batch_size, num_points, 3)
-        labels = torch.stack(
-            [item["label"] for item in batch]
-        )  # Shape: (batch_size, num_classes)
-        per_pixel_labels = torch.stack(
-            [item["per_pixel_labels"] for item in batch]
-        )  # Shape: (batch_size, num_classes, tile_size, tile_size)
-        nodata_masks = torch.stack(
-            [item["nodata_mask"] for item in batch]
-        )  # Shape: (batch_size, tile_size, tile_size)
-
-        return {
-            "images": images,
-            "point_cloud": point_clouds,
-            "pc_feat": pc_feats,
-            "label": labels,
-            "per_pixel_labels": per_pixel_labels,
-            "nodata_mask": nodata_masks,
-        }
-"""

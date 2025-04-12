@@ -1,0 +1,52 @@
+# config_rmf.yaml
+
+# General
+mode: rmf                         # Options: rmf, ovf, rmf+ovf
+seasons: ["img_s2_spring", "img_s2_summer", "img_s2_fall", "img_s2_winter"]
+classes: ["BF", "BW", "CE", "LA", "PT", "PJ", "PO", "SB", "SW"]
+class_weights_img: 
+class_weights_pc: [0.13429631, 0.02357711, 0.05467328, 0.04353036, 0.02462899, 0.03230562, 0.2605792, 0.00621396, 0.42019516]
+n_classes: 9
+
+# Training parameters
+max_epochs: 250
+optimizer: adamW                 # Options: adam, adamW, sgd
+scheduler: cosine         # Options: plateau, steplr, asha, cosine, cosinewarmup
+img_lr: 0.0005
+pc_lr: 0.0001
+fuse_lr: 0.0001
+patience: 10
+step_size: 10
+momentum: 0.9
+weight_decay: 0.001
+
+# Loss weights
+pc_loss_weight: 3.0
+img_loss_weight: 1.0
+fuse_loss_weight: 3.0
+leading_loss: false
+lead_loss_weight: 0.15
+leading_class_weights: false
+weighted_loss: false
+
+# Model architecture
+emb_dims: 768
+num_points: 7168
+encoder: b                      # Options: s, b, l, xl
+fusion_dim: 128
+dp_fuse: 0.5
+dp_pc: 0.5
+use_mf: false
+spatial_attention: true
+use_residual: false
+mamba_fuse: false
+fuse_feature: true
+linear_layers_dims: [512, 256]
+
+# Data transforms
+image_transform: compose        # Options: compose, random, None
+point_cloud_transform: true
+rotate: false
+
+# Hardware
+gpus: 2
