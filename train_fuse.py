@@ -24,7 +24,7 @@ def main():
     parser.add_argument("--encoder", default="b", choices=["s", "b", "l", "xl"])
     parser.add_argument("--fusion_dim", type=int, default=128)
     parser.add_argument("--optimizer", default="adamW", choices=["adam", "adamW", "sgd"])
-    parser.add_argument("--scheduler", default="cosine", choices=["plateau", "steplr", "asha", "cosine", "cosinewarmup"])
+    parser.add_argument("--scheduler", default="cosinewarmup", choices=["plateau", "steplr", "asha", "cosine", "cosinewarmup"])
     parser.add_argument("--img_lr", type=float, default=5e-4, help="initial learning rate")
     parser.add_argument("--pc_lr", type=float, default=1e-4, help="initial learning rate")
     parser.add_argument("--fuse_lr", type=float, default=1e-4, help="initial learning rate")
@@ -51,7 +51,7 @@ def main():
     parser.add_argument("--pc_transforms", default=True, type=bool)
     parser.add_argument("--rotate", default=False, type=bool)
     parser.add_argument("--tile_size", default=64, type=int, choices=[32, 64, 128])
-    parser.add_argument("--loss", default="wkl")
+    parser.add_argument("--loss", default="wmse")
     parser.add_argument("--gpus", type=int, default=torch.cuda.device_count())
     parser.add_argument("--log_name", default="Fuse_ff_mamba_pointnext_b_Unet_10")
 

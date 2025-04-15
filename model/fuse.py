@@ -52,9 +52,7 @@ class FusionModel(pl.LightningModule):
         )
 
         # Define loss functions
-        if self.config["weighted_loss"]:
-            # Loss function and other parameters
-            self.weights = self.config["train_weights"]  # Initialize on CPU
+        self.weights = self.config["train_weights"]  # Initialize on CPU
         self.criterion = nn.MSELoss()
 
         # Metrics
@@ -148,7 +146,7 @@ class FusionModel(pl.LightningModule):
             r2_metric = self.test_r2
 
         # Compute point cloud loss
-        if self.config["weighted_loss"] and stage == "train":
+        if stage == "train":
             self.weights = self.weights.to(pc_preds.device)
             loss_point = self.pc_loss_weight * calc_masked_loss(self.loss, pc_preds, labels, self.weights)
             # loss_point = self.pc_loss_weight * calc_pinball_loss(labels, pc_preds)
@@ -176,8 +174,8 @@ class FusionModel(pl.LightningModule):
 
         # Compute pixel-level loss
         # loss_pixel = self.criterion(valid_pixel_preds, valid_pixel_true)
-        if self.config["weighted_loss"] and stage == "train":
-            self.weights = self.weights.to(pc_preds.device)
+        if stage == "train":
+            self.weights = self.weights.to(pixel_preds.device)
             loss_pixel = self.img_loss_weight * calc_masked_loss(
                 self.loss, valid_pixel_preds, valid_pixel_true, self.weights
             )
@@ -204,7 +202,7 @@ class FusionModel(pl.LightningModule):
 
         # Fusion stream
         # Compute fusion loss
-        if self.config["weighted_loss"] and stage == "train":
+        if stage == "train":
             loss_fuse = self.fuse_loss_weight * calc_masked_loss(
                 self.loss, fuse_preds, labels, self.weights
             )
