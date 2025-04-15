@@ -64,16 +64,16 @@ def main():
         else os.path.join(os.getcwd(), "data", f"{params['dataset']}_tl_dataset")
     )
     class_weights = [
-        0.13429631,
-        0.02357711,
-        0.05467328,
-        0.04353036,
-        0.02462899,
-        0.03230562,
-        0.2605792,
-        0.00621396,
-        0.42019516,
-    ]
+        0.134,
+        0.024,
+        0.055,
+        0.044,
+        0.025,
+        0.032,
+        0.261,
+        0.006,
+        0.420,
+    ] if params["dataset"] == "rmf" else [0.130, 0.016, 0.168, 0.192, 0.130, 0.047, 0.080, 0.024, 0.161, 0.021, 0.033]
     class_weights = torch.from_numpy(np.array(class_weights)).float()
 
     params["train_weights"] = class_weights

@@ -98,8 +98,6 @@ class FusionModel(pl.LightningModule):
         ):  # Apply the MF module first to extract features from input
             stacked_features = self.mf_module(images)
         else:
-            # batch_size, num_seasons, num_channels, width, height = images.shape
-            # stacked_features = images.reshape(batch_size, num_seasons * num_channels, width, height)
             stacked_features = torch.cat(images, dim=1)
         image_outputs, img_emb = self.s2_model(
             stacked_features
@@ -133,7 +131,7 @@ class FusionModel(pl.LightningModule):
         """
         # Permute point cloud data if available
         pc_feat = pc_feat.permute(0, 2, 1) if pc_feat is not None else None
-        point_clouds = (point_clouds.permute(0, 2, 1) if point_clouds is not None else None)
+        point_clouds = point_clouds.permute(0, 2, 1) if point_clouds is not None else None
 
         # Forward pass
         pixel_preds, pc_preds, fuse_preds = self.forward(images, pc_feat, point_clouds)
@@ -326,7 +324,7 @@ class FusionModel(pl.LightningModule):
                 f"r2_score per class check: {r2_score(torch.round(test_pred, decimals=1), test_true, multioutput='raw_values')}"
             )
 
-            self.save_to_file(test_true, test_pred, self.config["classes"])
+            save_to_file(test_true, test_pred, self.config["classes"], self.config)
 
         self.validation_step_outputs.clear()
         self.val_r2.reset()
@@ -348,7 +346,7 @@ class FusionModel(pl.LightningModule):
             point_clouds,
             labels,
             per_pixel_labels,
-            stage="test",
+            stage="test"
         )
 
         save_to_file(labels, fuse_preds, self.config["classes"], self.config)
@@ -409,7 +407,7 @@ class FusionModel(pl.LightningModule):
         elif self.scheduler_type == "cosine":
             scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(
                 optimizer,
-                T_max=10,
+                T_max=10
             )
             return {"optimizer": optimizer, "lr_scheduler": scheduler}
         elif self.scheduler_type == "cosinewarmup":
