@@ -16,7 +16,8 @@ from torchmetrics.functional import r2_score
 from torchmetrics.classification import (
     ConfusionMatrix,
 )
-from .loss import apply_mask, calc_loss
+from .loss import calc_masked_loss
+from .utils import apply_mask, save_to_file
 
 
 class FusionModel(pl.LightningModule):
@@ -24,6 +25,7 @@ class FusionModel(pl.LightningModule):
         super().__init__()
         self.save_hyperparameters(config)
         self.config = config
+        self.loss = self.config["loss"]
         self.n_bands = 12 if self.config["dataset"] == "rmf" else 9
         total_input_channels = (
             self.n_bands * 4
@@ -110,7 +112,7 @@ class FusionModel(pl.LightningModule):
         # Fusion and classification
         class_output = self.fuse_head(img_emb, pc_emb)
         return image_outputs, point_outputs, class_output
-
+    
     def forward_and_metrics(
         self, images, img_masks, pc_feat, point_clouds, labels, pixel_labels, stage
     ):
@@ -150,7 +152,7 @@ class FusionModel(pl.LightningModule):
         # Compute point cloud loss
         if self.config["weighted_loss"] and stage == "train":
             self.weights = self.weights.to(pc_preds.device)
-            loss_point = self.pc_loss_weight * calc_loss(labels, pc_preds, self.weights)
+            loss_point = self.pc_loss_weight * calc_masked_loss(self.loss, pc_preds, labels, self.weights)
             # loss_point = self.pc_loss_weight * calc_pinball_loss(labels, pc_preds)
         else:
             loss_point = self.pc_loss_weight * self.criterion(pc_preds, labels)
@@ -171,15 +173,15 @@ class FusionModel(pl.LightningModule):
         # Image stream
         # Apply mask to predictions and labels
         valid_pixel_preds, valid_pixel_true = apply_mask(
-            pixel_preds, pixel_labels, img_masks
+            pixel_preds, pixel_labels, img_masks, multi_class=True
         )
 
         # Compute pixel-level loss
         # loss_pixel = self.criterion(valid_pixel_preds, valid_pixel_true)
         if self.config["weighted_loss"] and stage == "train":
             self.weights = self.weights.to(pc_preds.device)
-            loss_pixel = self.img_loss_weight * calc_loss(
-                valid_pixel_true, valid_pixel_preds, self.weights
+            loss_pixel = self.img_loss_weight * calc_masked_loss(
+                self.loss, valid_pixel_preds, valid_pixel_true, self.weights
             )
             # loss_pixel = self.img_loss_weight * calc_pinball_loss(valid_pixel_true, valid_pixel_preds)
         else:
@@ -205,8 +207,8 @@ class FusionModel(pl.LightningModule):
         # Fusion stream
         # Compute fusion loss
         if self.config["weighted_loss"] and stage == "train":
-            loss_fuse = self.fuse_loss_weight * calc_loss(
-                labels, fuse_preds, self.weights
+            loss_fuse = self.fuse_loss_weight * calc_masked_loss(
+                self.loss, fuse_preds, labels, self.weights
             )
             # loss_fuse = self.fuse_loss_weight * calc_pinball_loss(labels, fuse_preds)
         else:
@@ -349,36 +351,8 @@ class FusionModel(pl.LightningModule):
             stage="test",
         )
 
-        self.save_to_file(labels, fuse_preds, self.config["classes"])
+        save_to_file(labels, fuse_preds, self.config["classes"], self.config)
         return loss
-
-    def save_to_file(self, labels, outputs, classes):
-        # Convert tensors to numpy arrays or lists as necessary
-        labels = labels.cpu().numpy() if isinstance(labels, torch.Tensor) else labels
-        outputs = (
-            outputs.cpu().numpy() if isinstance(outputs, torch.Tensor) else outputs
-        )
-        num_samples = labels.shape[0]
-        data = {"SampleID": np.arange(num_samples)}
-
-        # Add true and predicted values for each class
-        for i, class_name in enumerate(classes):
-            data[f"True_{class_name}"] = labels[:, i]
-            data[f"Pred_{class_name}"] = outputs[:, i]
-
-        df = pd.DataFrame(data)
-
-        output_dir = os.path.join(
-            self.config["save_dir"],
-            self.config["log_name"],
-            "outputs",
-        )
-        os.makedirs(output_dir, exist_ok=True)
-        # Save DataFrame to a CSV file
-        df.to_csv(
-            os.path.join(output_dir, "test_outputs.csv"),
-            mode="a",
-        )
 
     def configure_optimizers(self):
         params = []
