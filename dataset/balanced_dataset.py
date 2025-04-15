@@ -151,23 +151,16 @@ class BalancedDataModule(LightningDataModule):
                 point_cloud_transform=None,
             )
             if not (self.image_transform is None or self.point_cloud_transform is False):
-                aug_img_dataset = BalancedDataset(
-                    train_superpixel_files,
-                    data2use=self.dataset2use,
-                    dataset=self.dataset,
-                    tile_size=self.tile_size,
-                    point_cloud_transform=False,
-                )
-                aug_pc_dataset = BalancedDataset(
+                aug_dataset = BalancedDataset(
                     train_superpixel_files,
                     data2use=self.dataset2use,
                     tile_size=self.tile_size,
                     dataset=self.dataset,
-                    image_transform=None,
+                    image_transform=self.image_transform,
                     point_cloud_transform=self.point_cloud_transform,
                 )
                 self.train_datasets = torch.utils.data.ConcatDataset(
-                    [self.train_datasets, aug_img_dataset, aug_pc_dataset]
+                    [self.train_datasets, aug_dataset]
                 )
                 self.val_datasets = BalancedDataset(
                     val_superpixel_files,
