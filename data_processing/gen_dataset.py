@@ -12,7 +12,7 @@ from pyproj import CRS
 from pts_utils import normalize_point_cloud, center_point_cloud
 
 # Configuration
-TILE_SIZE = 128
+TILE_SIZE = 64
 IMG_PATHS = {
     "s2_2020_spring": "/mnt/d/Sync/research/tree_species_estimation/tree_dataset/ovf/processed/ovf_img/ovf_s2_10m_2020_spring.tif",
     "s2_2020_summer": "/mnt/d/Sync/research/tree_species_estimation/tree_dataset/ovf/processed/ovf_img/ovf_s2_10m_2020_summer.tif",
@@ -24,7 +24,7 @@ LABEL_RASTER_PATH = os.path.abspath(
     "/mnt/d/Sync/research/tree_species_estimation/tree_dataset/ovf/processed/ovf_fri/masked/ovf_label_10m.tif"
 )
 LAS_FILES_DIR = r"/mnt/g/ovf/raw_laz"
-OUTPUT_DIR = r"/mnt/g/ovf/dataset/tile_128/val"
+OUTPUT_DIR = r"/mnt/g/ovf/dataset/tile_64/train"
 MAX_POINTS = 7168  # Max points to sample per plot
 NODATA_IMG = 255
 NODATA_LABEL = -1
@@ -197,14 +197,16 @@ def process_plot(plot, plot_6661, plot_fid, label_path, las_files_directory, max
                         if p_high <= p_low:
                             p_high = p_low + 1  # Prevent division by zero
 
-                    # Scale and convert valid pixels
-                    scaled = (band_data - p_low) / (p_high - p_low)
-                    scaled = np.clip(scaled * 254, 0, 254).astype(
-                        np.uint8
-                    )  # 0-254 = valid
+                    # Normalize band data (handle NaNs safely)
+                    norm_band = np.zeros_like(band_data)
+                    norm_band[valid_mask] = (band_data[valid_mask] - p_low) / (p_high - p_low)
 
-                    # Apply to output (only valid pixels)
-                    uint8_tile[band_idx][valid_mask] = scaled[valid_mask]
+                    # Clip and scale to 0–254
+                    scaled = np.clip(norm_band * 254, 0, 254)
+
+                    # Cast safely
+                    scaled_uint8 = np.zeros_like(band_data, dtype=np.uint8)
+                    scaled_uint8[valid_mask] = scaled[valid_mask].astype(np.uint8)
 
                 # Store result in HWC format with uint8 type
                 results[f"img_{name}"] = uint8_tile.transpose(1, 2, 0)
@@ -249,7 +251,7 @@ def main_workflow(plots_file):
     plots_6661 = plots_6661.to_crs(las_crs)  # Convert polygon to assumed LAS CRS
 
     # Process plots with valid point clouds
-    final_results = Parallel(n_jobs=4)(
+    final_results = Parallel(n_jobs=8)(
         delayed(process_plot)(
             plot, plot_6661, idx, LABEL_RASTER_PATH, LAS_FILES_DIR, MAX_POINTS
         )
@@ -264,7 +266,7 @@ def main_workflow(plots_file):
 # Run the pipeline
 if __name__ == "__main__":
     main_workflow(
-        plots_file="/mnt/d/Sync/research/tree_species_estimation/tree_dataset/ovf/processed/plots/plot_val_prom10_rem100_Tilename_2958.gpkg"
+        plots_file="/mnt/d/Sync/research/tree_species_estimation/tree_dataset/ovf/processed/plots/plot_train_prom10_rem100_Tilename_2958.gpkg"
     )
 
     """

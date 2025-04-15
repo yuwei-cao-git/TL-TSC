@@ -1,14 +1,11 @@
-# config_rmf.yaml
+# config_merged.yaml
 
 # General
-mode: rmf                         # Options: rmf, ovf, rmf+ovf
-seasons: ["img_s2_spring", "img_s2_summer", "img_s2_fall", "img_s2_winter"]
-classes: ["BF", "BW", "CE", "LA", "PT", "PJ", "PO", "SB", "SW"]
-class_weights_img: 
-class_weights_pc: [0.13429631, 0.02357711, 0.05467328, 0.04353036, 0.02462899, 0.03230562, 0.2605792, 0.00621396, 0.42019516]
-n_classes: 9
+train_on: ['rmf', 'ovf']                         # Options: rmf, ovf, rmf+ovf
+test_on: rmf
 
 # Training parameters
+task: regression
 max_epochs: 250
 optimizer: adamW                 # Options: adam, adamW, sgd
 scheduler: cosine         # Options: plateau, steplr, asha, cosine, cosinewarmup
@@ -49,4 +46,4 @@ point_cloud_transform: true
 rotate: false
 
 # Hardware
-gpus: 2
+gpus: 1
