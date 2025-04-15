@@ -33,7 +33,7 @@ class FusionModel(pl.LightningModule):
             self.mf_module = FusionBlock(n_inputs=4, in_ch=self.n_bands, n_filters=64)
             total_input_channels = 64
         # Using standard UNet
-        self.s2_model = UNet(
+        self.s2_model = ResUnet(n_channels=total_input_channels, n_classes=self.config["n_classes"]) if self.config["use_residual"] else UNet(
             n_channels=total_input_channels, n_classes=self.config["n_classes"]
         )
         self.pc_model = PointNextModel(self.config, in_dim=3)
