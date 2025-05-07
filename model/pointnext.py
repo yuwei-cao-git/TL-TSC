@@ -4,11 +4,12 @@ from pointnext import pointnext_s, PointNext, pointnext_b, pointnext_l, pointnex
 
 
 class PointNextModel(nn.Module):
-    def __init__(self, config, in_dim):
+    def __init__(self, config, in_dim, decoder=True):
         super(PointNextModel, self).__init__()
         self.config = config
         self.n_classes = config["n_classes"]
         self.task = config["task"]
+        self.use_decoder = decoder
 
         # Initialize the PointNext encoder and decoder
         if config["encoder"] == "s":
@@ -31,29 +32,33 @@ class PointNextModel(nn.Module):
         self.backbone = PointNext(self.config["emb_dims"], encoder=self.encoder)
 
         self.norm = nn.BatchNorm1d(self.config["emb_dims"])
-        self.act = nn.ReLU()
-        self.cls_head = nn.Sequential(
-            nn.Linear(self.config["emb_dims"], 512),
-            nn.BatchNorm1d(512),
-            nn.ReLU(),
-            nn.Dropout(self.config["dp_pc"]),
-            nn.Linear(512, 256),
-            nn.BatchNorm1d(256),
-            nn.ReLU(),
-            nn.Dropout(self.config["dp_pc"]),
-            nn.Linear(256, self.n_classes),
-        )
+        if self.use_decoder:
+            self.act = nn.ReLU()
+            self.cls_head = nn.Sequential(
+                nn.Linear(self.config["emb_dims"], 512),
+                nn.BatchNorm1d(512),
+                nn.ReLU(),
+                nn.Dropout(self.config["dp_pc"]),
+                nn.Linear(512, 256),
+                nn.BatchNorm1d(256),
+                nn.ReLU(),
+                nn.Dropout(self.config["dp_pc"]),
+                nn.Linear(256, self.n_classes),
+            )
 
     def forward(self, pc_feat, xyz):
         pc_feats = self.norm(self.backbone(pc_feat, xyz))
-        out = pc_feats.mean(dim=-1)  # (bs, emb_dim)
-        out = self.act(out)
-        logits = self.cls_head(out)
-
-        if self.task == "classify":
-            return F.log_softmax(logits, dim=1), pc_feats
-            # Lower T -> sharper, Higher T -> flatter
-            # return F.softmax(logits / 0.5, dim=1), pc_feats
+        
+        if self.use_decoder:
+            out = pc_feats.mean(dim=-1)  # (bs, emb_dim)
+            out = self.act(out)
+            logits = self.cls_head(out)
+            if self.task == "classify":
+                return F.log_softmax(logits, dim=1), pc_feats
+                # Lower T -> sharper, Higher T -> flatter
+                # return F.softmax(logits / 0.5, dim=1), pc_feats
+            else:
+                preds = F.softmax(logits, dim=1)
+                return preds, pc_feats
         else:
-            preds = F.softmax(logits, dim=1)
-            return preds, pc_feats
+            return pc_feats

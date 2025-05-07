@@ -45,10 +45,7 @@ class BalancedDataset(Dataset):
         # Select the images based on the data2use list
         if self.dataset =="ovf":
             images = [
-                np.nan_to_num(
-                    np.where(np.logical_or(np.isinf(data[k]), data[k] == 255.0), np.nan, data[k]),
-                    nan=1.0
-                )
+                np.nan_to_num(np.where(np.logical_or(np.isinf(data[k]), data[k] == 255.0), np.nan, data[k]), nan=1.0)
                 for k in self.images_list
             ]
             images = [self.transforms(img) for img in images]
@@ -104,18 +101,19 @@ class BalancedDataModule(LightningDataModule):
         super().__init__()
         self.config = config
         self.tile_size = config["tile_size"]
-        self.dataset2use = config["seasons"]
+        self.batch_size = config["batch_size"]
+        self.dataset2use = config["test_seasons"]
         self.data_dir_root = config["data_dir"]
         self.image_transform = config.get("image_transform", None)
         self.point_cloud_transform = config.get("point_cloud_transform", None)
-        self.train_datasets = config.get("train_on", "rmf")
+        self.train_dataset = config.get("train_on", "rmf")
         self.test_dataset = config.get("test_on", "rmf")
 
     def setup(self, stage=None):
         if stage == "fit":
-            if len(self.train_datasets)==1:
-                self.train_datasets = self.load_single_dataset("train", self.train_datasets[0])
-                self.val_datasets = self.load_single_dataset("val", self.train_datasets[0])
+            if len(self.train_dataset)==1:
+                self.train_datasets = self.load_single_dataset("train", self.train_dataset[0])
+                self.val_datasets = self.load_single_dataset("val", self.train_dataset[0])
             else:
                 rmf_train = self.load_single_dataset("train", "rmf")
                 ovf_train = self.load_single_dataset("train", "ovf")
@@ -128,7 +126,7 @@ class BalancedDataModule(LightningDataModule):
             self.test_datasets = self.load_single_dataset("test", self.test_dataset)
 
     def load_single_dataset(self, split, dataset_name):
-        path = os.path.join(self.data_dir_root, f"{self.dataset_name}_tl_dataset", f"tile_{self.tile_size}", split)
+        path = os.path.join(self.data_dir_root, f"{dataset_name}_tl_dataset", f"tile_{self.tile_size}", split)
         files = [os.path.join(path, f) for f in os.listdir(path) if f.endswith(".npz")]
         if split=="train":
             no_aug_dataset=BalancedDataset(

@@ -14,9 +14,8 @@ def parse_args():
     # Add arguments
     parser.add_argument('--config', type=str, required=True, help='Path to config YAML file')
     parser.add_argument("--data_dir", type=str, default=None, help="path to data dir")
-    parser.add_argument("--batch_size", type=int, default=8, help="Number of epochs to train the model")
-    parser.add_argument("--tile_size", default=64, type=int, choices=[32, 64, 128])
     parser.add_argument("--log_name", default="Fuse_ff_mamba_pointnext_b_Unet_10")
+    return parser.parse_args()
     
 def main():
     # Parse arguments
@@ -25,8 +24,8 @@ def main():
     config['log_name'] = args.log_name
     config['save_dir'] = os.path.join(os.getcwd(), 'tl_logs')
     config["data_dir"] = (
-        args["data_dir"]
-        if args["data_dir"] is not None
+        args.data_dir
+        if args.data_dir is not None
         else os.path.join(os.getcwd(), "data")
     )
     
@@ -68,5 +67,4 @@ def main():
 
 if __name__ == "__main__":
     main()
-    # python train_fuse.py --dataset 'rmf' --data_dir '/mnt/g/rmf/rmf_tl_dataset' --pc_transforms True --spatial_attention --tile_size 64 --linear_layers_dims 256,128 
-    # python train_fuse.py --dataset 'ovf' --data_dir '/mnt/g/ovf/ovf_tl_dataset' --pc_transforms True --spatial_attention --tile_size 64 --linear_layers_dims 256,128 
+    # python train_fuse.py --data_dir '/mnt/g/ovf' --config 'configs/config_ovf.yaml'

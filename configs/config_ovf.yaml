@@ -1,0 +1,40 @@
+# config_ovf.yaml
+
+# General
+train_on: ['ovf']                         # Options: rmf, ovf, rmf+ovf
+test_on: ovf
+tile_size: 128
+
+# Training parameters
+task: regression
+batch_size: 8
+max_epochs: 250
+optimizer: adamW                 # Options: adam, adamW, sgd
+scheduler: cosine         # Options: plateau, steplr, asha, cosine, cosinewarmup
+fuse_lr: 0.0001
+patience: 10
+step_size: 10
+momentum: 0.9
+weight_decay: 0.0001
+
+# Loss weights
+weighted_loss: false
+
+# Model architecture
+emb_dims: 768
+num_points: 7168
+encoder: s                      # Options: s, b, l, xl
+fusion_dim: 128
+dp_fuse: 0.5
+dp_pc: 0.5
+use_ms: true
+use_residual: true
+linear_layers_dims: [256, 128]
+
+# Data transforms
+image_transform: compose        # Options: compose, random, None
+point_cloud_transform: true
+rotate: false
+
+# Hardware
+gpus: 1

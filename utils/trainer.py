@@ -6,7 +6,7 @@ from lightning.pytorch.loggers import WandbLogger
 
 # from pytorch_lightning.utilities.model_summary import ModelSummary
 from dataset.balanced_dataset import BalancedDataModule
-from model.fuse import FusionModel
+from model.fuse_v2 import FusionModel
 
 
 def train(config):
