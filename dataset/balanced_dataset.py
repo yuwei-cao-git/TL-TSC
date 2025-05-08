@@ -44,14 +44,10 @@ class BalancedDataset(Dataset):
         data = np.load(self.dataset_files[idx], allow_pickle=True)
         # Select the images based on the data2use list
         if self.dataset =="ovf":
-            images = [
-                np.nan_to_num(np.where(np.logical_or(np.isinf(data[k]), data[k] == 255.0), np.nan, data[k]), nan=1.0)
-                for k in self.images_list
-            ]
+            images = [np.nan_to_num(np.where(np.logical_or(np.isinf(data[k]), data[k] == 255.0), np.nan, data[k]), nan=1.0) for k in self.images_list]
             images = [self.transforms(img) for img in images]
         else:
             images = [self.transforms(data[image_key]) for image_key in self.images_list]
-        # images = torch.stack( images, axis=0)  # Shape: (num_seasons, num_channels, tile_size, tile_size)
 
         # Apply transforms if needed
         if self.image_transform != None:

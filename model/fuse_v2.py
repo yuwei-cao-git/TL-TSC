@@ -5,6 +5,7 @@ import numpy as np
 import torch
 import torch.nn as nn
 import pytorch_lightning as pl
+import torch.nn.functional as F
 
 from .blocks import MambaFusionBlock, FusionBlock
 from .unet import UNet
@@ -24,10 +25,8 @@ class FusionModel(pl.LightningModule):
         super().__init__()
         self.save_hyperparameters(config)
         self.config = config
-        self.n_bands = 12 if self.config["train_on"] == "rmf" else 9
-        total_input_channels = (
-            self.n_bands * 4
-        )  # If no Multi-season fusion module, concatenating all seasons directly
+        self.n_bands = 12 if self.config["train_on"] == ["rmf"] else 9
+        total_input_channels = self.n_bands * 4 # If no Multi-season fusion module, concatenating all seasons directly
         self.ms_fusion = self.config["use_ms"]
         if self.ms_fusion:
             self.mf_module = FusionBlock(n_inputs=4, in_ch=self.n_bands, n_filters=64)
@@ -59,7 +58,7 @@ class FusionModel(pl.LightningModule):
         if self.config["weighted_loss"]:
             # Loss function and other parameters
             self.weights = self.config["test_class_weights"]  # Initialize on CPU
-        self.criterion = nn.KLDivLoss(reduction = 'batchmean') # nn.NLLLoss(), nn.L1Loss(), nn.MSELoss()
+        self.criterion = nn.KLDivLoss(size_average=False) # nn.NLLLoss(), nn.L1Loss(), nn.MSELoss()
 
         # Metrics
         self.train_r2 = R2Score()
@@ -143,7 +142,7 @@ class FusionModel(pl.LightningModule):
                 labels, fuse_preds, self.weights
             )
         else:
-            loss = self.criterion(fuse_preds, labels)
+            loss = self.criterion(F.log_softmax(labels, -1), fuse_preds)
 
         # Compute R² metric
         fuse_preds_rounded = torch.round(fuse_preds, decimals=2)
