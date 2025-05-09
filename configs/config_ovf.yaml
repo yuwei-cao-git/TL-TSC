@@ -11,11 +11,16 @@ batch_size: 8
 max_epochs: 250
 optimizer: adamW                 # Options: adam, adamW, sgd
 scheduler: cosine         # Options: plateau, steplr, asha, cosine, cosinewarmup
-fuse_lr: 0.001
+fuse_lr: 0.0005
+img_lr: 0.0001
+pc_lr: 0.0001
 patience: 10
 step_size: 10
 momentum: 0.9
 weight_decay: 0.0001
+pc_loss_weight: 1.0
+img_loss_weight: 1.0
+fuse_loss_weight: 1.0
 
 # Loss weights
 weighted_loss: false
@@ -28,7 +33,7 @@ fusion_dim: 128
 dp_fuse: 0.5
 dp_pc: 0.5
 use_ms: true
-use_residual: true
+use_residual: false
 linear_layers_dims: [256, 128]
 
 # Data transforms

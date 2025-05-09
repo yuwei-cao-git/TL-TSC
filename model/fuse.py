@@ -24,19 +24,19 @@ class FusionModel(pl.LightningModule):
         super().__init__()
         self.save_hyperparameters(config)
         self.config = config
-        self.n_bands = 12 if self.config["dataset"] == "rmf" else 9
+        self.n_bands = 12 if self.config["train_on"] == ["rmf"] else 9
         total_input_channels = (
             self.n_bands * 4
         )  # If no MF module, concatenating all seasons directly
-        self.spatial_attention = self.config["spatial_attention"]
-        if self.spatial_attention:
+        self.ms_fusion = self.config["use_ms"]
+        if self.ms_fusion:
             self.mf_module = FusionBlock(n_inputs=4, in_ch=self.n_bands, n_filters=64)
             total_input_channels = 64
         # Using standard UNet
         self.s2_model = UNet(
-            n_channels=total_input_channels, n_classes=self.config["n_classes"]
+            n_channels=total_input_channels, n_classes=self.config["test_n_classes"], decoder=True
         )
-        self.pc_model = PointNextModel(self.config, in_dim=3)
+        self.pc_model = PointNextModel(self.config, in_dim=3, decoder=True)
 
         # Fusion and classification layers with additional linear layer
         self.fuse_head = MambaFusionBlock(
@@ -44,7 +44,7 @@ class FusionModel(pl.LightningModule):
             in_pc_chs=(self.config["emb_dims"]),
             dim=self.config["fusion_dim"],
             hidden_ch=self.config["linear_layers_dims"],
-            num_classes=self.config["n_classes"],
+            num_classes=self.config["test_n_classes"],
             drop=self.config["dp_fuse"],
             last_feat_size=self.config["tile_size"] // 16,  # tile_size=64, last_feat_size=4
         )
@@ -63,7 +63,7 @@ class FusionModel(pl.LightningModule):
         self.test_r2 = R2Score()
 
         self.confmat = ConfusionMatrix(
-            task="multiclass", num_classes=self.config["n_classes"]
+            task="multiclass", num_classes=self.config["test_n_classes"]
         )
 
         # Optimizer and scheduler settings
@@ -92,7 +92,7 @@ class FusionModel(pl.LightningModule):
 
         # Process images
         if (
-            self.spatial_attention
+            self.ms_fusion
         ):  # Apply the MF module first to extract features from input
             stacked_features = self.mf_module(images)
         else:
@@ -324,7 +324,7 @@ class FusionModel(pl.LightningModule):
                 f"r2_score per class check: {r2_score(torch.round(test_pred, decimals=1), test_true, multioutput='raw_values')}"
             )
 
-            self.save_to_file(test_true, test_pred, self.config["classes"])
+            self.save_to_file(test_true, test_pred, self.config["class_names"])
 
         self.validation_step_outputs.clear()
         self.val_r2.reset()
@@ -349,7 +349,7 @@ class FusionModel(pl.LightningModule):
             stage="test",
         )
 
-        self.save_to_file(labels, fuse_preds, self.config["classes"])
+        self.save_to_file(labels, fuse_preds, self.config["class_names"])
         return loss
 
     def save_to_file(self, labels, outputs, classes):

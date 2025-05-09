@@ -58,7 +58,7 @@ class FusionModel(pl.LightningModule):
         if self.config["weighted_loss"]:
             # Loss function and other parameters
             self.weights = self.config["test_class_weights"]  # Initialize on CPU
-        self.criterion = nn.KLDivLoss(size_average=False) # nn.NLLLoss(), nn.L1Loss(), nn.MSELoss()
+        self.criterion =  nn.MSELoss() # nn.NLLLoss(), nn.L1Loss(), nn.KLDivLoss(reduction="batchmean")
 
         # Metrics
         self.train_r2 = R2Score()
@@ -83,6 +83,7 @@ class FusionModel(pl.LightningModule):
         self.validation_step_outputs = []
 
     def forward(self, images, pc_feat, xyz):
+        # image_outputs = None
         img_emb = None
         pc_emb = None
 
@@ -123,6 +124,7 @@ class FusionModel(pl.LightningModule):
 
         # Forward pass
         fuse_preds = self.forward(images, pc_feat, point_clouds)
+        #fuse_preds = torch.round(fuse_preds, decimals=2)
 
         loss = 0
         logs = {}
@@ -142,7 +144,7 @@ class FusionModel(pl.LightningModule):
                 labels, fuse_preds, self.weights
             )
         else:
-            loss = self.criterion(F.log_softmax(labels, -1), fuse_preds)
+            loss = self.criterion(labels, fuse_preds)
 
         # Compute R² metric
         fuse_preds_rounded = torch.round(fuse_preds, decimals=2)
