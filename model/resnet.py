@@ -31,15 +31,15 @@ class FCNResNet50(nn.Module):
             
         # pull apart the pieces
         self.backbone = fcn.backbone      # IntermediateLayerGetter
-        # self.classifier = fcn.classifier    # FCNHead
-        self.decoder = SimpleDecoder(encoder_channel=2048, decoder_channels=128, num_classes=n_classes)
+        self.classifier = fcn.classifier    # FCNHead
+        # self.decoder = SimpleDecoder(encoder_channel=2048, decoder_channels=128, num_classes=n_classes)
 
     def forward(self, x):
         feat = self.backbone(x)['out'] #(B, 2048, H/8, W/8)
         # FCN returns a dict with 'out' key
-        # logits = self.classifier(feat) # torch.Size([8, 9, 16, 16])
+        logits = self.classifier(feat) # torch.Size([8, 9, 16, 16])
         # 3) upsample logits back to input H×W
-        # logits = F.interpolate(logits, size=x.shape[2:], mode='bilinear', align_corners=False)
-        logits = self.decoder(feat)
+        logits = F.interpolate(logits, size=x.shape[2:], mode='bilinear', align_corners=False)
+        # logits = self.decoder(feat)
         preds = F.softmax(logits, dim=1)
         return preds, feat
