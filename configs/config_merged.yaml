@@ -46,4 +46,4 @@ point_cloud_transform: true
 rotate: false
 
 # Hardware
-gpus: 1
+gpus: 4
