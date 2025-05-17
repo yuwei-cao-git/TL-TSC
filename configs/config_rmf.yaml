@@ -7,7 +7,7 @@ tile_size: 128
 
 # Training parameters
 task: regression
-batch_size: 8
+batch_size: 32
 max_epochs: 250
 optimizer: adamW                 # Options: adam, adamW, sgd
 scheduler: cosine         # Options: plateau, steplr, asha, cosine, cosinewarmup
