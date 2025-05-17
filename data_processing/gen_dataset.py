@@ -251,7 +251,7 @@ def main_workflow(plots_file):
     plots_6661 = plots_6661.to_crs(las_crs)  # Convert polygon to assumed LAS CRS
 
     # Process plots with valid point clouds
-    final_results = Parallel(n_jobs=8)(
+    final_results = Parallel(n_jobs=6)(
         delayed(process_plot)(
             plot, plot_6661, idx, LABEL_RASTER_PATH, LAS_FILES_DIR, MAX_POINTS
         )

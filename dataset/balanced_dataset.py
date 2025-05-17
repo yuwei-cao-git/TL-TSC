@@ -4,7 +4,6 @@ import numpy as np
 import os
 from pytorch_lightning import LightningDataModule
 from torch.utils.data import DataLoader
-from os.path import join
 import torchvision.transforms.v2 as transforms
 from .augment import (
     pointCloudTransform,
@@ -117,6 +116,7 @@ class BalancedDataModule(LightningDataModule):
                 rmf_val = self.load_single_dataset("val", "rmf")
                 ovf_val = self.load_single_dataset("val", "ovf")
                 self.train_datasets = torch.utils.data.ConcatDataset([rmf_train, ovf_train])
+                self.val_datasets = torch.utils.data.ConcatDataset([rmf_val, ovf_val])
 
         if stage == "test":
             self.test_datasets = self.load_single_dataset("test", self.test_dataset)
@@ -139,7 +139,7 @@ class BalancedDataModule(LightningDataModule):
                     data2use=self.dataset2use,
                     tile_size=self.tile_size,
                     dataset=dataset_name,
-                    image_transform=self.image_transform if split == "train" else None,
+                    image_transform=self.image_transform,
                     point_cloud_transform=None,
                 )
                 aug_pc_dataset=BalancedDataset(
@@ -147,8 +147,8 @@ class BalancedDataModule(LightningDataModule):
                     data2use=self.dataset2use,
                     tile_size=self.tile_size,
                     dataset=dataset_name,
-                    image_transform=self.image_transform if split == "train" else None,
-                    point_cloud_transform=None,
+                    image_transform=None,
+                    point_cloud_transform=self.point_cloud_transform,
                 )
                 return torch.utils.data.ConcatDataset(
                     [no_aug_dataset, aug_img_dataset, aug_pc_dataset]

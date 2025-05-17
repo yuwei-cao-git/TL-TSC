@@ -6,9 +6,7 @@ import torch
 import torch.nn as nn
 import pytorch_lightning as pl
 
-from .blocks import MambaFusionBlock, FusionBlock
-from .unet import UNet
-from .ResUnet import ResUnet
+from .decoder import MambaFusionBlock
 from .pointnext import PointNextModel
 
 from torchmetrics.regression import R2Score
@@ -25,28 +23,43 @@ class FusionModel(pl.LightningModule):
         self.save_hyperparameters(config)
         self.config = config
         self.n_bands = 12 if self.config["train_on"] == ["rmf"] else 9
-        total_input_channels = (
-            self.n_bands * 4
-        )  # If no MF module, concatenating all seasons directly
-        self.ms_fusion = self.config["use_ms"]
-        if self.ms_fusion:
+        
+        # seasonal s2 data fusion block 
+        self.ms_fusion = self.config["use_ms"] 
+        if self.ms_fusion: # mid fusion
+            from .seasonal_fusion import FusionBlock
             self.mf_module = FusionBlock(n_inputs=4, in_ch=self.n_bands, n_filters=64)
             total_input_channels = 64
-        # Using standard UNet
-        self.s2_model = UNet(
-            n_channels=total_input_channels, n_classes=self.config["test_n_classes"], decoder=True
-        )
+        else: # early-fusion
+            total_input_channels = self.n_bands * 4 # Concatenating all seasonal data directly
+        
+        # Image stream backbone
+        if self.config["network"] == "Unet":
+            from .unet import UNet
+            self.s2_model = UNet(
+                n_channels=total_input_channels, n_classes=self.config["test_n_classes"], decoder=True
+            )
+        elif self.config["network"] == "ResUnet":
+            from .ResUnet import ResUnet
+            self.s2_model = ResUnet(
+                n_channels=total_input_channels, n_classes=self.config["test_n_classes"], decoder=True
+            )
+        elif self.config["network"] == "ResNet":
+            from .resnet import FCNResNet50
+            self.s2_model = FCNResNet50(n_channels=total_input_channels, n_classes=self.config["test_n_classes"], pretrained=False)
+        
+        # PC stream backbone
         self.pc_model = PointNextModel(self.config, in_dim=3, decoder=True)
 
-        # Fusion and classification layers with additional linear layer
+        # Late Fusion and classification layers with additional MLPs
         self.fuse_head = MambaFusionBlock(
-            in_img_chs=512,
+            in_img_chs=2048,
             in_pc_chs=(self.config["emb_dims"]),
             dim=self.config["fusion_dim"],
             hidden_ch=self.config["linear_layers_dims"],
             num_classes=self.config["test_n_classes"],
             drop=self.config["dp_fuse"],
-            last_feat_size=self.config["tile_size"] // 16,  # tile_size=64, last_feat_size=4
+            last_feat_size=self.config["tile_size"] // 8,  # tile_size=64, last_feat_size=4
         )
 
         # Define loss functions
@@ -91,21 +104,14 @@ class FusionModel(pl.LightningModule):
         pc_emb = None
 
         # Process images
-        if (
-            self.ms_fusion
-        ):  # Apply the MF module first to extract features from input
+        if self.ms_fusion:  # Apply the MF module first to extract features from input
             stacked_features = self.mf_module(images)
         else:
-            # batch_size, num_seasons, num_channels, width, height = images.shape
-            # stacked_features = images.reshape(batch_size, num_seasons * num_channels, width, height)
             stacked_features = torch.cat(images, dim=1)
-        image_outputs, img_emb = self.s2_model(
-            stacked_features
-        )  # shape: image_outputs: torch.Size([8, 9, 64, 64]), img_emb: torch.Size([8, 512, tile_size/2/2/2, 4])
+        image_outputs, img_emb = self.s2_model(stacked_features)  # torch.Size([8, 9, 64, 64]), torch.Size([8, 512, tile_size/16, tile_size/16])
+        
         # Process point clouds
-        point_outputs, pc_emb = self.pc_model(
-            pc_feat, xyz
-        )  # torch.Size([8, 9]), torch.Size([8, 768, 28])
+        point_outputs, pc_emb = self.pc_model(pc_feat, xyz)  # torch.Size([8, 9]), torch.Size([8, 768, 28])
 
         # Fusion and classification
         class_output = self.fuse_head(img_emb, pc_emb)
@@ -149,66 +155,52 @@ class FusionModel(pl.LightningModule):
 
         # Compute point cloud loss
         if self.config["weighted_loss"] and stage == "train":
-            self.weights = self.weights.to(pc_preds.device)
+            #self.weights = self.weights.to(pc_preds.device)
             loss_point = self.pc_loss_weight * calc_loss(labels, pc_preds, self.weights)
-            # loss_point = self.pc_loss_weight * calc_pinball_loss(labels, pc_preds)
         else:
             loss_point = self.pc_loss_weight * self.criterion(pc_preds, labels)
         loss += loss_point
         
-
         # Compute R² metric
-        pc_preds_rounded = torch.round(pc_preds, decimals=2)
-        pc_r2 = r2_metric(pc_preds_rounded.view(-1), labels.view(-1))
+        #pc_preds_rounded = torch.round(pc_preds, decimals=2)
+        #pc_r2 = r2_metric(pc_preds_rounded.view(-1), labels.view(-1))
 
         # Log metrics
         logs.update(
             {
                 f"pc_{stage}_loss": loss_point,
-                f"pc_{stage}_r2": pc_r2,
+                #f"pc_{stage}_r2": pc_r2,
             }
         )
+        
         # Image stream
         # Apply mask to predictions and labels
-        valid_pixel_preds, valid_pixel_true = apply_mask(
-            pixel_preds, pixel_labels, img_masks
-        )
+        valid_pixel_preds, valid_pixel_true = apply_mask(pixel_preds, pixel_labels, img_masks)
 
         # Compute pixel-level loss
-        # loss_pixel = self.criterion(valid_pixel_preds, valid_pixel_true)
         if self.config["weighted_loss"] and stage == "train":
-            self.weights = self.weights.to(pc_preds.device)
-            loss_pixel = self.img_loss_weight * calc_loss(
-                valid_pixel_true, valid_pixel_preds, self.weights
-            )
-            # loss_pixel = self.img_loss_weight * calc_pinball_loss(valid_pixel_true, valid_pixel_preds)
+            #self.weights = self.weights.to(valid_pixel_preds.device)
+            loss_pixel = self.img_loss_weight * calc_loss(valid_pixel_true, valid_pixel_preds, self.weights)
         else:
-            loss_pixel = self.img_loss_weight * self.criterion(
-                valid_pixel_preds, valid_pixel_true
-            )
+            loss_pixel = self.img_loss_weight * self.criterion(valid_pixel_preds, valid_pixel_true)
         loss += loss_pixel
 
         # Compute R² metric
-        valid_pixel_preds_rounded = torch.round(valid_pixel_preds, decimals=2)
-        pixel_r2 = r2_metric(
-            valid_pixel_preds_rounded.view(-1), valid_pixel_true.view(-1)
-        )
+        # valid_pixel_preds_rounded = torch.round(valid_pixel_preds, decimals=2)
+        # pixel_r2 = r2_metric(valid_pixel_preds_rounded.view(-1), valid_pixel_true.view(-1))
 
         # Log metrics
         logs.update(
             {
                 f"pixel_{stage}_loss": loss_pixel,
-                f"pixel_{stage}_r2": pixel_r2,
+                #f"pixel_{stage}_r2": pixel_r2,
             }
         )
 
         # Fusion stream
         # Compute fusion loss
         if self.config["weighted_loss"] and stage == "train":
-            loss_fuse = self.fuse_loss_weight * calc_loss(
-                labels, fuse_preds, self.weights
-            )
-            # loss_fuse = self.fuse_loss_weight * calc_pinball_loss(labels, fuse_preds)
+            loss_fuse = self.fuse_loss_weight * calc_loss(labels, fuse_preds, self.weights)
         else:
             loss_fuse = self.fuse_loss_weight * self.criterion(fuse_preds, labels)
         loss += loss_fuse
@@ -219,6 +211,7 @@ class FusionModel(pl.LightningModule):
 
         # Log metrics
         logs.update({f"fuse_{stage}_loss": loss_fuse, f"fuse_{stage}_r2": fuse_r2})
+        
         if stage == "val":
             self.validation_step_outputs.append(
                 {"val_target": labels, "val_pred": fuse_preds}

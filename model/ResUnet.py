@@ -1,7 +1,6 @@
+import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from .blocks import Stem, ResidualBlock, ConvBlock, UpSampleConcat
-
 
 # ResidualUNet model
 class ResUnet(nn.Module):
@@ -77,3 +76,101 @@ class ResUnet(nn.Module):
             return preds, b1
         else:
             return b1
+
+
+# -----------------------------------------------------------------------------------
+# Parts of the ResU-Net model
+# -----------------------------------------------------------------------------------
+
+class BNAct(nn.Module):
+    """Batch Normalization followed by an optional ReLU activation."""
+
+    def __init__(self, num_features, act=True):
+        super(BNAct, self).__init__()
+        self.bn = nn.BatchNorm2d(num_features)
+        self.act = act
+        if self.act:
+            self.activation = nn.ReLU(inplace=True)
+
+    def forward(self, x):
+        x = self.bn(x)
+        if self.act:
+            x = self.activation(x)
+        return x
+
+
+# ConvBlock module
+class ConvBlock(nn.Module):
+    """Convolution Block with BN and Activation."""
+
+    def __init__(self, in_channels, out_channels, kernel_size=3, padding=1, stride=1):
+        super(ConvBlock, self).__init__()
+        self.bn_act = BNAct(in_channels)
+        self.conv = nn.Conv2d(in_channels, out_channels, kernel_size, stride, padding)
+
+    def forward(self, x):
+        x = self.bn_act(x)
+        x = self.conv(x)
+        return x
+
+
+# Stem module
+class Stem(nn.Module):
+    """Initial convolution block with residual connection."""
+
+    def __init__(self, in_channels, out_channels):
+        super(Stem, self).__init__()
+        self.conv1 = nn.Conv2d(in_channels, out_channels, kernel_size=3, padding=1)
+        self.conv_block = ConvBlock(out_channels, out_channels)
+        self.shortcut_conv = nn.Conv2d(
+            in_channels, out_channels, kernel_size=1, padding=0
+        )
+        self.bn_act = BNAct(out_channels, act=False)
+
+    def forward(self, x):
+        conv = self.conv1(x)
+        conv = self.conv_block(conv)
+        shortcut = self.shortcut_conv(x)
+        shortcut = self.bn_act(shortcut)
+        output = conv + shortcut
+        return output
+
+
+# ResidualBlock module
+class ResidualBlock(nn.Module):
+    """Residual block with two convolutional layers and a shortcut connection."""
+
+    def __init__(self, in_channels, out_channels, stride=1):
+        super(ResidualBlock, self).__init__()
+        self.conv_block1 = ConvBlock(in_channels, out_channels, stride=stride)
+        self.conv_block2 = ConvBlock(out_channels, out_channels)
+        self.shortcut_conv = nn.Conv2d(
+            in_channels, out_channels, kernel_size=1, stride=stride
+        )
+        self.bn_act = BNAct(out_channels, act=False)
+
+    def forward(self, x):
+        res = self.conv_block1(x)
+        res = self.conv_block2(res)
+        shortcut = self.shortcut_conv(x)
+        shortcut = self.bn_act(shortcut)
+        output = res + shortcut
+        return output
+
+
+# UpSampleConcat module
+class UpSampleConcat(nn.Module):
+    """Upsamples the input and concatenates with the skip connection."""
+
+    def __init__(self):
+        super(UpSampleConcat, self).__init__()
+        self.up = nn.Upsample(scale_factor=2, mode="bilinear", align_corners=True)
+        # else:
+        # self.up = nn.ConvTranspose2d(in_channels, in_channels // 2, kernel_size=2, stride=2)
+
+    def forward(self, x, xskip):
+        # x = F.interpolate(x, scale_factor=2, mode='nearest')
+        x = self.up(x)
+        x = torch.cat([x, xskip], dim=1)
+        return x
+    
