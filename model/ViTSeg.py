@@ -1,7 +1,7 @@
 import torch.nn as nn
 import torch.nn.functional as F
 import timm
-from .decoder import SimpleDecoder
+from .decoder import SimpleUpDecoder
 
 class ViTSeg(nn.Module):
     """
@@ -24,7 +24,7 @@ class ViTSeg(nn.Module):
         )
         # Number of channels in the last feature map
         in_chs = self.backbone.feature_info[-1]['num_chs']
-        self.decoder = SimpleDecoder(encoder_channel=in_chs, decoder_channels=128, num_classes=n_classes)
+        self.decoder = SimpleUpDecoder(encoder_channel=in_chs, decoder_channels=128, num_classes=n_classes)
 
 
     def forward(self, x):

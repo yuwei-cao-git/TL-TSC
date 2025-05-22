@@ -1,7 +1,7 @@
 import torch.nn as nn
 from torchvision.models.segmentation import fcn_resnet50
 import torch.nn.functional as F
-from .decoder import SimpleDecoder
+from .decoder import SimpleUpDecoder
 
 class FCNResNet50(nn.Module):
     """
@@ -32,7 +32,7 @@ class FCNResNet50(nn.Module):
         # pull apart the pieces
         self.backbone = fcn.backbone      # IntermediateLayerGetter
         self.classifier = fcn.classifier    # FCNHead
-        # self.decoder = SimpleDecoder(encoder_channel=2048, decoder_channels=128, num_classes=n_classes)
+        # self.decoder = SimpleUpDecoder(encoder_channel=2048, decoder_channels=128, num_classes=n_classes)
 
     def forward(self, x):
         feat = self.backbone(x)['out'] #(B, 2048, H/8, W/8)
