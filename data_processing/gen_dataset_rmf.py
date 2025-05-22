@@ -5,22 +5,23 @@ from rasterio.windows import Window
 from shapely.geometry import Point
 from tqdm import tqdm
 import os
-from joblib import Parallel, delayed
-from resample_pts import farthest_point_sampling
 import laspy
+from joblib import Parallel, delayed
+
+from resample_pts import farthest_point_sampling
 from pts_utils import normalize_point_cloud, center_point_cloud
 
 # Configuration
 TILE_SIZE = 128
 IMG_PATHS = {
-    "s2_spring": "/mnt/d/Sync/research/tree_species_estimation/tree_dataset/rmf/rmf_s2/spring/masked/mosaic_10m_BI_FOR_ntems.tif",
-    "s2_summer": "/mnt/d/Sync/research/tree_species_estimation/tree_dataset/rmf/rmf_s2/summer/masked//mosaic_10m_BI_FOR_ntems.tif",
-    "s2_fall": "/mnt/d/Sync/research/tree_species_estimation/tree_dataset/rmf/rmf_s2/fall/masked//mosaic_10m_BI_FOR_ntems.tif",
-    "s2_winter": "/mnt/d/Sync/research/tree_species_estimation/tree_dataset/rmf/rmf_s2/winter/masked//mosaic_10m_BI_FOR_ntems.tif",
-    "dem": "/mnt/d/Sync/research/tree_species_estimation/tree_dataset/rmf/imagery/rmf_spl_dem/masked/rmf_spl_dem_10m_ntems.tif",
+    "s2_spring": "/raw_data/rmf_s2/spring/mosaic_10m_BI_FOR_ntems.tif",
+    "s2_summer": "/mnt/g/rmf/rmf_tl_dataset/raw_data/rmf_s2/summer/mosaic_10m_BI_FOR_ntems.tif",
+    "s2_fall": "/mnt/g/rmf/rmf_tl_dataset/raw_data/rmf_s2/rmf_s2/fall/mosaic_10m_BI_FOR_ntems.tif",
+    "s2_winter": "/mnt/g/rmf/rmf_tl_dataset/raw_data/rmf_s2/rmf_s2/winter/mosaic_10m_BI_FOR_ntems.tif",
+    "dem": "/mnt/g/rmf/rmf_tl_dataset/raw_data/rmf_spl_dem/rmf_spl_dem_10m_ntems.tif",
 }
 LABEL_RASTER_PATH = os.path.abspath(
-    "/mnt/d/Sync/research/tree_species_estimation/tree_dataset/rmf/rmf_fri/masked/RMF_PolygonForest_ntems_10m.tif"
+    "/mnt/g/rmf/rmf_tl_dataset/raw_data/label/RMF_PolygonForest_ntems_10m.tif"
 )
 LAS_FILES_DIR = r"/mnt/g/rmf/raw_laz"
 OUTPUT_DIR = r"/mnt/g/rmf/tl_dataset/tile_128/train"
@@ -242,6 +243,7 @@ def main_workflow(plots_file):
 
 # Run the pipeline
 if __name__ == "__main__":
+    # percent 60
     main_workflow(
-        plots_file="/mnt/d/Sync/research/tree_species_estimation/tree_dataset/rmf/rmf_plots/tl/plot_train_prom10_rem100_Tilename_2958.gpkg"
+        plots_file="/mnt/g/rmf/rmf_tl_dataset/raw_data/plots/tl/plot_train_prom10_rem100_Tilename_2958.gpkg"
     )

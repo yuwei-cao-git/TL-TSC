@@ -2,7 +2,6 @@ import argparse
 from utils.trainer import train
 import os
 import torch
-import numpy as np
 import yaml
 
 def get_config(config_path):
