@@ -6,7 +6,7 @@ import torch
 import torch.nn as nn
 import pytorch_lightning as pl
 
-from .decoder import MambaFusionBlock
+from .decoder import MambaFusionDecoder
 from .pointnext import PointNextModel
 
 from torchmetrics.regression import R2Score
@@ -66,7 +66,7 @@ class FusionModel(pl.LightningModule):
         self.pc_model = PointNextModel(self.cfg, in_dim=3, decoder=True)
 
         # Late Fusion and classification layers with additional MLPs
-        self.fuse_head = MambaFusionBlock(
+        self.fuse_head = MambaFusionDecoder(
             in_img_chs=2048,
             in_pc_chs=(self.cfg["emb_dims"]),
             dim=self.cfg["fusion_dim"],

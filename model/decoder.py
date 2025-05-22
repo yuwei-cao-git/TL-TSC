@@ -36,7 +36,6 @@ class ConvBNReLU(nn.Sequential):
             nn.ReLU6(),
         )
 
-
 class MambaLayer(nn.Module):
     def __init__(
         self,
@@ -184,8 +183,7 @@ class MLP(nn.Module):
             class_output = F.softmax(logits, dim=1)
             return class_output
 
-
-class MambaFusionBlock(nn.Module):
+class MambaFusionDecoder(nn.Module):
     def __init__(
         self,
         in_img_chs,  # Input channels for image
@@ -200,7 +198,7 @@ class MambaFusionBlock(nn.Module):
         last_feat_size=8,
         return_logits=False,
     ):
-        super(MambaFusionBlock, self).__init__()
+        super(MambaFusionDecoder, self).__init__()
         self.mamba = MambaLayer(
             in_img_chs,  # Input channels for image
             in_pc_chs,
@@ -229,7 +227,7 @@ class MambaFusionBlock(nn.Module):
         return class_output
     
 # -----------------------------------------------------------------------------------
-# Use mamba & upsamping as decoder
+# Use mamba & upsamping as decoder: MambaDecoder 
 # -----------------------------------------------------------------------------------
 class Conv(nn.Sequential):
     def __init__(self, in_channels, out_channels, kernel_size=3, dilation=1, stride=1, bias=False):
@@ -268,7 +266,6 @@ class Block(nn.Module):
         x = self.conv_ffn(x)
 
         return x
-
 
 class MambaDecoder(nn.Module):
     def __init__(self, encoder_channels=(64, 128, 256, 512), decoder_channels=128, num_classes=9, last_feat_size=16):
@@ -312,8 +309,11 @@ class MambaDecoder(nn.Module):
             nn.init.constant_(m.bias, 0)
             nn.init.constant_(m.weight, 1.0)
             
+# -----------------------------------------------------------------------------------
+# Use just upsamping as decoder: SimpleDecoder 
+# -----------------------------------------------------------------------------------
             
-class SimpleDecoder(nn.Module):
+class SimpleUpDecoder(nn.Module):
     def __init__(self, encoder_channel=512, decoder_channels=128, num_classes=9):
         super().__init__()
         self.up_conv = nn.Sequential(ConvBNReLU(encoder_channel, decoder_channels),
