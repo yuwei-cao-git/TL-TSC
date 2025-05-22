@@ -12,7 +12,7 @@ from pyproj import CRS
 from pts_utils import normalize_point_cloud, center_point_cloud
 
 # Configuration
-TILE_SIZE = 64
+TILE_SIZE = 128
 IMG_PATHS = {
     "s2_2020_spring": "/mnt/d/Sync/research/tree_species_estimation/tree_dataset/ovf/processed/ovf_img/ovf_s2_10m_2020_spring.tif",
     "s2_2020_summer": "/mnt/d/Sync/research/tree_species_estimation/tree_dataset/ovf/processed/ovf_img/ovf_s2_10m_2020_summer.tif",
@@ -24,9 +24,9 @@ LABEL_RASTER_PATH = os.path.abspath(
     "/mnt/d/Sync/research/tree_species_estimation/tree_dataset/ovf/processed/ovf_fri/masked/ovf_label_10m.tif"
 )
 LAS_FILES_DIR = r"/mnt/g/ovf/raw_laz"
-OUTPUT_DIR = r"/mnt/g/ovf/dataset/tile_64/train"
+OUTPUT_DIR = r"/mnt/g/ovf/ovf_tl_dataset/tile_128/test"
 MAX_POINTS = 7168  # Max points to sample per plot
-NODATA_IMG = 255
+NODATA_IMG = 0
 NODATA_LABEL = -1
 # Ensure output directory exists
 os.makedirs(OUTPUT_DIR, exist_ok=True)
@@ -145,11 +145,9 @@ def process_plot(plot, plot_6661, plot_fid, label_path, las_files_directory, max
     if np.sum(valid_mask) < 13:
         print(f"Skipping plot {plot_fid} - no valid pixels")
         return None
-
     else:
-        # 5. Add validity mask to results
         results["valid_mask"] = valid_mask.astype(np.uint8)  # Save as binary (0 or 1)
-        # 1. Process imagery
+        # 4. Process imagery
         for name, path in IMG_PATHS.items():
             with rasterio.open(path) as src:
                 # Convert plot centroid to pixel coordinates
@@ -182,41 +180,30 @@ def process_plot(plot, plot_6661, plot_fid, label_path, las_files_directory, max
                 uint8_tile = np.full(tile.shape, NODATA_IMG, dtype=np.uint8)
                 for band_idx in range(tile.shape[0]):
                     band_data = tile[band_idx]
-
                     # Create mask of valid pixels
-                    valid_mask = ~np.isnan(band_data)
-                    valid_pixels = band_data[valid_mask]
+                    valid = ~np.isnan(band_data)
+                    if not valid.any():
+                        continue
 
-                    if valid_pixels.size == 0:
-                        continue  # Entire band is nodata
-
-                    # Calculate dynamic range (2nd-98th percentile)
-                    p_low, p_high = np.percentile(valid_pixels, [1, 99])
+                    # Calculate dynamic range (1nd-99th percentile)
+                    p_low, p_high = np.percentile(band_data[valid], [1, 99])
                     if p_high <= p_low:
-                        p_low, p_high = valid_pixels.min(), valid_pixels.max()
-                        if p_high <= p_low:
-                            p_high = p_low + 1  # Prevent division by zero
+                        p_low, p_high = band_data[valid].min(), band_data[valid].max()
+                        p_high = p_low + 1  # Prevent division by zero
 
-                    # Normalize band data (handle NaNs safely)
-                    norm_band = np.zeros_like(band_data)
-                    norm_band[valid_mask] = (band_data[valid_mask] - p_low) / (p_high - p_low)
+                    # Normalize band data 
+                    normed = (band_data[valid] - p_low) / (p_high - p_low)
 
                     # Clip and scale to 0–254
-                    scaled = np.clip(norm_band * 254, 0, 254)
-
-                    # Cast safely
-                    scaled_uint8 = np.zeros_like(band_data, dtype=np.uint8)
-                    scaled_uint8[valid_mask] = scaled[valid_mask].astype(np.uint8)
+                    scaled = np.clip(normed * 254, 0, 254).astype(np.uint8)
+                    
+                    # Apply to output
+                    uint8_tile[band_idx][valid] = scaled
 
                 # Store result in HWC format with uint8 type
                 results[f"img_{name}"] = uint8_tile.transpose(1, 2, 0)
 
-        # 4. Apply mask to S2 and labels
-        for name in IMG_PATHS:
-            img_data = results[f"img_{name}"]
-            img_data[~valid_mask] = NODATA_IMG
-            results[f"img_{name}"] = img_data
-
+        # 5. Apply mask to labels
         results["pixel_labels"][~valid_mask] = NODATA_LABEL
 
         # 6. Add plot-level labels
@@ -232,7 +219,6 @@ def process_plot(plot, plot_6661, plot_fid, label_path, las_files_directory, max
                 pass
             else:
                 results["point_cloud"] = point_cloud  # From process_polygon
-                # 9. Save as compressed numpy file
                 output_path = os.path.join(OUTPUT_DIR, f"plot_{plot_fid}.npz")
                 np.savez_compressed(output_path, **results)
                 return output_path
@@ -266,7 +252,7 @@ def main_workflow(plots_file):
 # Run the pipeline
 if __name__ == "__main__":
     main_workflow(
-        plots_file="/mnt/d/Sync/research/tree_species_estimation/tree_dataset/ovf/processed/plots/plot_train_prom10_rem100_Tilename_2958.gpkg"
+        plots_file="/mnt/d/Sync/research/tree_species_estimation/tree_dataset/ovf/processed/plots/plot_test_prom10_rem100_Tilename_2958.gpkg"
     )
 
     """

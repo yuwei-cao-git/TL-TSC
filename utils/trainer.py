@@ -43,7 +43,18 @@ def train(config):
     data_module = BalancedDataModule(config)
 
     # Use the calculated input channels from the DataModule to initialize the model
-    model = FusionModel(config)
+    if config["pretrained_ckpt"] != "None":
+        # load backbone weights only, ignore head mismatch
+        model = FusionModel.load_from_checkpoint(
+            config["pretrained_ckpt"],
+            strict=False, # only matching parameters (the backbone) get loaded;
+            **config
+        )
+        # freeze encoder
+        # for p in model.s2_model.parameters(): p.requires_grad = False
+        # for p in model.pc_model.parameters(): p.requires_grad = False
+    else:
+        model = FusionModel(config)
     # print(ModelSummary(model, max_depth=-1))  # Prints the full model summary
 
     # Create a PyTorch Lightning Trainer

@@ -7,7 +7,7 @@ class PointNextModel(nn.Module):
     def __init__(self, config, in_dim, decoder=True):
         super(PointNextModel, self).__init__()
         self.config = config
-        self.n_classes = config["test_n_classes"]
+        self.n_classes = config["n_classes"]
         self.task = config["task"]
         self.use_decoder = decoder
 

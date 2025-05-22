@@ -14,7 +14,7 @@ def parse_args():
     # Add arguments
     parser.add_argument('--config', type=str, required=True, help='Path to config YAML file')
     parser.add_argument("--data_dir", type=str, default=None, help="path to data dir")
-    parser.add_argument("--log_name", default="Fuse_ff_mamba_pointnext_b_Unet_10")
+    parser.add_argument("--log_name", default="Fuse_resnet_pointnext_rmf")
     return parser.parse_args()
     
 def main():
@@ -29,34 +29,8 @@ def main():
         else os.path.join(os.getcwd(), "data")
     )
     
-    # Multi-head logic
-    train_on = config.get('train_on', ['rmf', 'ovf'])
-    test_on = config.get('test_on', 'rmf')
-    all_datasets = list(set(train_on + [test_on]))
-
-    class_weights_map = {
-        "rmf": [0.134, 0.024, 0.055, 0.044, 0.025, 0.032, 0.261, 0.006, 0.420],
-        "ovf": [0.121, 0.033, 0.045, 0.090, 0.012, 0.041, 0.020, 0.103, 0.334, 0.010, 0.191]
-    }
-    class_names = {
-        "rmf": ["BF", "BW", "CE", "LA", "PT", "PJ", "PO", "SB", "SW"],
-        "ovf": ['AB', 'PO', 'MR', 'BF', 'CE', 'PW', 'MH', 'BW', 'SW', 'OR', 'PR']
-    }
-    season_map = {
-        "rmf": ["img_s2_spring", "img_s2_summer", "img_s2_fall", "img_s2_winter"],
-        "ovf": ["img_s2_2020_spring", "img_s2_2020_summer", "img_s2_2020_fall", "img_s2_2020_winter"]
-    }
-
-    config['class_weights_map'] = {k: torch.tensor(v).float() for k, v in class_weights_map.items() if k in all_datasets}
-    config['class_names'] = {k: v for k, v in class_names.items() if k in all_datasets}
-    config['n_classes'] = {k: len(v) for k, v in class_names.items() if k in all_datasets}
-    config['seasons_map'] = {k: season_map[k] for k in all_datasets}
-
-    # Set test-specific configs
-    config['test_classes'] = config['class_names'][test_on]
-    config['test_n_classes'] = config['n_classes'][test_on]
-    config['test_class_weights'] = config['class_weights_map'][test_on]
-    config['test_seasons'] = config['seasons_map'][test_on]
+    class_weights = config.get('class_weights', None)
+    config['class_weights'] = torch.tensor(class_weights).float()
     
     os.makedirs(config['save_dir'], exist_ok=True)
     print(config)

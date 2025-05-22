@@ -21,51 +21,66 @@ class FusionModel(pl.LightningModule):
     def __init__(self, config):
         super().__init__()
         self.save_hyperparameters(config)
-        self.config = config
-        self.n_bands = 12 if self.config["train_on"] == ["rmf"] else 9
-        
-        # seasonal s2 data fusion block 
-        self.ms_fusion = self.config["use_ms"] 
-        if self.ms_fusion: # mid fusion
+        self.cfg = config
+        self.n_bands = 12 if self.cfg["dataset"] == "rmf" else 9
+
+        # seasonal s2 data fusion block
+        self.ms_fusion = self.cfg["use_ms"]
+        if self.ms_fusion:  # mid fusion
             from .seasonal_fusion import FusionBlock
+
             self.mf_module = FusionBlock(n_inputs=4, in_ch=self.n_bands, n_filters=64)
             total_input_channels = 64
-        else: # early-fusion
-            total_input_channels = self.n_bands * 4 # Concatenating all seasonal data directly
-        
+        else:  # early-fusion
+            total_input_channels = (
+                self.n_bands * 4
+            )  # Concatenating all seasonal data directly
+
         # Image stream backbone
-        if self.config["network"] == "Unet":
+        if self.cfg["network"] == "Unet":
             from .unet import UNet
+
             self.s2_model = UNet(
-                n_channels=total_input_channels, n_classes=self.config["test_n_classes"], decoder=True
+                n_channels=total_input_channels,
+                n_classes=self.cfg["n_classes"],
+                decoder=True,
             )
-        elif self.config["network"] == "ResUnet":
+        elif self.cfg["network"] == "ResUnet":
             from .ResUnet import ResUnet
+
             self.s2_model = ResUnet(
-                n_channels=total_input_channels, n_classes=self.config["test_n_classes"], decoder=True
+                n_channels=total_input_channels,
+                n_classes=self.cfg["n_classes"],
+                decoder=True,
             )
-        elif self.config["network"] == "ResNet":
+        elif self.cfg["network"] == "ResNet":
             from .resnet import FCNResNet50
-            self.s2_model = FCNResNet50(n_channels=total_input_channels, n_classes=self.config["test_n_classes"], pretrained=False)
-        
+
+            self.s2_model = FCNResNet50(
+                n_channels=total_input_channels,
+                n_classes=self.cfg["n_classes"],
+                pretrained=False,
+            )
+
         # PC stream backbone
-        self.pc_model = PointNextModel(self.config, in_dim=3, decoder=True)
+        self.pc_model = PointNextModel(self.cfg, in_dim=3, decoder=True)
 
         # Late Fusion and classification layers with additional MLPs
         self.fuse_head = MambaFusionBlock(
             in_img_chs=2048,
-            in_pc_chs=(self.config["emb_dims"]),
-            dim=self.config["fusion_dim"],
-            hidden_ch=self.config["linear_layers_dims"],
-            num_classes=self.config["test_n_classes"],
-            drop=self.config["dp_fuse"],
-            last_feat_size=self.config["tile_size"] // 8,  # tile_size=64, last_feat_size=4
+            in_pc_chs=(self.cfg["emb_dims"]),
+            dim=self.cfg["fusion_dim"],
+            hidden_ch=self.cfg["linear_layers_dims"],
+            num_classes=self.cfg["n_classes"],
+            drop=self.cfg["dp_fuse"],
+            last_feat_size=self.cfg["tile_size"]
+            // 8,  # tile_size=64, last_feat_size=4
         )
 
         # Define loss functions
-        if self.config["weighted_loss"]:
+        if self.cfg["weighted_loss"]:
             # Loss function and other parameters
-            self.weights = self.config["train_weights"]  # Initialize on CPU
+            self.weights = self.cfg["class_weights"]  # Initialize on CPU
         self.criterion = nn.MSELoss()
 
         # Metrics
@@ -76,22 +91,22 @@ class FusionModel(pl.LightningModule):
         self.test_r2 = R2Score()
 
         self.confmat = ConfusionMatrix(
-            task="multiclass", num_classes=self.config["test_n_classes"]
+            task="multiclass", num_classes=self.cfg["n_classes"]
         )
 
         # Optimizer and scheduler settings
-        self.optimizer_type = self.config["optimizer"]
-        self.scheduler_type = self.config["scheduler"]
+        self.optimizer_type = self.cfg["optimizer"]
+        self.scheduler_type = self.cfg["scheduler"]
 
         # Learning rates for different parts
-        self.img_lr = self.config.get("img_lr")
-        self.pc_lr = self.config.get("pc_lr")
-        self.fusion_lr = self.config.get("fuse_lr")
+        self.img_lr = self.cfg.get("img_lr")
+        self.pc_lr = self.cfg.get("pc_lr")
+        self.fusion_lr = self.cfg.get("fuse_lr")
 
         # Loss weights
-        self.pc_loss_weight = self.config.get("pc_loss_weight", 2.0)
-        self.img_loss_weight = self.config.get("img_loss_weight", 1.0)
-        self.fuse_loss_weight = self.config.get("fuse_loss_weight", 2.0)
+        self.pc_loss_weight = self.cfg.get("pc_loss_weight", 2.0)
+        self.img_loss_weight = self.cfg.get("img_loss_weight", 1.0)
+        self.fuse_loss_weight = self.cfg.get("fuse_loss_weight", 2.0)
 
         self.best_test_r2 = 0.0
         self.best_test_outputs = None
@@ -108,10 +123,14 @@ class FusionModel(pl.LightningModule):
             stacked_features = self.mf_module(images)
         else:
             stacked_features = torch.cat(images, dim=1)
-        image_outputs, img_emb = self.s2_model(stacked_features)  # torch.Size([8, 9, 64, 64]), torch.Size([8, 512, tile_size/16, tile_size/16])
-        
+        image_outputs, img_emb = self.s2_model(
+            stacked_features
+        )  # torch.Size([8, 9, 64, 64]), torch.Size([8, 512, tile_size/16, tile_size/16])
+
         # Process point clouds
-        point_outputs, pc_emb = self.pc_model(pc_feat, xyz)  # torch.Size([8, 9]), torch.Size([8, 768, 28])
+        point_outputs, pc_emb = self.pc_model(
+            pc_feat, xyz
+        )  # torch.Size([8, 9]), torch.Size([8, 768, 28])
 
         # Fusion and classification
         class_output = self.fuse_head(img_emb, pc_emb)
@@ -137,7 +156,9 @@ class FusionModel(pl.LightningModule):
         """
         # Permute point cloud data if available
         pc_feat = pc_feat.permute(0, 2, 1) if pc_feat is not None else None
-        point_clouds = (point_clouds.permute(0, 2, 1) if point_clouds is not None else None)
+        point_clouds = (
+            point_clouds.permute(0, 2, 1) if point_clouds is not None else None
+        )
 
         # Forward pass
         pixel_preds, pc_preds, fuse_preds = self.forward(images, pc_feat, point_clouds)
@@ -154,35 +175,41 @@ class FusionModel(pl.LightningModule):
             r2_metric = self.test_r2
 
         # Compute point cloud loss
-        if self.config["weighted_loss"] and stage == "train":
-            #self.weights = self.weights.to(pc_preds.device)
+        if self.cfg["weighted_loss"] and stage == "train":
+            # self.weights = self.weights.to(pc_preds.device)
             loss_point = self.pc_loss_weight * calc_loss(labels, pc_preds, self.weights)
         else:
             loss_point = self.pc_loss_weight * self.criterion(pc_preds, labels)
         loss += loss_point
-        
+
         # Compute R² metric
-        #pc_preds_rounded = torch.round(pc_preds, decimals=2)
-        #pc_r2 = r2_metric(pc_preds_rounded.view(-1), labels.view(-1))
+        # pc_preds_rounded = torch.round(pc_preds, decimals=2)
+        # pc_r2 = r2_metric(pc_preds_rounded.view(-1), labels.view(-1))
 
         # Log metrics
         logs.update(
             {
                 f"pc_{stage}_loss": loss_point,
-                #f"pc_{stage}_r2": pc_r2,
+                # f"pc_{stage}_r2": pc_r2,
             }
         )
-        
+
         # Image stream
         # Apply mask to predictions and labels
-        valid_pixel_preds, valid_pixel_true = apply_mask(pixel_preds, pixel_labels, img_masks)
+        valid_pixel_preds, valid_pixel_true = apply_mask(
+            pixel_preds, pixel_labels, img_masks
+        )
 
         # Compute pixel-level loss
-        if self.config["weighted_loss"] and stage == "train":
-            #self.weights = self.weights.to(valid_pixel_preds.device)
-            loss_pixel = self.img_loss_weight * calc_loss(valid_pixel_true, valid_pixel_preds, self.weights)
+        if self.cfg["weighted_loss"] and stage == "train":
+            # self.weights = self.weights.to(valid_pixel_preds.device)
+            loss_pixel = self.img_loss_weight * calc_loss(
+                valid_pixel_true, valid_pixel_preds, self.weights
+            )
         else:
-            loss_pixel = self.img_loss_weight * self.criterion(valid_pixel_preds, valid_pixel_true)
+            loss_pixel = self.img_loss_weight * self.criterion(
+                valid_pixel_preds, valid_pixel_true
+            )
         loss += loss_pixel
 
         # Compute R² metric
@@ -193,14 +220,16 @@ class FusionModel(pl.LightningModule):
         logs.update(
             {
                 f"pixel_{stage}_loss": loss_pixel,
-                #f"pixel_{stage}_r2": pixel_r2,
+                # f"pixel_{stage}_r2": pixel_r2,
             }
         )
 
         # Fusion stream
         # Compute fusion loss
-        if self.config["weighted_loss"] and stage == "train":
-            loss_fuse = self.fuse_loss_weight * calc_loss(labels, fuse_preds, self.weights)
+        if self.cfg["weighted_loss"] and stage == "train":
+            loss_fuse = self.fuse_loss_weight * calc_loss(
+                labels, fuse_preds, self.weights
+            )
         else:
             loss_fuse = self.fuse_loss_weight * self.criterion(fuse_preds, labels)
         loss += loss_fuse
@@ -211,7 +240,7 @@ class FusionModel(pl.LightningModule):
 
         # Log metrics
         logs.update({f"fuse_{stage}_loss": loss_fuse, f"fuse_{stage}_r2": fuse_r2})
-        
+
         if stage == "val":
             self.validation_step_outputs.append(
                 {"val_target": labels, "val_pred": fuse_preds}
@@ -249,7 +278,7 @@ class FusionModel(pl.LightningModule):
         per_pixel_labels = (
             batch["per_pixel_labels"] if "per_pixel_labels" in batch else None
         )
-        image_masks = batch["nodata_mask"] if "nodata_mask" in batch else None
+        image_masks = batch["mask"] if "mask" in batch else None
         pc_feat = batch["pc_feat"] if "pc_feat" in batch else None
 
         loss = self.forward_and_metrics(
@@ -270,7 +299,7 @@ class FusionModel(pl.LightningModule):
         per_pixel_labels = (
             batch["per_pixel_labels"] if "per_pixel_labels" in batch else None
         )
-        image_masks = batch["nodata_mask"] if "nodata_mask" in batch else None
+        image_masks = batch["mask"] if "mask" in batch else None
         pc_feat = batch["pc_feat"] if "pc_feat" in batch else None
 
         loss = self.forward_and_metrics(
@@ -317,7 +346,7 @@ class FusionModel(pl.LightningModule):
                 f"r2_score per class check: {r2_score(torch.round(test_pred, decimals=1), test_true, multioutput='raw_values')}"
             )
 
-            self.save_to_file(test_true, test_pred, self.config["class_names"])
+            self.save_to_file(test_true, test_pred, self.cfg["class_names"])
 
         self.validation_step_outputs.clear()
         self.val_r2.reset()
@@ -329,7 +358,7 @@ class FusionModel(pl.LightningModule):
         per_pixel_labels = (
             batch["per_pixel_labels"] if "per_pixel_labels" in batch else None
         )
-        image_masks = batch["nodata_mask"] if "nodata_mask" in batch else None
+        image_masks = batch["mask"] if "mask" in batch else None
         pc_feat = batch["pc_feat"] if "pc_feat" in batch else None
 
         labels, fuse_preds, loss = self.forward_and_metrics(
@@ -342,7 +371,7 @@ class FusionModel(pl.LightningModule):
             stage="test",
         )
 
-        self.save_to_file(labels, fuse_preds, self.config["class_names"])
+        self.save_to_file(labels, fuse_preds, self.cfg["class_names"])
         return loss
 
     def save_to_file(self, labels, outputs, classes):
@@ -362,8 +391,8 @@ class FusionModel(pl.LightningModule):
         df = pd.DataFrame(data)
 
         output_dir = os.path.join(
-            self.config["save_dir"],
-            self.config["log_name"],
+            self.cfg["save_dir"],
+            self.cfg["log_name"],
             "outputs",
         )
         os.makedirs(output_dir, exist_ok=True)
@@ -397,13 +426,13 @@ class FusionModel(pl.LightningModule):
             )
         elif self.optimizer_type == "adamW":
             optimizer = torch.optim.AdamW(
-                params, weight_decay=self.config["weight_decay"]
+                params, weight_decay=self.cfg["weight_decay"]
             )
         elif self.optimizer_type == "sgd":
             optimizer = torch.optim.SGD(
                 params,
-                momentum=self.config["momentum"],
-                weight_decay=self.config["weight_decay"],
+                momentum=self.cfg["momentum"],
+                weight_decay=self.cfg["weight_decay"],
             )
         else:
             raise ValueError(f"Unknown optimizer type: {self.optimizer_type}")
@@ -411,7 +440,7 @@ class FusionModel(pl.LightningModule):
         # Configure the scheduler based on the input parameter
         if self.scheduler_type == "plateau":
             scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
-                optimizer, patience=self.config["patience"], factor=0.5
+                optimizer, patience=self.cfg["patience"], factor=0.5
             )
             return {
                 "optimizer": optimizer,
@@ -422,7 +451,7 @@ class FusionModel(pl.LightningModule):
             }
         elif self.scheduler_type == "steplr":
             scheduler = torch.optim.lr_scheduler.StepLR(
-                optimizer, step_size=self.config["step_size"], gamma=0.1
+                optimizer, step_size=self.cfg["step_size"], gamma=0.1
             )
             return {"optimizer": optimizer, "lr_scheduler": scheduler}
         elif self.scheduler_type == "cosine":

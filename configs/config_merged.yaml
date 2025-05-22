@@ -2,7 +2,11 @@
 
 # General
 train_on: ['rmf', 'ovf']                         # Options: rmf, ovf, rmf+ovf
-test_on: rmf
+test_on: ovf
+class_names: ['AB','BF','BW','CE','LA','MH','MR','OR','PO','PR','PW','SB','SW']
+n_classes: 13
+img_mean:
+img_std:
 
 # Training parameters
 task: regression

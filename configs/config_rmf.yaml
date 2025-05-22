@@ -1,12 +1,18 @@
 # config_rmf.yaml
 
 # General
-train_on: ['rmf']                         # Options: rmf, ovf, rmf+ovf
-test_on: rmf
+dataset: rmf                        # Options: rmf, ovf, rmf+ovf
 tile_size: 128
+class_weights: [0.134, 0.024, 0.055, 0.044, 0.025, 0.032, 0.261, 0.006, 0.420]
+class_names: ["BF", "BW", "CE", "LA", "PT", "PJ", "PO", "SB", "SW"]
+n_classes: 9
+season_map: ["img_s2_spring", "img_s2_summer", "img_s2_fall", "img_s2_winter"]
+img_mean: [77.70884877, 87.54467291, 77.68712775, 95.82130423, 115.36178432,117.97432742,119.43950191,118.58491624,103.22995657]
+img_std: [56.02312515, 56.73913842, 57.50745356, 57.80231563, 59.51462302, 59.11728818, 57.87918154, 58.7677839, 57.06629256]
 
 # Training parameters
 task: regression
+pretrained_ckpt: None # "/path/to/best_rmf.ckpt"
 batch_size: 32
 max_epochs: 250
 optimizer: adamW                 # Options: adam, adamW, sgd
@@ -31,7 +37,6 @@ fusion_dim: 128
 dp_fuse: 0.5
 dp_pc: 0.5
 use_ms: true
-use_residual: true
 linear_layers_dims: [256, 128]
 
 # Data transforms
