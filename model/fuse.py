@@ -1,6 +1,8 @@
 import os
 import pandas as pd
 import numpy as np
+from typing import List
+from torch import Tensor
 
 import torch
 import torch.nn as nn
@@ -68,7 +70,7 @@ class FusionModel(pl.LightningModule):
 
         # Late Fusion and classification layers with additional MLPs
         self.fuse_head = MambaFusionDecoder(
-            in_img_chs=2048 if self.cfg["network"] == "ResNet" else 512, # 512 for unet, 2048 for rest=net
+            in_img_chs=2048 if self.cfg["network"] == "ResNet" else 512,
             in_pc_chs=(self.cfg["emb_dims"]),
             dim=self.cfg["fusion_dim"],
             hidden_ch=self.cfg["linear_layers_dims"],
@@ -76,13 +78,22 @@ class FusionModel(pl.LightningModule):
             drop=self.cfg["dp_fuse"],
             last_feat_size=(self.cfg["tile_size"]
             // 8) if self.cfg["network"] == "ResNet" else (self.cfg["tile_size"]
-            // 16)  # /8 for resnet /16 for resunet & unet
+            // 16)
         )
 
         # Define loss functions
         if self.cfg["weighted_loss"]:
             # Loss function and other parameters
-            self.weights = self.cfg["class_weights"]  # Initialize on CPU
+            self.weights = self.cfg["class_weights"]
+        
+        # multi-task loss weight
+        if self.cfg["multitasks_uncertain_loss"]:
+            self.log_vars = nn.Parameter(torch.full((3,), -0.7))
+        # use it during test/val/not uncertainty weighted loss - equal loss
+        self.pc_loss_weight = self.cfg.get("pc_loss_weight",1.0)
+        self.img_loss_weight = self.cfg.get("img_loss_weight", 1.0)
+        self.fuse_loss_weight = self.cfg.get("fuse_loss_weight", 1.0)
+        
         self.criterion = nn.MSELoss()
 
         # Metrics
@@ -105,15 +116,22 @@ class FusionModel(pl.LightningModule):
         self.pc_lr = self.cfg.get("pc_lr")
         self.fusion_lr = self.cfg.get("fuse_lr")
 
-        # Loss weights
-        self.pc_loss_weight = self.cfg.get("pc_loss_weight", 2.0)
-        self.img_loss_weight = self.cfg.get("img_loss_weight", 1.0)
-        self.fuse_loss_weight = self.cfg.get("fuse_loss_weight", 2.0)
-
         self.best_test_r2 = 0.0
         self.best_test_outputs = None
         self.validation_step_outputs = []
-
+        
+    def compute_losses(self, lp, lpx, lf):
+        """Kendall-style uncertainty loss with eps clamping."""
+        sigmas = torch.exp(self.log_vars)            # all > 0
+        sigma_sq = (sigmas ** 2).clamp(min=1e-6)      # avoid exact zero
+        
+        # L/(2σ²) + logσ
+        wlp  = lp  / (2 * sigma_sq[0]) + torch.log(sigmas[0])
+        wlpx = lpx / (2 * sigma_sq[1]) + torch.log(sigmas[1])
+        wlf  = lf  / (2 * sigma_sq[2]) + torch.log(sigmas[2])
+        
+        return wlp + wlpx + wlf, (wlp, wlpx, wlf)
+    
     def forward(self, images, pc_feat, xyz):
         image_outputs = None
         img_emb = None
@@ -125,14 +143,10 @@ class FusionModel(pl.LightningModule):
             stacked_features = self.mf_module(images)
         else:
             stacked_features = torch.cat(images, dim=1)
-        image_outputs, img_emb = self.s2_model(
-            stacked_features
-        )  # torch.Size([8, 9, 64, 64]), torch.Size([8, 512, tile_size/16, tile_size/16])
+        image_outputs, img_emb = self.s2_model(stacked_features)  # torch.Size([bs, 9, 64, 64]), torch.Size([bs, 512, tile_size/16, tile_size/16])
 
         # Process point clouds
-        point_outputs, pc_emb = self.pc_model(
-            pc_feat, xyz
-        )  # torch.Size([8, 9]), torch.Size([8, 768, 28])
+        point_outputs, pc_emb = self.pc_model(pc_feat, xyz)  # torch.Size([bs, 9]), torch.Size([bs, 768, 28])
 
         # Fusion and classification
         class_output = self.fuse_head(img_emb, pc_emb)
@@ -158,16 +172,12 @@ class FusionModel(pl.LightningModule):
         """
         # Permute point cloud data if available
         pc_feat = pc_feat.permute(0, 2, 1) if pc_feat is not None else None
-        point_clouds = (
-            point_clouds.permute(0, 2, 1) if point_clouds is not None else None
-        )
+        point_clouds = (point_clouds.permute(0, 2, 1) if point_clouds is not None else None)
 
         # Forward pass
         pixel_preds, pc_preds, fuse_preds = self.forward(images, pc_feat, point_clouds)
 
-        loss = 0
         logs = {}
-
         # Select appropriate metric instances based on the stage
         if stage == "train":
             r2_metric = self.train_r2
@@ -178,23 +188,16 @@ class FusionModel(pl.LightningModule):
 
         # Compute point cloud loss
         if self.cfg["weighted_loss"] and stage == "train":
-            # self.weights = self.weights.to(pc_preds.device)
-            loss_point = self.pc_loss_weight * calc_loss(labels, pc_preds, self.weights)
+            loss_point = calc_loss(labels, pc_preds, self.weights)
         else:
-            loss_point = self.pc_loss_weight * self.criterion(pc_preds, labels)
-        loss += loss_point
+            loss_point = self.criterion(pc_preds, labels)
 
         # Compute R² metric
         # pc_preds_rounded = torch.round(pc_preds, decimals=2)
         # pc_r2 = r2_metric(pc_preds_rounded.view(-1), labels.view(-1))
 
         # Log metrics
-        logs.update(
-            {
-                f"pc_{stage}_loss": loss_point,
-                # f"pc_{stage}_r2": pc_r2,
-            }
-        )
+        logs.update({f"pc_{stage}_loss": loss_point})
 
         # Image stream
         # Apply mask to predictions and labels
@@ -204,55 +207,55 @@ class FusionModel(pl.LightningModule):
 
         # Compute pixel-level loss
         if self.cfg["weighted_loss"] and stage == "train":
-            # self.weights = self.weights.to(valid_pixel_preds.device)
-            loss_pixel = self.img_loss_weight * calc_loss(
-                valid_pixel_true, valid_pixel_preds, self.weights
-            )
+            loss_pixel = calc_loss(valid_pixel_true, valid_pixel_preds, self.weights)
         else:
-            loss_pixel = self.img_loss_weight * self.criterion(
-                valid_pixel_preds, valid_pixel_true
-            )
-        loss += loss_pixel
+            loss_pixel = self.criterion(valid_pixel_preds, valid_pixel_true)
 
         # Compute R² metric
         # valid_pixel_preds_rounded = torch.round(valid_pixel_preds, decimals=2)
         # pixel_r2 = r2_metric(valid_pixel_preds_rounded.view(-1), valid_pixel_true.view(-1))
 
         # Log metrics
-        logs.update(
-            {
-                f"pixel_{stage}_loss": loss_pixel,
-                # f"pixel_{stage}_r2": pixel_r2,
-            }
-        )
+        logs.update({f"pixel_{stage}_loss": loss_pixel})
 
         # Fusion stream
         # Compute fusion loss
         if self.cfg["weighted_loss"] and stage == "train":
-            loss_fuse = self.fuse_loss_weight * calc_loss(
-                labels, fuse_preds, self.weights
-            )
+            loss_fuse = calc_loss(labels, fuse_preds, self.weights)
         else:
-            loss_fuse = self.fuse_loss_weight * self.criterion(fuse_preds, labels)
-        loss += loss_fuse
-
+            loss_fuse = self.criterion(fuse_preds, labels)
+        
         # Compute R² metric
         fuse_preds_rounded = torch.round(fuse_preds, decimals=2)
         fuse_r2 = r2_metric(fuse_preds_rounded.view(-1), labels.view(-1))
-
-        # Log metrics
-        logs.update({f"fuse_{stage}_loss": loss_fuse, f"fuse_{stage}_r2": fuse_r2})
-
+        
+        logs.update({
+            f"fuse_{stage}_r2": fuse_r2,
+            f"fuse_{stage}_loss": loss_fuse})
+        
+        if self.cfg["multitasks_uncertain_loss"] and stage == "train":
+            total_loss, (wlp, wlpx, wlf) = self.compute_losses(loss_point, loss_pixel, loss_fuse)
+            # log the weighted loss
+            logs.update({
+                "sigma_pc_loss":  wlp,
+                "sigma_img_loss": wlpx,
+                "sigma_fuse_loss": wlf
+            })
+        else:
+            total_loss = loss_point*self.pc_loss_weight \
+                + loss_pixel*self.img_loss_weight \
+                + loss_fuse*self.fuse_loss_weight
+                
         if stage == "val":
             self.validation_step_outputs.append(
                 {"val_target": labels, "val_pred": fuse_preds}
             )
 
         # Compute RMSE
-        rmse = torch.sqrt(loss_fuse)
+        rmse = torch.sqrt(total_loss)
         logs.update(
             {
-                f"{stage}_loss": loss,
+                f"{stage}_loss": total_loss,
                 f"{stage}_rmse": rmse,
             }
         )
@@ -268,10 +271,11 @@ class FusionModel(pl.LightningModule):
                 logger=True,
                 sync_dist=True,
             )
+        
         if stage == "test":
-            return labels, fuse_preds, loss
+            return labels, fuse_preds, total_loss
         else:
-            return loss
+            return total_loss
 
     def training_step(self, batch, batch_idx):
         images = batch["images"] if "images" in batch else None
@@ -406,13 +410,15 @@ class FusionModel(pl.LightningModule):
 
     def configure_optimizers(self):
         params = []
-
+        if self.cfg["multitasks_uncertain_loss"]:
+            params.append({"params": [self.log_vars], "lr": self.fusion_lr})
+            
         # Include parameters from the image model
         image_params = list(self.s2_model.parameters())
         params.append({"params": image_params, "lr": self.img_lr})
 
         # Include parameters from the point cloud model
-        point_params = list(self.pc_model.parameters())
+        point_params = list(self.pc_model.parameters()) 
         params.append({"params": point_params, "lr": self.pc_lr})
 
         # Include parameters from the fusion layers

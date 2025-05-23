@@ -14,13 +14,13 @@ img_std: [56.02, 56.74, 57.51, 57.80, 59.51, 59.12, 57.88, 58.77, 57.07]
 # Training parameters
 task: regression
 pretrained_ckpt: None #tl_logs/test_resnet_decoder/wandblogs/TL-TSC/a2eq467k/checkpoints/epoch=13-step=136346.ckpt
-batch_size: 64
+batch_size: 4
 max_epochs: 250
 optimizer: adamW                 # Options: adam, adamW, sgd
 scheduler: cosine         # Options: plateau, steplr, asha, cosine, cosinewarmup
-fuse_lr: 0.005
-img_lr: 0.005
-pc_lr: 0.005
+fuse_lr: 0.0005
+img_lr: 0.0005
+pc_lr: 0.0005
 patience: 10
 step_size: 10
 momentum: 0.9
@@ -28,6 +28,7 @@ weight_decay: 0.0001
 
 # Loss weights
 weighted_loss: false
+multitasks_uncertain_loss: true
 
 # Model architecture
 network: ResNet
@@ -46,4 +47,4 @@ point_cloud_transform: true
 rotate: false
 
 # Hardware
-gpus: 4
+gpus: 1
