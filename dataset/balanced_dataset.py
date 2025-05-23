@@ -30,8 +30,7 @@ class BalancedDataset(Dataset):
         # Create a transform to resize and normalize the input images
         self.transforms = transforms.Compose(
             [
-                #transforms.ToImage(),  # Convert to tensor and handle HWC to CHW transforms.
-                transforms.ToTensor(), # ToDtype(torch.float32, scale=True) if self.dataset=="rmf" else transforms.ToTensor()
+                transforms.ToTensor(), 
                 transforms.Normalize(mean=img_mean, std=img_std)
             ]
         )

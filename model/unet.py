@@ -2,49 +2,72 @@ import torch.nn as nn
 import torch.nn.functional as F
 import torch
 
-class UNet(nn.Module):
-    def __init__(self, n_channels, n_classes, return_logits=False, bilinear=True, decoder=True):
-        super(UNet, self).__init__()
-        self.n_channels = n_channels
-        self.n_classes = n_classes
-        self.bilinear = bilinear
-        self.return_logits = return_logits
-        self.use_decoder = decoder
-
-        self.inc = DoubleConv(n_channels, 64)
+class UNetEncoder(nn.Module):
+    def __init__(self, in_channels, bilinear=True):
+        super().__init__()
+        self.inc = DoubleConv(in_channels, 64)
         self.down1 = Down(64, 128)
         self.down2 = Down(128, 256)
         self.down3 = Down(256, 512)
         factor = 2 if bilinear else 1
         self.down4 = Down(512, 1024 // factor)
-        if self.use_decoder:
-            self.up1 = Up(1024, 512 // factor, bilinear)
-            self.up2 = Up(512, 256 // factor, bilinear)
-            self.up3 = Up(256, 128 // factor, bilinear)
-            self.up4 = Up(128, 64, bilinear)
-            self.outc = OutConv(64, n_classes)
+        self.factor = factor
 
     def forward(self, x):
-        x1 = self.inc(x)  # Initial convolution
-        x2 = self.down1(x1)  # Down 1
-        x3 = self.down2(x2)  # Down 2
-        x4 = self.down3(x3)  # Down 3
-        x5 = self.down4(x4)  # Down 4
+        x1 = self.inc(x)
+        x2 = self.down1(x1)
+        x3 = self.down2(x2)
+        x4 = self.down3(x3)
+        x5 = self.down4(x4)
+        return x5, [x1, x2, x3, x4]  # bottleneck and skip connections
+
+class UNetDecoder(nn.Module):
+    def __init__(self, bilinear=True):
+        super().__init__()
+        factor = 2 if bilinear else 1
+        self.up1 = Up(1024, 512 // factor, bilinear)
+        self.up2 = Up(512, 256 // factor, bilinear)
+        self.up3 = Up(256, 128 // factor, bilinear)
+        self.up4 = Up(128, 64, bilinear)
+
+    def forward(self, x5, skips):
+        x1, x2, x3, x4 = skips
+        x = self.up1(x5, x4)
+        x = self.up2(x, x3)
+        x = self.up3(x, x2)
+        x = self.up4(x, x1)
+        return x  # decoded features
+
+
+class UNetClassifier(nn.Module):
+    def __init__(self, in_channels, n_classes):
+        super().__init__()
+        self.outc = OutConv(in_channels, n_classes)
+
+    def forward(self, x, return_logits=False):
+        logits = self.outc(x)
+        return F.softmax(logits, dim=1)
+
+
+class UNet(nn.Module):
+    def __init__(self, n_channels, n_classes, bilinear=True, decoder=True):
+        super().__init__()
+        self.encoder = UNetEncoder(n_channels, bilinear)
+        self.use_decoder = decoder
+
+        if decoder:
+            self.decoder = UNetDecoder(bilinear)
+            self.classifier = UNetClassifier(64, n_classes)
+
+    def forward(self, x):
+        bottleneck, skips = self.encoder(x)
         if self.use_decoder:
-            x = self.up1(x5, x4)  # Up 1
-            x = self.up2(x, x3)  # Up 2
-            x = self.up3(x, x2)  # Up 3
-            x = self.up4(x, x1)  # Up 4
-            logits = self.outc(x)  # Output layer
-            if self.return_logits:
-                return F.log_softmax(logits, dim=1), x5
-                # Lower T -> sharper, Higher T -> flatter
-                # return F.softmax(logits / 0.5, dim=1), x5
-            else:
-                preds = F.softmax(logits, dim=1)
-                return preds, x5
+            x = self.decoder(bottleneck, skips)
+            probs = self.classifier(x)
+            return probs, bottleneck
         else:
-            return x5
+            return bottleneck
+
         
 # -----------------------------------------------------------------------------------
 # Parts of the U-Net model

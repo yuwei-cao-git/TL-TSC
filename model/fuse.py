@@ -18,11 +18,11 @@ from .loss import apply_mask, calc_loss
 
 
 class FusionModel(pl.LightningModule):
-    def __init__(self, config):
+    def __init__(self, config, n_classes):
         super().__init__()
         self.save_hyperparameters(config)
         self.cfg = config
-        self.n_bands = 12 if self.cfg["dataset"] == "rmf" else 9
+        self.n_bands = self.cfg["n_bands"]
 
         # seasonal s2 data fusion block
         self.ms_fusion = self.cfg["use_ms"]
@@ -42,7 +42,7 @@ class FusionModel(pl.LightningModule):
 
             self.s2_model = UNet(
                 n_channels=total_input_channels,
-                n_classes=self.cfg["n_classes"],
+                n_classes=n_classes,
                 decoder=True,
             )
         elif self.cfg["network"] == "ResUnet":
@@ -50,7 +50,7 @@ class FusionModel(pl.LightningModule):
 
             self.s2_model = ResUnet(
                 n_channels=total_input_channels,
-                n_classes=self.cfg["n_classes"],
+                n_classes=n_classes,
                 decoder=True,
             )
         elif self.cfg["network"] == "ResNet":
@@ -58,23 +58,24 @@ class FusionModel(pl.LightningModule):
 
             self.s2_model = FCNResNet50(
                 n_channels=total_input_channels,
-                n_classes=self.cfg["n_classes"],
+                n_classes=n_classes,
+                upsample_method='bilinear',
                 pretrained=False,
             )
 
         # PC stream backbone
-        self.pc_model = PointNextModel(self.cfg, in_dim=3, decoder=True)
+        self.pc_model = PointNextModel(self.cfg, in_dim=3, n_classes=n_classes, decoder=True)
 
         # Late Fusion and classification layers with additional MLPs
         self.fuse_head = MambaFusionDecoder(
-            in_img_chs=2048,
+            in_img_chs=512, # 512 for unet, 2048 for rest=net
             in_pc_chs=(self.cfg["emb_dims"]),
             dim=self.cfg["fusion_dim"],
             hidden_ch=self.cfg["linear_layers_dims"],
-            num_classes=self.cfg["n_classes"],
+            num_classes=n_classes,
             drop=self.cfg["dp_fuse"],
             last_feat_size=self.cfg["tile_size"]
-            // 8,  # tile_size=64, last_feat_size=4
+            // 16,  # /8 for resnet /16 for resunet & unet
         )
 
         # Define loss functions
@@ -91,7 +92,7 @@ class FusionModel(pl.LightningModule):
         self.test_r2 = R2Score()
 
         self.confmat = ConfusionMatrix(
-            task="multiclass", num_classes=self.cfg["n_classes"]
+            task="multiclass", num_classes=n_classes
         )
 
         # Optimizer and scheduler settings

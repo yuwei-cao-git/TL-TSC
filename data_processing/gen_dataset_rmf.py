@@ -14,10 +14,10 @@ from pts_utils import normalize_point_cloud, center_point_cloud
 # Configuration
 TILE_SIZE = 128
 IMG_PATHS = {
-    "s2_spring": "/raw_data/rmf_s2/spring/mosaic_10m_BI_FOR_ntems.tif",
+    "s2_spring": "/mnt/g/rmf/rmf_tl_dataset/raw_data/rmf_s2/spring/mosaic_10m_BI_FOR_ntems.tif",
     "s2_summer": "/mnt/g/rmf/rmf_tl_dataset/raw_data/rmf_s2/summer/mosaic_10m_BI_FOR_ntems.tif",
-    "s2_fall": "/mnt/g/rmf/rmf_tl_dataset/raw_data/rmf_s2/rmf_s2/fall/mosaic_10m_BI_FOR_ntems.tif",
-    "s2_winter": "/mnt/g/rmf/rmf_tl_dataset/raw_data/rmf_s2/rmf_s2/winter/mosaic_10m_BI_FOR_ntems.tif",
+    "s2_fall": "/mnt/g/rmf/rmf_tl_dataset/raw_data/rmf_s2/fall/mosaic_10m_BI_FOR_ntems.tif",
+    "s2_winter": "/mnt/g/rmf/rmf_tl_dataset/raw_data/rmf_s2/winter/mosaic_10m_BI_FOR_ntems.tif",
     "dem": "/mnt/g/rmf/rmf_tl_dataset/raw_data/rmf_spl_dem/rmf_spl_dem_10m_ntems.tif",
 }
 LABEL_RASTER_PATH = os.path.abspath(
@@ -245,5 +245,5 @@ def main_workflow(plots_file):
 if __name__ == "__main__":
     # percent 60
     main_workflow(
-        plots_file="/mnt/g/rmf/rmf_tl_dataset/raw_data/plots/tl/plot_train_prom10_rem100_Tilename_2958.gpkg"
+        plots_file="/mnt/g/rmf/rmf_tl_dataset/raw_data/plots/plot_train_prom10_rem100_Tilename_2958.gpkg"
     )

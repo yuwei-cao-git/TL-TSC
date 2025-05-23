@@ -255,9 +255,9 @@ class ConvFFN(nn.Module):
 
         return x
 
-class Block(nn.Module):
+class MambaBlock(nn.Module):
     def __init__(self, in_chs=512, dim=128, hidden_ch=512, out_ch=128, drop=0.1, d_state=16, d_conv=4, expand=2, last_feat_size=16):
-        super(Block, self).__init__()
+        super(MambaBlock, self).__init__()
         self.mamba = MambaLayer(in_img_chs=in_chs, in_pc_chs=0, dim=dim, d_state=d_state, d_conv=d_conv, expand=expand, last_feat_size=last_feat_size, fusion=False)
         self.conv_ffn = ConvFFN(in_ch=dim*self.mamba.pool_len+in_chs, hidden_ch=hidden_ch, out_ch=out_ch, drop=drop)
 
@@ -270,7 +270,7 @@ class Block(nn.Module):
 class MambaDecoder(nn.Module):
     def __init__(self, encoder_channels=(64, 128, 256, 512), decoder_channels=128, num_classes=9, last_feat_size=16):
         super().__init__()
-        self.b3 = Block(in_chs=encoder_channels[-1], dim=decoder_channels, last_feat_size=last_feat_size)
+        self.b3 = MambaBlock(in_chs=encoder_channels[-1], dim=decoder_channels, last_feat_size=last_feat_size)
         self.up_conv = nn.Sequential(ConvBNReLU(decoder_channels, decoder_channels),
                             nn.Upsample(scale_factor=2),
                             ConvBNReLU(decoder_channels, decoder_channels),
