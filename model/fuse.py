@@ -68,14 +68,15 @@ class FusionModel(pl.LightningModule):
 
         # Late Fusion and classification layers with additional MLPs
         self.fuse_head = MambaFusionDecoder(
-            in_img_chs=512, # 512 for unet, 2048 for rest=net
+            in_img_chs=2048 if self.cfg["network"] == "ResNet" else 512, # 512 for unet, 2048 for rest=net
             in_pc_chs=(self.cfg["emb_dims"]),
             dim=self.cfg["fusion_dim"],
             hidden_ch=self.cfg["linear_layers_dims"],
             num_classes=n_classes,
             drop=self.cfg["dp_fuse"],
-            last_feat_size=self.cfg["tile_size"]
-            // 16,  # /8 for resnet /16 for resunet & unet
+            last_feat_size=(self.cfg["tile_size"]
+            // 8) if self.cfg["network"] == "ResNet" else (self.cfg["tile_size"]
+            // 16)  # /8 for resnet /16 for resunet & unet
         )
 
         # Define loss functions
