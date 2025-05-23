@@ -33,7 +33,7 @@ weighted_loss: false
 network: ResNet
 emb_dims: 768
 num_points: 7168
-encoder: b                      # Options: s, b, l, xl
+encoder: s                      # Options: s, b, l, xl
 fusion_dim: 128
 dp_fuse: 0.5
 dp_pc: 0.5
