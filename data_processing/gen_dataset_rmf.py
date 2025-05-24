@@ -24,7 +24,7 @@ LABEL_RASTER_PATH = os.path.abspath(
     "/mnt/g/rmf/rmf_tl_dataset/raw_data/label/RMF_PolygonForest_ntems_10m.tif"
 )
 LAS_FILES_DIR = r"/mnt/g/rmf/raw_laz"
-OUTPUT_DIR = r"/mnt/g/rmf/tl_dataset/tile_128/train"
+OUTPUT_DIR = r"/mnt/g/rmf/tl_dataset/tile_128/test"
 MAX_POINTS = 7168  # Max points to sample per plot
 NODATA_IMG = 0
 NODATA_LABEL = -1
@@ -245,5 +245,5 @@ def main_workflow(plots_file):
 if __name__ == "__main__":
     # percent 60
     main_workflow(
-        plots_file="/mnt/g/rmf/rmf_tl_dataset/raw_data/plots/plot_train_prom10_rem100_Tilename_2958.gpkg"
+        plots_file="/mnt/g/rmf/rmf_tl_dataset/raw_data/plots/plot_test_prom10_rem100_Tilename_2958.gpkg"
     )

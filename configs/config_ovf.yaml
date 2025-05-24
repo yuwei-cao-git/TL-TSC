@@ -28,7 +28,7 @@ weight_decay: 0.0001
 
 # Loss weights
 weighted_loss: false
-multitasks_uncertain_loss: true
+multitasks_uncertain_loss: false
 
 # Model architecture
 network: ResNet
