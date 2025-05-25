@@ -14,7 +14,7 @@ img_std: [73.04, 69.87, 64.70, 62.85, 54.15, 51.63, 48.04, 48.44, 50.08]
 # Training parameters
 task: regression
 pretrained_ckpt: None
-batch_size: 4
+batch_size: 32
 max_epochs: 250
 optimizer: adamW                 # Options: adam, adamW, sgd
 scheduler: cosine         # Options: plateau, steplr, asha, cosine, cosinewarmup
@@ -45,4 +45,4 @@ point_cloud_transform: true
 rotate: false
 
 # Hardware
-gpus: 1
+gpus: 4
