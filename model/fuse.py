@@ -1,8 +1,6 @@
 import os
 import pandas as pd
 import numpy as np
-from typing import List
-from torch import Tensor
 
 import torch
 import torch.nn as nn
@@ -22,20 +20,23 @@ from .loss import apply_mask, calc_loss
 class FusionModel(pl.LightningModule):
     def __init__(self, config, n_classes):
         super().__init__()
+        
         self.save_hyperparameters(config)
+        
         self.cfg = config
-        self.n_bands = self.cfg["n_bands"]
-
+        self.n_classes = n_classes
+        self.lr = self.cfg["lr"]
+        
         # seasonal s2 data fusion block
         self.ms_fusion = self.cfg["use_ms"]
         if self.ms_fusion:  # mid fusion
             from .seasonal_fusion import FusionBlock
 
-            self.mf_module = FusionBlock(n_inputs=4, in_ch=self.n_bands, n_filters=64)
+            self.mf_module = FusionBlock(n_inputs=4, in_ch=self.cfg["n_bands"], n_filters=64)
             total_input_channels = 64
         else:  # early-fusion
             total_input_channels = (
-                self.n_bands * 4
+                self.cfg["n_bands"] * 4
             )  # Concatenating all seasonal data directly
 
         # Image stream backbone
@@ -44,7 +45,7 @@ class FusionModel(pl.LightningModule):
 
             self.s2_model = UNet(
                 n_channels=total_input_channels,
-                n_classes=n_classes,
+                n_classes=self.n_classes,
                 decoder=True,
             )
         elif self.cfg["network"] == "ResUnet":
@@ -52,7 +53,7 @@ class FusionModel(pl.LightningModule):
 
             self.s2_model = ResUnet(
                 n_channels=total_input_channels,
-                n_classes=n_classes,
+                n_classes=self.n_classes,
                 decoder=True,
             )
         elif self.cfg["network"] == "ResNet":
@@ -60,13 +61,13 @@ class FusionModel(pl.LightningModule):
 
             self.s2_model = FCNResNet50(
                 n_channels=total_input_channels,
-                n_classes=n_classes,
+                n_classes=self.n_classes,
                 upsample_method='bilinear',
                 pretrained=False,
             )
 
         # PC stream backbone
-        self.pc_model = PointNextModel(self.cfg, in_dim=3, n_classes=n_classes, decoder=True)
+        self.pc_model = PointNextModel(self.cfg, in_dim=3, n_classes=self.n_classes, decoder=True)
 
         # Late Fusion and classification layers with additional MLPs
         self.fuse_head = MambaFusionDecoder(
@@ -74,7 +75,7 @@ class FusionModel(pl.LightningModule):
             in_pc_chs=(self.cfg["emb_dims"]),
             dim=self.cfg["fusion_dim"],
             hidden_ch=self.cfg["linear_layers_dims"],
-            num_classes=n_classes,
+            num_classes=self.n_classes,
             drop=self.cfg["dp_fuse"],
             last_feat_size=(self.cfg["tile_size"]
             // 8) if self.cfg["network"] == "ResNet" else (self.cfg["tile_size"]
@@ -104,21 +105,17 @@ class FusionModel(pl.LightningModule):
         self.test_r2 = R2Score()
 
         self.confmat = ConfusionMatrix(
-            task="multiclass", num_classes=n_classes
+            task="multiclass", num_classes=self.n_classes
         )
 
         # Optimizer and scheduler settings
         self.optimizer_type = self.cfg["optimizer"]
         self.scheduler_type = self.cfg["scheduler"]
 
-        # Learning rates for different parts
-        self.img_lr = self.cfg.get("img_lr")
-        self.pc_lr = self.cfg.get("pc_lr")
-        self.fusion_lr = self.cfg.get("fuse_lr")
-
         self.best_test_r2 = 0.0
         self.best_test_outputs = None
         self.validation_step_outputs = []
+        
         
     def compute_losses(self, lp, lpx, lf):
         """Kendall-style uncertainty loss with eps clamping."""
@@ -411,19 +408,19 @@ class FusionModel(pl.LightningModule):
     def configure_optimizers(self):
         params = []
         if self.cfg["multitasks_uncertain_loss"]:
-            params.append({"params": [self.log_vars], "lr": self.fusion_lr})
+            params.append({"params": [self.log_vars], "lr": self.lr})
             
         # Include parameters from the image model
         image_params = list(self.s2_model.parameters())
-        params.append({"params": image_params, "lr": self.img_lr})
+        params.append({"params": image_params, "lr": self.lr})
 
         # Include parameters from the point cloud model
         point_params = list(self.pc_model.parameters()) 
-        params.append({"params": point_params, "lr": self.pc_lr})
+        params.append({"params": point_params, "lr": self.lr})
 
         # Include parameters from the fusion layers
         fusion_params = list(self.fuse_head.parameters())
-        params.append({"params": fusion_params, "lr": self.fusion_lr})
+        params.append({"params": fusion_params, "lr": self.lr})
 
         # Choose the optimizer based on input parameter
         if self.optimizer_type == "adam":

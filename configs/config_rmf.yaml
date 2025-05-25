@@ -3,24 +3,22 @@
 # General
 dataset: rmf                        # Options: rmf, ovf, rmf+ovf
 tile_size: 128
-n_bands: 12
+n_bands: 9
 class_weights: [0.134, 0.024, 0.055, 0.044, 0.025, 0.032, 0.261, 0.006, 0.420]
 class_names: ["BF", "BW", "CE", "LA", "PT", "PJ", "PO", "SB", "SW"]
 n_classes: 9
 season_map: ["img_s2_spring", "img_s2_summer", "img_s2_fall", "img_s2_winter"]
-img_mean: [145.28, 155.26, 143.12, 160.56, 154.42, 159.96, 157.93, 161.78, 154.37, 147.22, 161.38, 160.72]
-img_std: [91.84, 88.50, 94.72, 83.00, 88.04, 86.22, 86.86, 82.73, 87.64, 91.92, 86.50, 85.87]
+img_mean: [127.01, 141.89, 127.91, 144.28, 155.25, 155.67, 152.29, 147.12, 157.88]
+img_std: [73.04, 69.87, 64.70, 62.85, 54.15, 51.63, 48.04, 48.44, 50.08]
 
 # Training parameters
 task: regression
 pretrained_ckpt: None
-batch_size: 8
+batch_size: 4
 max_epochs: 250
 optimizer: adamW                 # Options: adam, adamW, sgd
 scheduler: cosine         # Options: plateau, steplr, asha, cosine, cosinewarmup
-fuse_lr: 0.005
-img_lr: 0.005
-pc_lr: 0.005
+lr: 0.0001
 patience: 10
 step_size: 10
 momentum: 0.9
@@ -28,12 +26,13 @@ weight_decay: 0.0001
 
 # Loss weights
 weighted_loss: false
+multitasks_uncertain_loss: true
 
 # Model architecture
 network: ResUnet
 emb_dims: 768
 num_points: 7168
-encoder: b                      # Options: s, b, l, xl
+encoder: s                      # Options: s, b, l, xl
 fusion_dim: 128
 dp_fuse: 0.5
 dp_pc: 0.5

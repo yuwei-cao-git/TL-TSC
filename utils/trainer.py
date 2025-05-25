@@ -3,8 +3,8 @@ import os
 from pytorch_lightning import Trainer, seed_everything
 from pytorch_lightning.callbacks import EarlyStopping
 from lightning.pytorch.loggers import WandbLogger
-
 # from pytorch_lightning.utilities.model_summary import ModelSummary
+
 from dataset.balanced_dataset import BalancedDataModule
 from model.fuse import FusionModel
 
@@ -31,11 +31,11 @@ def train(config):
     )
 
     # Define a checkpoint callback to save the best model
-    metric = "ave_val_r2"
+    metric = "val_loss"
     early_stopping = EarlyStopping(
         monitor=metric,  # Metric to monitor
         patience=10,  # Number of epochs with no improvement after which training will be stopped
-        mode="max",  # Set "min" for validation loss
+        mode="min",  # Set "min" for validation loss
         verbose=True,
     )
     print("start setting dataset")
@@ -55,8 +55,7 @@ def train(config):
         # for p in model.s2_model.parameters(): p.requires_grad = False
         # for p in model.pc_model.parameters(): p.requires_grad = False
     else:
-        model = FusionModel(config, n_classes=config["n_classes"],)
-    # print(ModelSummary(model, max_depth=-1))  # Prints the full model summary
+        model = FusionModel(config, n_classes=config["n_classes"])
 
     # Create a PyTorch Lightning Trainer
     trainer = Trainer(
@@ -67,10 +66,9 @@ def train(config):
         num_nodes=1,
         strategy="ddp"
     )
+    
     # Train the model
     trainer.fit(model, data_module)
-
-    # using a pandas DataFrame to recode best results
 
     # Test the model after training
     trainer.test(model, data_module)
