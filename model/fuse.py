@@ -63,7 +63,7 @@ class FusionModel(pl.LightningModule):
                 n_channels=total_input_channels,
                 n_classes=self.n_classes,
                 upsample_method='bilinear',
-                pretrained=False,
+                pretrained=True,
             )
 
         # PC stream backbone
@@ -89,11 +89,13 @@ class FusionModel(pl.LightningModule):
         
         # multi-task loss weight
         if self.cfg["multitasks_uncertain_loss"]:
-            self.log_vars = nn.Parameter(torch.full((3,), -0.7))
+            from .loss import AutomaticWeightedLoss
+            self.awl = AutomaticWeightedLoss(3)
+            
         # use it during test/val/not uncertainty weighted loss - equal loss
-        self.pc_loss_weight = self.cfg.get("pc_loss_weight",1.0)
-        self.img_loss_weight = self.cfg.get("img_loss_weight", 1.0)
-        self.fuse_loss_weight = self.cfg.get("fuse_loss_weight", 1.0)
+        self.pc_loss_weight = self.cfg.get("pc_loss_weight",1.0/0.05)
+        self.img_loss_weight = self.cfg.get("img_loss_weight", 1.0/1.14)
+        self.fuse_loss_weight = self.cfg.get("fuse_loss_weight", 1.0/0.06)
         
         self.criterion = nn.MSELoss()
 
@@ -116,18 +118,6 @@ class FusionModel(pl.LightningModule):
         self.best_test_outputs = None
         self.validation_step_outputs = []
         
-        
-    def compute_losses(self, lp, lpx, lf):
-        """Kendall-style uncertainty loss with eps clamping."""
-        sigmas = torch.exp(self.log_vars)            # all > 0
-        sigma_sq = (sigmas ** 2).clamp(min=1e-6)      # avoid exact zero
-        
-        # L/(2σ²) + logσ
-        wlp  = lp  / (2 * sigma_sq[0]) + torch.log(sigmas[0])
-        wlpx = lpx / (2 * sigma_sq[1]) + torch.log(sigmas[1])
-        wlf  = lf  / (2 * sigma_sq[2]) + torch.log(sigmas[2])
-        
-        return wlp + wlpx + wlf, (wlp, wlpx, wlf)
     
     def forward(self, images, pc_feat, xyz):
         image_outputs = None
@@ -231,13 +221,7 @@ class FusionModel(pl.LightningModule):
             f"fuse_{stage}_loss": loss_fuse})
         
         if self.cfg["multitasks_uncertain_loss"] and stage == "train":
-            total_loss, (wlp, wlpx, wlf) = self.compute_losses(loss_point, loss_pixel, loss_fuse)
-            # log the weighted loss
-            logs.update({
-                "sigma_pc_loss":  wlp,
-                "sigma_img_loss": wlpx,
-                "sigma_fuse_loss": wlf
-            })
+            total_loss = self.awl(loss_point, loss_pixel, loss_fuse)
         else:
             total_loss = loss_point*self.pc_loss_weight \
                 + loss_pixel*self.img_loss_weight \

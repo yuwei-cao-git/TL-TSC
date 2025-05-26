@@ -13,7 +13,7 @@ class FCNResNet50Encoder(nn.Module):
         fcn = fcn_resnet50(
             pretrained=pretrained,
             progress=True,
-            num_classes=9,  # placeholder, won't be used
+            num_classes=21,  # placeholder, won't be used
             aux_loss=None
         )
 

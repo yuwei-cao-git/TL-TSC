@@ -14,7 +14,7 @@ img_std: [73.04, 69.87, 64.70, 62.85, 54.15, 51.63, 48.04, 48.44, 50.08]
 # Training parameters
 task: regression
 pretrained_ckpt: None
-batch_size: 32
+batch_size: 64
 max_epochs: 250
 optimizer: adamW                 # Options: adam, adamW, sgd
 scheduler: cosine         # Options: plateau, steplr, asha, cosine, cosinewarmup
@@ -26,16 +26,16 @@ weight_decay: 0.0001
 
 # Loss weights
 weighted_loss: false
-multitasks_uncertain_loss: true
+multitasks_uncertain_loss: false
 
 # Model architecture
-network: ResUnet
+network: ResNet
 emb_dims: 768
 num_points: 7168
-encoder: s                      # Options: s, b, l, xl
+encoder: b                      # Options: s, b, l, xl
 fusion_dim: 128
-dp_fuse: 0.5
-dp_pc: 0.5
+dp_fuse: 0.3
+dp_pc: 0.3
 use_ms: true
 linear_layers_dims: [256, 128]
 
