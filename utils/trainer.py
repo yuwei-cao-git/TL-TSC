@@ -47,13 +47,9 @@ def train(config):
         # load backbone weights only, ignore head mismatch
         model = FusionModel.load_from_checkpoint(
             config["pretrained_ckpt"],
-            n_classes=config["n_classes"],
-            strict=False, # only matching parameters (the backbone) get loaded;
-            **config
+            num_classes=11,       # TEMPORARY value to match checkpoint structure
+            strict=False
         )
-        # freeze encoder
-        # for p in model.s2_model.parameters(): p.requires_grad = False
-        # for p in model.pc_model.parameters(): p.requires_grad = False
     else:
         model = FusionModel(config, n_classes=config["n_classes"])
 

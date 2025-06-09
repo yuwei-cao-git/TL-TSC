@@ -60,7 +60,7 @@ class FCNResNet50(nn.Module):
         super().__init__()
         self.use_decoder = decoder
         self.encoder = FCNResNet50Encoder(n_channels, pretrained=pretrained)
-        if decoder:
+        if self.use_decoder:
             self.decoder = FCNResNet50Decoder(encoder_channels=2048, n_classes=n_classes, upsample=upsample_method)
 
     def forward(self, x):

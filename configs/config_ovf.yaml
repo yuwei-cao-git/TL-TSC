@@ -13,8 +13,8 @@ img_std: [56.02, 56.74, 57.51, 57.80, 59.51, 59.12, 57.88, 58.77, 57.07]
 
 # Training parameters
 task: regression
-pretrained_ckpt: None #tl_logs/test_resnet_decoder/wandblogs/TL-TSC/a2eq467k/checkpoints/epoch=13-step=136346.ckpt
-batch_size: 64
+pretrained_ckpt: tl_logs/Fuse_resnet_pointnext_rmf/wandblogs/TL-TSC/weoooqof/checkpoints/epoch=15-step=51936.ckpt
+batch_size: 8
 max_epochs: 250
 optimizer: adamW                 # Options: adam, adamW, sgd
 scheduler: cosine         # Options: plateau, steplr, asha, cosine, cosinewarmup
@@ -29,13 +29,13 @@ weighted_loss: false
 multitasks_uncertain_loss: false
 
 # Model architecture
-network: ResNet
+network: ResUnet
 emb_dims: 768
 num_points: 7168
 encoder: s                      # Options: s, b, l, xl
 fusion_dim: 128
-dp_fuse: 0.5
-dp_pc: 0.5
+dp_fuse: 0.3
+dp_pc: 0.3
 use_ms: true
 linear_layers_dims: [256, 128]
 
@@ -45,4 +45,4 @@ point_cloud_transform: true
 rotate: false
 
 # Hardware
-gpus: 4
+gpus: 1

@@ -36,7 +36,7 @@ class ConvBNReLU(nn.Sequential):
             nn.ReLU6(),
         )
 
-class MambaLayer(nn.Module):
+class MambaFusion(nn.Module):
     def __init__(
         self,
         in_img_chs,  # Input channels for image
@@ -197,9 +197,10 @@ class MambaFusionDecoder(nn.Module):
         expand=2,
         last_feat_size=8,
         return_logits=False,
+        return_feature=False
     ):
         super(MambaFusionDecoder, self).__init__()
-        self.mamba = MambaLayer(
+        self.mamba = MambaFusion(
             in_img_chs,  # Input channels for image
             in_pc_chs,
             dim=dim,
@@ -220,11 +221,15 @@ class MambaFusionDecoder(nn.Module):
             dropout_prob=drop,
             return_logits=return_logits,
         )
+        self.return_feature=return_feature
 
     def forward(self, img_emb, pc_emb):
         x = self.mamba(img_emb, pc_emb)
         class_output = self.mlp_block(x)  # Class output of shape (B, num_classes)
-        return class_output
+        if self.return_feature:
+            return class_output, x
+        else:
+            return class_output
     
 # -----------------------------------------------------------------------------------
 # Use mamba & upsamping as decoder: MambaDecoder 
@@ -258,7 +263,7 @@ class ConvFFN(nn.Module):
 class MambaBlock(nn.Module):
     def __init__(self, in_chs=512, dim=128, hidden_ch=512, out_ch=128, drop=0.1, d_state=16, d_conv=4, expand=2, last_feat_size=16):
         super(MambaBlock, self).__init__()
-        self.mamba = MambaLayer(in_img_chs=in_chs, in_pc_chs=0, dim=dim, d_state=d_state, d_conv=d_conv, expand=expand, last_feat_size=last_feat_size, fusion=False)
+        self.mamba = MambaFusion(in_img_chs=in_chs, in_pc_chs=0, dim=dim, d_state=d_state, d_conv=d_conv, expand=expand, last_feat_size=last_feat_size, fusion=False)
         self.conv_ffn = ConvFFN(in_ch=dim*self.mamba.pool_len+in_chs, hidden_ch=hidden_ch, out_ch=out_ch, drop=drop)
 
     def forward(self, x):
