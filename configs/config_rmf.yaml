@@ -1,7 +1,7 @@
 # config_rmf.yaml
 
 # General
-dataset: rmf                        # Options: rmf, sp_rmf
+dataset: rmf_sp                        # Options: rmf, rmf_sp
 tile_size: 128
 n_bands: 9
 class_weights: [0.134, 0.024, 0.055, 0.044, 0.025, 0.032, 0.261, 0.006, 0.420]
