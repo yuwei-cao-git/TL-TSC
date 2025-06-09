@@ -15,6 +15,8 @@ def override_config(cfg, args):
         cfg['batch_size'] = args.batch_size
     if args.head is not None:
         cfg['head'] = args.head
+    if args.network is not None:
+        cfg['network'] = args.network
     if args.dataset is not None:
         cfg['dataset'] = args.dataset
     return cfg
@@ -29,6 +31,7 @@ def parse_args():
     parser.add_argument('--gpus', type=int, help='Override learning rate')
     parser.add_argument('--batch_size', type=int, help='Override batch size')
     parser.add_argument('--head', type=str, help='Override head option')
+    parser.add_argument('--network', type=str, help='Override head option')
     parser.add_argument('--dataset', type=str, help='Override dataset')
     return parser.parse_args()
     
