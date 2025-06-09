@@ -6,7 +6,7 @@ import os
 from pytorch_lightning import LightningDataModule
 from torch.utils.data import DataLoader
 from os.path import join
-from .augment import pointCloudTransform, image_transform
+from .augment import pointCloudTransform, image_augment
 
 
 class SuperpixelDataset(Dataset):
@@ -49,7 +49,7 @@ class SuperpixelDataset(Dataset):
 
         # Apply transforms if needed
         if self.image_transform != None:
-            superpixel_images = image_transform(superpixel_images, self.image_transform)
+            superpixel_images = image_augment(superpixel_images, self.image_transform, 128)
 
         # Apply point cloud transforms if any
         if self.point_cloud_transform:
@@ -83,33 +83,26 @@ class SuperpixelDataModule(LightningDataModule):
         super().__init__()
         self.config = config
         self.batch_size = config["batch_size"]
-        self.num_workers = config["num_workers"]
+        self.num_workers = config["gpus"]*2
         self.image_transform = (
-            config["img_transforms"] if config["img_transforms"] != "None" else None
+            config["image_transform"] if config["image_transform"] != "None" else None
         )
-        self.point_cloud_transform = config["pc_transforms"]
-        self.aug_rotate = config["pc_transforms"]
-        self.aug_norm = config["pc_norm"]
-        self.processed_dir = join(config["data_dir"], f'{self.config["resolution"]}m')
+        self.point_cloud_transform = config["point_cloud_transform"]
+        self.aug_rotate = config["rotate"]
+        self.aug_norm = True
         self.data_dirs = {
             "train": join(
                 config["data_dir"],
-                f"{config['resolution']}m",
-                "fusion_v2",
                 "train",
                 "superpixel",
             ),
             "val": join(
                 config["data_dir"],
-                f"{config['resolution']}m",
-                "fusion_v2",
                 "val",
                 "superpixel",
             ),
             "test": join(
                 config["data_dir"],
-                f"{config['resolution']}m",
-                "fusion_v2",
                 "test",
                 "superpixel",
             ),
@@ -204,7 +197,7 @@ class SuperpixelDataModule(LightningDataModule):
             [item["per_pixel_labels"] for item in batch]
         )  # Shape: (batch_size, num_classes, 128, 128)
         nodata_masks = torch.stack(
-            [item["nodata_mask"] for item in batch]
+            [item["mask"] for item in batch]
         )  # Shape: (batch_size, 128, 128)
 
         return {

@@ -27,7 +27,7 @@ class PointNextEncoder(nn.Module):
         return features
 
 class PointNextClassifier(nn.Module):
-    def __init__(self, config, n_classes, in_chs=768):
+    def __init__(self, config, n_classes):
         super(PointNextClassifier, self).__init__()
         self.config = config
         self.n_classes = n_classes
@@ -35,7 +35,7 @@ class PointNextClassifier(nn.Module):
 
         self.act = nn.ReLU()
         self.cls_head = nn.Sequential(
-            nn.Linear(in_chs, 512),
+            nn.Linear(config["emb_dims"], 512),
             nn.BatchNorm1d(512),
             nn.ReLU(),
             nn.Dropout(config["dp_pc"]),
@@ -47,8 +47,6 @@ class PointNextClassifier(nn.Module):
         )
 
     def forward(self, pc_feats):
-        if len(pc_feats.shape) > 3:
-            pc_feats=pc_feats.view(pc_feats.shape[0], pc_feats.shape[1], -1)
         out = pc_feats.mean(dim=-1)  # Global feature: (B, C)
         out = self.act(out)
         logits = self.cls_head(out)

@@ -45,30 +45,25 @@ class MambaFusion(nn.Module):
         d_state=16,
         d_conv=4,
         expand=2,
-        last_feat_size=16,
-        fusion=False,
+        last_feat_size=16
     ):
         super().__init__()
-        self.fusion_mode = fusion
-        if self.fusion_mode:
-            # Sample the grids in 2D space
-            xx = np.linspace(-0.3, 0.3, last_feat_size, dtype=np.float32)
-            yy = np.linspace(-0.3, 0.3, last_feat_size, dtype=np.float32)
-            self.grid = np.array(np.meshgrid(xx, yy))  # (2, 8, 8)
+        # Sample the grids in 2D space
+        xx = np.linspace(-0.3, 0.3, last_feat_size, dtype=np.float32)
+        yy = np.linspace(-0.3, 0.3, last_feat_size, dtype=np.float32)
+        self.grid = np.array(np.meshgrid(xx, yy))  # (2, 8, 8)
 
-            # reshape
-            self.grid = torch.Tensor(self.grid).view(2, -1)  # (2, 8, 8) -> (2, 8 * 8)
+        # reshape
+        self.grid = torch.Tensor(self.grid).view(2, -1)  # (2, 8, 8) -> (2, 8 * 8)
 
-            self.m = self.grid.shape[1]
-            
-            
-            # Calculate the combined input channels
-            combined_in_chs = in_img_chs + in_pc_chs + 2
-            assert isinstance(combined_in_chs, int) and isinstance(
-                combined_in_chs, int
-            ), "in_channels and out_channels must be integers"
-        else: 
-            combined_in_chs = in_img_chs
+        self.m = self.grid.shape[1]
+        
+        # Calculate the combined input channels
+        combined_in_chs = in_img_chs + in_pc_chs + 2
+        assert isinstance(combined_in_chs, int) and isinstance(
+            combined_in_chs, int
+        ), "in_channels and out_channels must be integers"
+        
         # Pooling scales for the pooling layers
         pool_scales = self.generate_arithmetic_sequence(1, last_feat_size, last_feat_size // 4)
         self.pool_len = len(pool_scales)
@@ -102,26 +97,23 @@ class MambaFusion(nn.Module):
 
     def forward(self, x, pc_emb):
         B, _, H, W = x.shape
-        if self.fusion_mode:
-            # repeat grid for batch operation
-            grid = self.grid.to(x.device)  # (2, 8 * 8)
-            grid = grid.unsqueeze(0).repeat(B, 1, 1)  # (B, 2, 88 * 45)
+        # repeat grid for batch operation
+        grid = self.grid.to(x.device)  # (2, 8 * 8)
+        grid = grid.unsqueeze(0).repeat(B, 1, 1)  # (B, 2, 88 * 45)
+    
+        # Pool over points (max pooling over point cloud features)
+        pc_emb = torch.max(pc_emb, dim=2)[0]  # Shape: (batch_size, feature_dim)
         
-            # Pool over points (max pooling over point cloud features)
-            pc_emb = torch.max(pc_emb, dim=2)[0]  # Shape: (batch_size, feature_dim)
-            
-            # Expand point cloud features to (B, C_point, H, W)
-            point_cloud_expanded = pc_emb.unsqueeze(2).repeat(
-                1, 1, self.m
-            )  # (BS, feature_dim, 8 * 8)
-            point_cloud_expanded = point_cloud_expanded.view(B, -1, H, W)
-        
-            grid = grid.view(B, -1, H, W)
+        # Expand point cloud features to (B, C_point, H, W)
+        point_cloud_expanded = pc_emb.unsqueeze(2).repeat(
+            1, 1, self.m
+        )  # (BS, feature_dim, 8 * 8)
+        point_cloud_expanded = point_cloud_expanded.view(B, -1, H, W)
+    
+        grid = grid.view(B, -1, H, W)
 
-            # Concatenate image and point cloud features
-            combined_features = torch.cat([x, grid, point_cloud_expanded], dim=1)
-        else:
-            combined_features = x
+        # Concatenate image and point cloud features
+        combined_features = torch.cat([x, grid, point_cloud_expanded], dim=1)
 
         # Pooling and Mamba layers
         res = combined_features
@@ -207,8 +199,7 @@ class MambaFusionDecoder(nn.Module):
             d_state=d_state,
             d_conv=d_conv,
             expand=expand,
-            last_feat_size=last_feat_size,
-            fusion=True
+            last_feat_size=last_feat_size
         )
         # Initialize MLPBlock (now it takes output channels as num_classes)
         self.mlp_block = MLP(

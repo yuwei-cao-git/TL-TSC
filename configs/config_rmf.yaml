@@ -13,12 +13,12 @@ img_std: [73.04, 69.87, 64.70, 62.85, 54.15, 51.63, 48.04, 48.44, 50.08]
 
 # Training parameters
 task: regression
-head:  fuse_head # no_pc_head, fuse_head, all_head, no_img_head
+head:  fuse_head # Options: no_pc_head, fuse_head, all_head, no_img_head
 pretrained_ckpt: None
-batch_size: 8
+batch_size: 64
 max_epochs: 250
 optimizer: adamW                 # Options: adam, adamW, sgd
-scheduler: plateau         # Options: plateau, steplr, asha, cosine, cosinewarmup
+scheduler: cosine         # Options: plateau, steplr, asha, cosine, cosinewarmup
 lr: 0.0001
 patience: 10
 step_size: 10
@@ -28,7 +28,7 @@ weight_decay: 0.0001
 # Loss weights
 weighted_loss: false
 multitasks_uncertain_loss: false
-loss_func: mae
+loss_func: mse
 
 # Model architecture
 network: ResUnet
@@ -42,9 +42,9 @@ use_ms: true
 linear_layers_dims: [512, 256]
 
 # Data transforms
-image_transform: compose        # Options: compose, random, None
+image_transform: compose
 point_cloud_transform: true
 rotate: false
 
 # Hardware
-gpus: 1
+gpus: 4

@@ -73,6 +73,8 @@ class FusionBlock(nn.Module):
 
     def forward(self, xs):
         outputs = []
+        if not isinstance(xs, list):
+            xs = torch.unbind(xs, dim=1)  # xs will become a list of tensors
         for x, conv, pool, dense1, dense2 in zip(
             xs,
             self.conv_branches,

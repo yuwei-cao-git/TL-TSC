@@ -1,14 +1,20 @@
 import os
 
 from pytorch_lightning import Trainer, seed_everything
+from pytorch_lightning.strategies import DDPStrategy
 from pytorch_lightning.callbacks import EarlyStopping
 from lightning.pytorch.loggers import WandbLogger
 # from pytorch_lightning.utilities.model_summary import ModelSummary
-
-from dataset.balanced_dataset import BalancedDataModule
 from model.fuse import FusionModel
+import yaml
 
-
+def save_config(cfg, save_dir, filename="config.yaml"):
+    os.makedirs(save_dir, exist_ok=True)
+    config_path = os.path.join(save_dir, filename)
+    with open(config_path, "w") as f:
+        yaml.dump(cfg, f, default_flow_style=False)
+    print(f"Saved config to {config_path}")
+    
 def train(config):
     seed_everything(123)
     log_name = config["log_name"]
@@ -21,6 +27,8 @@ def train(config):
         os.mkdir(log_dir)
     if not os.path.exists(chk_dir):
         os.mkdir(chk_dir)
+    
+    save_config(config, log_dir)
 
     # Initialize WandB, CSV Loggers
     wandb_logger = WandbLogger(
@@ -40,7 +48,12 @@ def train(config):
     )
     print("start setting dataset")
     # Initialize the DataModule
-    data_module = BalancedDataModule(config)
+    if config["dataset"] == "rmf":
+        from dataset.balanced_dataset import BalancedDataModule
+        data_module = BalancedDataModule(config)
+    else:
+        from dataset.superpixel import SuperpixelDataModule
+        data_module = SuperpixelDataModule(config)
 
     # Use the calculated input channels from the DataModule to initialize the model
     if config["pretrained_ckpt"] != "None":
@@ -60,7 +73,7 @@ def train(config):
         callbacks=early_stopping,  # [early_stopping, checkpoint_callback],
         devices=config["gpus"],
         num_nodes=1,
-        strategy="ddp"
+        strategy=DDPStrategy(find_unused_parameters=True)
     )
     
     # Train the model
