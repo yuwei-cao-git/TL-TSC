@@ -161,7 +161,8 @@ class MLP(nn.Module):
 
     def forward(self, x):
         x = self.conv(x)
-        x = self.pooling(x).squeeze()  # Global pooling to (B, in_ch)
+        x = self.pooling(x)  # Global pooling to (B, in_ch)
+        x = x.view(x.size(0), -1)     # (B, C)
         x = F.relu(self.bn1(self.fc1(x)))
         x = self.dropout1(x)
         x = F.relu(self.bn2(self.fc2(x)))
@@ -215,7 +216,7 @@ class MambaFusionDecoder(nn.Module):
         self.return_feature=return_feature
 
     def forward(self, img_emb, pc_emb):
-        x = self.mamba(img_emb, pc_emb)
+        x = self.mamba(img_emb, pc_emb) # torch.Size([8, 2306, 8, 8])
         class_output = self.mlp_block(x)  # Class output of shape (B, num_classes)
         if self.return_feature:
             return class_output, x
