@@ -48,13 +48,12 @@ def train(config):
     )
     print("start setting dataset")
     # Initialize the DataModule
-    if config["dataset"] == "rmf":
-        from dataset.balanced_dataset import BalancedDataModule
-        data_module = BalancedDataModule(config)
-    else:
+    if config["dataset"] == "rmf_sp":
         from dataset.superpixel import SuperpixelDataModule
         data_module = SuperpixelDataModule(config)
-
+    else:
+        from dataset.balanced_dataset import BalancedDataModule
+        data_module = BalancedDataModule(config)
     # Use the calculated input channels from the DataModule to initialize the model
     if config["pretrained_ckpt"] != "None":
         # load backbone weights only, ignore head mismatch
