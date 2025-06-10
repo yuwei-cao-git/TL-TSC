@@ -93,16 +93,22 @@ class SuperpixelDataModule(LightningDataModule):
         self.data_dirs = {
             "train": join(
                 config["data_dir"],
+                f"{config['dataset']}",
+                "tile_128",
                 "train",
                 "superpixel",
             ),
             "val": join(
                 config["data_dir"],
+                f"{config['dataset']}",
+                "tile_128",
                 "val",
                 "superpixel",
             ),
             "test": join(
                 config["data_dir"],
+                f"{config['dataset']}",
+                "tile_128",
                 "test",
                 "superpixel",
             ),
@@ -129,22 +135,15 @@ class SuperpixelDataModule(LightningDataModule):
                 if not (
                     self.image_transform is None or self.point_cloud_transform is False
                 ):
-                    aug_img_dataset = SuperpixelDataset(
+                    aug_dataset = SuperpixelDataset(
                         superpixel_files,
                         rotate=self.aug_rotate,
                         normalization=self.aug_norm,
                         image_transform=self.image_transform,
-                        point_cloud_transform=False,
-                    )
-                    aug_pc_dataset = SuperpixelDataset(
-                        superpixel_files,
-                        rotate=self.aug_rotate,
-                        normalization=self.aug_norm,
-                        image_transform=None,
                         point_cloud_transform=self.point_cloud_transform,
                     )
                     self.datasets["train"] = torch.utils.data.ConcatDataset(
-                        [self.datasets["train"], aug_img_dataset, aug_pc_dataset]
+                        [self.datasets["train"], aug_dataset]
                     )
 
     def train_dataloader(self):

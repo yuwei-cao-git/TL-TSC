@@ -48,7 +48,7 @@ def train(config):
     )
     print("start setting dataset")
     # Initialize the DataModule
-    if config["dataset"] == "rmf_sp":
+    if config["dataset"] == "rmf_superpixel_dataset":
         from dataset.superpixel import SuperpixelDataModule
         data_module = SuperpixelDataModule(config)
     else:

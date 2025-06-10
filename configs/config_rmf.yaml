@@ -1,7 +1,7 @@
 # config_rmf.yaml
 
 # General
-dataset: rmf_sp                        # Options: rmf, rmf_sp
+dataset: rmf_superpixel_dataset                        # Options: rmf, rmf_superpixel_dataset
 tile_size: 128
 n_bands: 9
 class_weights: [0.134, 0.024, 0.055, 0.044, 0.025, 0.032, 0.261, 0.006, 0.420]
@@ -13,10 +13,10 @@ img_std: [73.04, 69.87, 64.70, 62.85, 54.15, 51.63, 48.04, 48.44, 50.08]
 
 # Training parameters
 task: regression
-head:  fuse_head # Options: no_pc_head, fuse_head, all_head, no_img_head
+head:  all_head # Options: no_pc_head, fuse_head, all_head, no_img_head
 pretrained_ckpt: None
 batch_size: 64
-max_epochs: 15
+max_epochs: 2
 optimizer: adamW                 # Options: adam, adamW, sgd
 scheduler: cosine         # Options: plateau, steplr, asha, cosine, cosinewarmup
 lr: 0.0001
@@ -26,9 +26,9 @@ momentum: 0.9
 weight_decay: 0.0001
 
 # Loss weights
-weighted_loss: false
+weighted_loss: true
 multitasks_uncertain_loss: false
-loss_func: mse
+loss_func: wmse
 
 # Model architecture
 network: ResUnet

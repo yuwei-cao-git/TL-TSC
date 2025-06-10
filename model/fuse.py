@@ -134,12 +134,12 @@ class FusionModel(pl.LightningModule):
             stacked_features = self.mf_module(images)
         else:
             stacked_features = torch.cat(images, dim=1)
-        if self.cfg["head"] == ("no_pc_head" or "all_head"):
+        if self.cfg["head"] in ["no_pc_head", "all_head"]:
             image_outputs, img_emb = self.s2_model(stacked_features) # torch.Size([bs, 9, 64, 64]), torch.Size([bs, 512, tile_size/16, tile_size/16])
         else:
             img_emb = self.s2_model(stacked_features)  
         # Process point clouds
-        if self.cfg["head"] == ("no_img_head" or "all_head"):
+        if self.cfg["head"] in ["no_img_head", "all_head"]:
             point_outputs, pc_emb = self.pc_model(pc_feat, xyz)  # torch.Size([bs, 9]), torch.Size([bs, 768, 28])
         else:
             pc_emb = self.pc_model(pc_feat, xyz)  # torch.Size([bs, 768, 28])
@@ -147,7 +147,14 @@ class FusionModel(pl.LightningModule):
         # Fusion and classification
         class_output = self.fuse_head(img_emb, pc_emb) # torch.Size([8, 1794, 8, 8])
         
-        return image_outputs, point_outputs, class_output
+        if self.cfg["head"] == "all_head":
+            return image_outputs, point_outputs, class_output
+        elif self.cfg["head"] == "fuse_head":
+            return None, None, class_output
+        elif self.cfg["head"] == "no_img_head":
+            return None, point_outputs, class_output
+        else:
+            return image_outputs, None, class_output
 
     def forward_and_metrics(
         self, images, img_masks, pc_feat, point_clouds, labels, pixel_labels, stage
@@ -187,6 +194,10 @@ class FusionModel(pl.LightningModule):
         if pc_preds != None:
             # Compute point cloud loss
             if stage == "train":
+                if self.cfg["weighted_loss"]:
+                    self.weights = self.weights.to(pc_preds.device)
+                else:
+                    self.weight = torch.ones(9, dtype=float)
                 loss_point = calc_masked_loss(self.loss_func, pc_preds, labels, self.weights)
             else:
                 loss_point = self.criterion(pc_preds, labels)
@@ -205,6 +216,10 @@ class FusionModel(pl.LightningModule):
 
             # Compute pixel-level loss
             if stage == "train":
+                if self.cfg["weighted_loss"]:
+                    self.weights = self.weights.to(valid_pixel_preds.device)
+                else:
+                    self.weight = torch.ones(9, dtype=float)
                 loss_pixel = calc_masked_loss(self.loss_func, valid_pixel_preds, valid_pixel_true, self.weights)
             else:
                 loss_pixel = self.criterion(valid_pixel_preds, valid_pixel_true)
@@ -219,6 +234,10 @@ class FusionModel(pl.LightningModule):
         # Fusion stream
         # Compute fusion loss
         if stage == "train":
+            if self.cfg["weighted_loss"]:
+                self.weights = self.weights.to(fuse_preds.device)
+            else:
+                self.weight = torch.ones(9, dtype=float)
             loss_fuse = calc_masked_loss(self.loss_func, fuse_preds, labels, self.weights)
         else:
             loss_fuse = self.criterion(fuse_preds, labels)
@@ -242,7 +261,7 @@ class FusionModel(pl.LightningModule):
                 elif self.cfg["head"]=="no_pc_head":
                     total_loss = self.awl(loss_pixel, loss_fuse)
             else:
-                total_loss = loss_fuse*self.fuse_loss_weight + loss_point*self.pc_loss_weight if pc_preds != None else 0 +  loss_pixel*self.img_loss_weight if pixel_preds != None else 0
+                total_loss = loss_fuse*self.fuse_loss_weight + (loss_point*self.pc_loss_weight if pc_preds != None else 0) +  (loss_pixel*self.img_loss_weight if pixel_preds != None else 0)
                 
         if stage == "val":
             self.validation_step_outputs.append(
@@ -412,12 +431,14 @@ class FusionModel(pl.LightningModule):
             params.append({"params": [self.awl.params], "lr": self.lr})
             
         # Include parameters from the image model
-        image_params = list(self.s2_model.parameters())
-        params.append({"params": image_params, "lr": self.lr})
+        if any(p.requires_grad for p in self.s2_model.parameters()):
+            image_params = list(self.s2_model.parameters())
+            params.append({"params": image_params, "lr": self.lr})
 
         # Include parameters from the point cloud model
-        point_params = list(self.pc_model.parameters()) 
-        params.append({"params": point_params, "lr": self.lr})
+        if any(p.requires_grad for p in self.pc_model.parameters()):
+            point_params = list(self.pc_model.parameters()) 
+            params.append({"params": point_params, "lr": self.lr})
 
         # Include parameters from the fusion layers
         fusion_params = list(self.fuse_head.parameters())
