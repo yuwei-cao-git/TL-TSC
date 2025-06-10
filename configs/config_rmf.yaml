@@ -16,7 +16,7 @@ task: regression
 head:  fuse_head # Options: no_pc_head, fuse_head, all_head, no_img_head
 pretrained_ckpt: None
 batch_size: 64
-max_epochs: 250
+max_epochs: 15
 optimizer: adamW                 # Options: adam, adamW, sgd
 scheduler: cosine         # Options: plateau, steplr, asha, cosine, cosinewarmup
 lr: 0.0001
