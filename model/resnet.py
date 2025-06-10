@@ -45,7 +45,7 @@ class FCNResNet50Decoder(nn.Module):
             self.classifier = FCNHead(encoder_channels, n_classes)
         else:
             from .decoder import SimpleUpDecoder
-            self.classifier = SimpleUpDecoder(encoder_channel=2048, decoder_channels=128, num_classes=n_classes)
+            self.classifier = SimpleUpDecoder(encoder_channel=2048, decoder_channels=512, num_classes=n_classes)
 
     def forward(self, features, input_shape):
         logits = self.classifier(features)  # (B, n_classes, H/8, W/8)

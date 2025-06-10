@@ -26,9 +26,9 @@ momentum: 0.9
 weight_decay: 0.0001
 
 # Loss weights
-weighted_loss: true
+weighted_loss: false
 multitasks_uncertain_loss: false
-loss_func: wmse
+loss_func: mse
 
 # Model architecture
 network: ResUnet

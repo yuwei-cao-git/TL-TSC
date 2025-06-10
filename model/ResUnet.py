@@ -87,7 +87,7 @@ class ResUnetClassifier(nn.Module):
         return preds
 
 class ResUnet(nn.Module):
-    def __init__(self, n_channels=52, n_classes=9, block_expansion=1, decoder=True):
+    def __init__(self, n_channels=52, n_classes=9, block_expansion=2, decoder=True):
         super().__init__()
         self.use_decoder = decoder
         self.encoder = ResUnetEncoder(n_channels, block_expansion)

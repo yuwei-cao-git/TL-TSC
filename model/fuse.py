@@ -60,7 +60,7 @@ class FusionModel(pl.LightningModule):
             self.s2_model = FCNResNet50(
                 n_channels=total_input_channels,
                 n_classes=n_classes,
-                upsample_method='bilinear',
+                upsample_method='deconv',
                 pretrained=False,
                 decoder=(self.cfg["head"] == "no_pc_head" or self.cfg["head"] == "all_head")
             )
@@ -73,8 +73,14 @@ class FusionModel(pl.LightningModule):
                                 )
 
         # Late Fusion and classification layers with additional MLPs
+        if self.cfg["network"] == "ResNet":
+            img_chs=2048
+        elif self.cfg["network"] == "ResUnet":
+            img_chs=1024
+        else:
+            img_chs=512
         self.fuse_head = MambaFusionDecoder(
-            in_img_chs=2048 if self.cfg["network"] == "ResNet" else 512,
+            in_img_chs=img_chs,
             in_pc_chs=(self.cfg["emb_dims"]),
             dim=self.cfg["fusion_dim"],
             hidden_ch=self.cfg["linear_layers_dims"],
