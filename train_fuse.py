@@ -19,6 +19,15 @@ def override_config(cfg, args):
         cfg['network'] = args.network
     if args.dataset is not None:
         cfg['dataset'] = args.dataset
+    # hps
+    if args.lr is not None:
+        cfg['lr'] = args.lr
+    if args.multitasks_uncertain_loss is not None:
+        cfg['multitasks_uncertain_loss'] = args.multitasks_uncertain_loss
+    if args.weighted_loss is not None:
+        cfg['weighted_loss'] = args.weighted_loss
+    if args.loss_func is not None:
+        cfg['loss_func'] = args.loss_func
     return cfg
 
     
@@ -33,6 +42,10 @@ def parse_args():
     parser.add_argument('--head', type=str, help='Override head option')
     parser.add_argument('--network', type=str, help='Override head option')
     parser.add_argument('--dataset', type=str, help='Override dataset')
+    parser.add_argument('--lr', type=float)
+    parser.add_argument('--multitasks_uncertain_loss', type=bool, default=True)
+    parser.add_argument('--weighted_loss', type=bool, default=False)
+    parser.add_argument('--loss_func', type=str)
     return parser.parse_args()
     
 def main():

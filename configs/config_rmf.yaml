@@ -27,8 +27,8 @@ weight_decay: 0.0001
 
 # Loss weights
 weighted_loss: false
-multitasks_uncertain_loss: false
-loss_func: mse
+multitasks_uncertain_loss: true
+loss_func: mae
 
 # Model architecture
 network: ResUnet

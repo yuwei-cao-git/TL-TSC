@@ -437,6 +437,9 @@ class FusionModel(pl.LightningModule):
             params.append({"params": [self.awl.params], "lr": self.lr})
             
         # Include parameters from the image model
+        if any(p.requires_grad for p in self.mf_module.parameters()):
+            mf_params = list(self.mf_module.parameters())
+            params.append({"params": mf_params, "lr": self.lr})
         if any(p.requires_grad for p in self.s2_model.parameters()):
             image_params = list(self.s2_model.parameters())
             params.append({"params": image_params, "lr": self.lr})
