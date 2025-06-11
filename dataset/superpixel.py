@@ -7,7 +7,7 @@ from pytorch_lightning import LightningDataModule
 from torch.utils.data import DataLoader
 from os.path import join
 from .augment import pointCloudTransform, image_augment
-
+import torchvision.transforms.v2 as transforms
 
 class SuperpixelDataset(Dataset):
     def __init__(
@@ -23,6 +23,13 @@ class SuperpixelDataset(Dataset):
         self.point_cloud_transform = point_cloud_transform
         self.rotate = rotate
         self.norm = normalization
+        # Create a transform to resize and normalize the input images
+        self.transforms = transforms.Compose(
+            [
+                transforms.ToImage(), 
+                transforms.ToDtype(torch.float32, scale=True) 
+            ]
+        )
 
     def __len__(self):
         return len(self.superpixel_files)
@@ -46,6 +53,8 @@ class SuperpixelDataset(Dataset):
             per_pixel_labels
         ).float()  # Shape: (num_classes, 128, 128)
         nodata_mask = torch.from_numpy(nodata_mask).bool()
+        
+        superpixel_images = self.transforms(superpixel_images)
 
         # Apply transforms if needed
         if self.image_transform != None:
