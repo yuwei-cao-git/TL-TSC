@@ -43,7 +43,7 @@ def parse_args():
     parser.add_argument('--network', type=str, help='Override head option')
     parser.add_argument('--dataset', type=str, help='Override dataset')
     parser.add_argument('--lr', type=float)
-    parser.add_argument('--multitasks_uncertain_loss', type=bool, default=True)
+    parser.add_argument('--multitasks_uncertain_loss', type=bool, default=False)
     parser.add_argument('--weighted_loss', type=bool, default=False)
     parser.add_argument('--loss_func', type=str)
     return parser.parse_args()
