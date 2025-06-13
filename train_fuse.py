@@ -24,8 +24,8 @@ def override_config(cfg, args):
         cfg['lr'] = args.lr
     if args.multitasks_uncertain_loss is not None:
         cfg['multitasks_uncertain_loss'] = args.multitasks_uncertain_loss
-    if args.weighted_loss is not None:
-        cfg['weighted_loss'] = args.weighted_loss
+    if args.weighted_cls_loss is not None:
+        cfg['weighted_cls_loss'] = args.weighted_cls_loss
     if args.loss_func is not None:
         cfg['loss_func'] = args.loss_func
     return cfg
@@ -44,7 +44,7 @@ def parse_args():
     parser.add_argument('--dataset', type=str, help='Override dataset')
     parser.add_argument('--lr', type=float)
     parser.add_argument('--multitasks_uncertain_loss', type=bool, default=True)
-    parser.add_argument('--weighted_loss', type=bool, default=False)
+    parser.add_argument('--weighted_cls_loss', type=bool, default=False)
     parser.add_argument('--loss_func', type=str)
     return parser.parse_args()
     
@@ -60,9 +60,11 @@ def main():
         if args.data_dir is not None
         else os.path.join(os.getcwd(), "data")
     )
-    
-    class_weights = cfg.get('class_weights', None)
-    cfg['class_weights'] = torch.tensor(class_weights).float()
+    if cfg['weighted_cls_loss']:
+        class_weights = cfg.get('class_weights', None)
+        cfg['class_weights'] = torch.tensor(class_weights).float()
+    else:
+        cfg['class_weights'] = None
     
     os.makedirs(cfg['save_dir'], exist_ok=True)
     print(cfg)
