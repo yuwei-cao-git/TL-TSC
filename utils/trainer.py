@@ -59,7 +59,7 @@ def train(config):
         # load backbone weights only, ignore head mismatch
         model = FusionModel.load_from_checkpoint(
             config["pretrained_ckpt"],
-            num_classes=11,       # TEMPORARY value to match checkpoint structure
+            num_classes=config["n_classes"],
             strict=False
         )
     else:
