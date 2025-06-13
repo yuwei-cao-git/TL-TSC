@@ -139,7 +139,11 @@ class FusionModel(pl.LightningModule):
         if self.ms_fusion:  # Apply the MF module first to extract features from input
             stacked_features = self.mf_module(images)
         else:
-            stacked_features = torch.cat(images, dim=1)
+            if self.cfg["dataset"] == 'rmf':
+                stacked_features = torch.cat(images, dim=1)
+            else:
+                B, _, _, H, W = images.shape
+                stacked_features = images.view(B, -1, H, W)
         if self.cfg["head"] in ["no_pc_head", "all_head"]:
             image_outputs, img_emb = self.s2_model(stacked_features) # torch.Size([bs, 9, 64, 64]), torch.Size([bs, 512, tile_size/16, tile_size/16])
         else:
@@ -437,7 +441,7 @@ class FusionModel(pl.LightningModule):
             params.append({"params": [self.awl.params], "lr": self.lr})
             
         # Include parameters from the image model
-        if any(p.requires_grad for p in self.mf_module.parameters()):
+        if self.cfg["use_ms"]:
             mf_params = list(self.mf_module.parameters())
             params.append({"params": mf_params, "lr": self.lr})
         if any(p.requires_grad for p in self.s2_model.parameters()):
