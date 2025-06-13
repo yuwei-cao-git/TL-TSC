@@ -184,6 +184,9 @@ class FusionModel(pl.LightningModule):
         Returns:
         - loss: The computed loss
         """
+        loss_point = torch.tensor(0.0, device=labels.device)
+        loss_pixel = torch.tensor(0.0, device=labels.device)
+
         # Permute point cloud data if available
         pc_feat = pc_feat.permute(0, 2, 1) if pc_feat is not None else None
         point_clouds = (point_clouds.permute(0, 2, 1) if point_clouds is not None else None)
@@ -271,7 +274,7 @@ class FusionModel(pl.LightningModule):
                 elif self.cfg["head"]=="no_pc_head":
                     total_loss = self.awl(loss_pixel, loss_fuse)
             else:
-                total_loss = loss_fuse*self.fuse_loss_weight + (loss_point*self.pc_loss_weight if pc_preds != None else 0) +  (loss_pixel*self.img_loss_weight if pixel_preds != None else 0)
+                total_loss = loss_fuse*self.fuse_loss_weight + (loss_point*self.pc_loss_weight if loss_point != None else 0) +  (loss_pixel*self.img_loss_weight if loss_pixel != None else 0)
                 
         if stage == "val":
             self.validation_step_outputs.append(
