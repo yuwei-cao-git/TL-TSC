@@ -210,7 +210,7 @@ class FusionModel(pl.LightningModule):
                 if self.cfg["weighted_loss"]:
                     self.weights = self.weights.to(pc_preds.device)
                 else:
-                    self.weight = torch.ones(9, dtype=float)
+                    self.weight = torch.ones(9, dtype=float).to(pc_preds.device)
                 loss_point = calc_masked_loss(self.loss_func, pc_preds, labels, self.weights)
             else:
                 loss_point = self.criterion(pc_preds, labels)
@@ -232,7 +232,7 @@ class FusionModel(pl.LightningModule):
                 if self.cfg["weighted_loss"]:
                     self.weights = self.weights.to(valid_pixel_preds.device)
                 else:
-                    self.weight = torch.ones(9, dtype=float)
+                    self.weight = torch.ones(9, dtype=float).to(valid_pixel_preds.device)
                 loss_pixel = calc_masked_loss(self.loss_func, valid_pixel_preds, valid_pixel_true, self.weights)
             else:
                 loss_pixel = self.criterion(valid_pixel_preds, valid_pixel_true)
@@ -250,7 +250,7 @@ class FusionModel(pl.LightningModule):
             if self.cfg["weighted_loss"]:
                 self.weights = self.weights.to(fuse_preds.device)
             else:
-                self.weight = torch.ones(9, dtype=float)
+                self.weight = torch.ones(9, dtype=float).to(fuse_preds.device)
             loss_fuse = calc_masked_loss(self.loss_func, fuse_preds, labels, self.weights)
         else:
             loss_fuse = self.criterion(fuse_preds, labels)
