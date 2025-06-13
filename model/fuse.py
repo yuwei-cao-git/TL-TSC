@@ -157,14 +157,14 @@ class FusionModel(pl.LightningModule):
         # Fusion and classification
         class_output = self.fuse_head(img_emb, pc_emb) # torch.Size([8, 1794, 8, 8])
         
-        if self.cfg["head"] == "all_head":
-            return image_outputs, point_outputs, class_output
+        if self.cfg["head"] == "no_pc_head":
+            return image_outputs, None, class_output
         elif self.cfg["head"] == "fuse_head":
             return None, None, class_output
         elif self.cfg["head"] == "no_img_head":
             return None, point_outputs, class_output
         else:
-            return image_outputs, None, class_output
+            return image_outputs, point_outputs, class_output
 
     def forward_and_metrics(
         self, images, img_masks, pc_feat, point_clouds, labels, pixel_labels, stage
@@ -184,17 +184,15 @@ class FusionModel(pl.LightningModule):
         Returns:
         - loss: The computed loss
         """
-        loss_point = torch.tensor(0.0, device=labels.device)
-        loss_pixel = torch.tensor(0.0, device=labels.device)
-
         # Permute point cloud data if available
         pc_feat = pc_feat.permute(0, 2, 1) if pc_feat is not None else None
         point_clouds = (point_clouds.permute(0, 2, 1) if point_clouds is not None else None)
 
         # Forward pass
         pixel_preds, pc_preds, fuse_preds = self.forward(images, pc_feat, point_clouds)
-
         logs = {}
+        loss_pixel = torch.tensor(0.0, device=fuse_preds.device)
+        loss_point = torch.tensor(0.0, device=fuse_preds.device)
         # Select appropriate metric instances based on the stage
         if stage == "train":
             r2_metric = self.train_r2
@@ -202,19 +200,18 @@ class FusionModel(pl.LightningModule):
             r2_metric = self.val_r2
         else:  # stage == "test"
             r2_metric = self.test_r2
-        
+        if self.cfg["loss_func"] in ["wmse", "wrmse", "wkl"]:
+            weights = self.weights.to(pixel_preds.device)
+        else:
+            weights = None
+
         # PC stream
-        if pc_preds != None:
+        if pc_preds is not None:
             # Compute point cloud loss
             if stage == "train":
-                if self.cfg["weighted_loss"]:
-                    self.weights = self.weights.to(pc_preds.device)
-                else:
-                    self.weight = torch.ones(9, dtype=float).to(pc_preds.device)
-                loss_point = calc_masked_loss(self.loss_func, pc_preds, labels, self.weights)
+                loss_point = calc_masked_loss(self.loss_func, pc_preds, labels, weights)
             else:
                 loss_point = self.criterion(pc_preds, labels)
-
             # Compute R² metric
             pc_preds_rounded = torch.round(pc_preds, decimals=2)
             pc_r2 = r2_metric(pc_preds_rounded.view(-1), labels.view(-1))
@@ -223,17 +220,13 @@ class FusionModel(pl.LightningModule):
             logs.update({f"pc_{stage}_r2": pc_r2, f"pc_{stage}_loss": loss_point})
         
         # Image stream
-        if pixel_preds != None:
+        if pixel_preds is not None:
             # Apply mask to predictions and labels
             valid_pixel_preds, valid_pixel_true = apply_mask(pixel_preds, pixel_labels, img_masks, multi_class=True)
 
             # Compute pixel-level loss
             if stage == "train":
-                if self.cfg["weighted_loss"]:
-                    self.weights = self.weights.to(valid_pixel_preds.device)
-                else:
-                    self.weight = torch.ones(9, dtype=float).to(valid_pixel_preds.device)
-                loss_pixel = calc_masked_loss(self.loss_func, valid_pixel_preds, valid_pixel_true, self.weights)
+                loss_pixel = calc_masked_loss(self.loss_func, valid_pixel_preds, valid_pixel_true, weights)
             else:
                 loss_pixel = self.criterion(valid_pixel_preds, valid_pixel_true)
 
@@ -247,11 +240,7 @@ class FusionModel(pl.LightningModule):
         # Fusion stream
         # Compute fusion loss
         if stage == "train":
-            if self.cfg["weighted_loss"]:
-                self.weights = self.weights.to(fuse_preds.device)
-            else:
-                self.weight = torch.ones(9, dtype=float).to(fuse_preds.device)
-            loss_fuse = calc_masked_loss(self.loss_func, fuse_preds, labels, self.weights)
+            loss_fuse = calc_masked_loss(self.loss_func, fuse_preds, labels, weights)
         else:
             loss_fuse = self.criterion(fuse_preds, labels)
         
@@ -271,10 +260,15 @@ class FusionModel(pl.LightningModule):
                     total_loss = self.awl(loss_pixel, loss_point, loss_fuse)
                 elif self.cfg["head"]=="no_img_head":
                     total_loss = self.awl(loss_point, loss_fuse)
-                elif self.cfg["head"]=="no_pc_head":
+                else:
                     total_loss = self.awl(loss_pixel, loss_fuse)
             else:
-                total_loss = loss_fuse*self.fuse_loss_weight + (loss_point*self.pc_loss_weight if loss_point != None else 0) +  (loss_pixel*self.img_loss_weight if loss_pixel != None else 0)
+                if self.cfg["head"]=="all_head":
+                    total_loss = loss_fuse*self.fuse_loss_weight + loss_point*self.pc_loss_weight + loss_pixel*self.img_loss_weight
+                elif self.cfg["head"]=="no_img_head":
+                    total_loss = loss_fuse*self.fuse_loss_weight + loss_point*self.pc_loss_weight
+                else:
+                    total_loss = loss_fuse*self.fuse_loss_weight + loss_pixel*self.img_loss_weight
                 
         if stage == "val":
             self.validation_step_outputs.append(
@@ -311,10 +305,8 @@ class FusionModel(pl.LightningModule):
         images = batch["images"] if "images" in batch else None
         point_clouds = batch["point_cloud"] if "point_cloud" in batch else None
         labels = batch["label"]
-        per_pixel_labels = (
-            batch["per_pixel_labels"] if "per_pixel_labels" in batch else None
-        )
-        image_masks = batch["mask"] if "mask" in batch else None
+        per_pixel_labels = batch.get("per_pixel_labels", None)
+        image_masks = batch.get("mask", None)
         pc_feat = batch["pc_feat"] if "pc_feat" in batch else None
 
         loss = self.forward_and_metrics(

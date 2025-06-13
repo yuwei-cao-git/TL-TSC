@@ -16,7 +16,7 @@ task: regression
 head:  all_head # Options: no_pc_head, fuse_head, all_head, no_img_head
 pretrained_ckpt: None
 batch_size: 64
-max_epochs: 15
+max_epochs: 1
 optimizer: adamW                 # Options: adam, adamW, sgd
 scheduler: cosine         # Options: plateau, steplr, asha, cosine, cosinewarmup
 lr: 0.0001
@@ -26,7 +26,7 @@ momentum: 0.9
 weight_decay: 0.0001
 
 # Loss weights
-weighted_loss: false
+weighted_cls_loss: false
 multitasks_uncertain_loss: true
 loss_func: mae
 
