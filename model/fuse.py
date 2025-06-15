@@ -103,10 +103,10 @@ class FusionModel(pl.LightningModule):
         # use it during test/val/not uncertainty weighted loss - equal loss
         self.loss_func = self.cfg["loss_func"]
         if self.cfg["head"] == "no_img_head" or self.cfg["head"] == "all_head":
-            self.pc_loss_weight = self.cfg.get("pc_loss_weight", 2.0) # /0.005
+            self.pc_loss_weight = self.cfg.get("pc_loss_weight", 10.0) # /0.005
         if self.cfg["head"] == "no_pc_head" or self.cfg["head"] == "all_head":
             self.img_loss_weight = self.cfg.get("img_loss_weight", 1.0) # /0.15
-        self.fuse_loss_weight = self.cfg.get("fuse_loss_weight", 2.0) # /0.005
+        self.fuse_loss_weight = self.cfg.get("fuse_loss_weight", 10.0) # /0.005
         
         self.criterion = nn.MSELoss()
 
@@ -438,10 +438,10 @@ class FusionModel(pl.LightningModule):
         # Include parameters from the image model
         if self.cfg["use_ms"]:
             mf_params = list(self.mf_module.parameters())
-            params.append({"params": mf_params, "lr": self.lr})
+            params.append({"params": mf_params, "lr": 1e-4})
         if any(p.requires_grad for p in self.s2_model.parameters()):
             image_params = list(self.s2_model.parameters())
-            params.append({"params": image_params, "lr": self.lr})
+            params.append({"params": image_params, "lr": 1e-4})
 
         # Include parameters from the point cloud model
         if any(p.requires_grad for p in self.pc_model.parameters()):
