@@ -1,8 +1,7 @@
 import os
 import torch
 from pytorch_lightning import Trainer, seed_everything
-from pytorch_lightning.strategies import DDPStrategy
-from pytorch_lightning.callbacks import EarlyStopping
+from pytorch_lightning.callbacks import EarlyStopping, ModelCheckpoint
 from lightning.pytorch.loggers import WandbLogger
 # from pytorch_lightning.utilities.model_summary import ModelSummary
 from model.fuse import FusionModel
@@ -14,15 +13,22 @@ def load_backbone_weights(model, checkpoint_path):
     # Get the actual state_dict (Lightning saves it under 'state_dict')
     state_dict = checkpoint.get("state_dict", checkpoint)
 
-    # Filter out classifier layers with shape mismatches (e.g. output heads)
-    filtered_state_dict = {
+    # 1. Filter out classifier layers with shape mismatches (e.g. output heads)
+    model_state = model.state_dict()
+    compatible_state_dict = {
         k: v for k, v in state_dict.items()
-        if not (
-        "cls_head" in k or "fuse_head.mlp_block.fc3" in k
-    )}
+        if k in model_state and v.shape == model_state[k].shape
+    }
 
-    # Load the rest of the weights
-    model.load_state_dict(filtered_state_dict, strict=False)
+    # 2. Load only compatible tensors
+    missing, unexpected = model.load_state_dict(compatible_state_dict, strict=False)
+
+    # 3. log what was skipped
+    if missing or unexpected:
+        print(f"Skipped {len(unexpected)} incompatible or filtered tensors:")
+        for name in unexpected:
+            print(f"  • {name}")
+
     return model
 
 def save_config(cfg, save_dir, filename="config.yaml"):
@@ -63,6 +69,16 @@ def train(config):
         mode="max",  # Set "min" for validation loss
         verbose=True,
     )
+    
+    # Define a checkpoint callback to save the best model
+    checkpoint_callback = ModelCheckpoint(
+        monitor=metric,  # Track the validation loss
+        filename="final_model",
+        dirpath=chk_dir,
+        save_top_k=1,  # Only save the best model
+        mode="max",  # We want to minimize the validation loss
+    )
+    
     print("start setting dataset")
     # Initialize the DataModule
     if config["dataset"] in ["rmf_superpixel_dataset", "ovf_superpixel_dataset"]:
@@ -82,7 +98,7 @@ def train(config):
     trainer = Trainer(
         max_epochs=config["max_epochs"],
         logger=[wandb_logger],
-        callbacks=early_stopping,  # [early_stopping, checkpoint_callback],
+        callbacks=[early_stopping, checkpoint_callback],
         devices=config["gpus"],
         num_nodes=1,
         strategy='ddp'# DDPStrategy #(find_unused_parameters=True)

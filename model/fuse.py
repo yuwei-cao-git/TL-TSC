@@ -201,7 +201,7 @@ class FusionModel(pl.LightningModule):
         else:  # stage == "test"
             r2_metric = self.test_r2
         if self.cfg["loss_func"] in ["wmse", "wrmse", "wkl"]:
-            weights = self.weights.to(pixel_preds.device)
+            weights = self.weights.to(fuse_preds.device)
         else:
             weights = None
 

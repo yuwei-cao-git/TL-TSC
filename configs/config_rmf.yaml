@@ -27,14 +27,14 @@ weight_decay: 0.0001
 
 # Loss weights
 weighted_cls_loss: false
-multitasks_uncertain_loss: true
+multitasks_uncertain_loss: false
 loss_func: mae
 
 # Model architecture
 network: ResUnet
 emb_dims: 768
 num_points: 7168
-encoder: b                      # Options: s, b, l, xl
+encoder: s                      # Options: s, b, l, xl
 fusion_dim: 128
 dp_fuse: 0.7
 dp_pc: 0.5

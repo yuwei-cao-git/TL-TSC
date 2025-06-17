@@ -19,6 +19,8 @@ def override_config(cfg, args):
         cfg['network'] = args.network
     if args.dataset is not None:
         cfg['dataset'] = args.dataset
+    if args.pretrained_ckpt is not None:
+        cfg['pretrained_ckpt'] = args.pretrained_ckpt
     # hps
     if args.lr is not None:
         cfg['lr'] = args.lr
@@ -43,6 +45,7 @@ def parse_args():
     parser.add_argument('--lr', type=float)
     parser.add_argument('--multitasks_uncertain_loss', type=bool, default=True)
     parser.add_argument('--loss_func', type=str)
+    parser.add_argument('--pretrained_ckpt', default=None)
     return parser.parse_args()
     
 def main():

@@ -101,9 +101,9 @@ class AutomaticWeightedLoss(nn.Module):
             # Compute the weighted loss component for each task
             weighted_loss = 0.5 / (self.params[i] ** 2) * loss
             # Add a regularization term to encourage the learning of useful weights
-            regularization = torch.log(1 + self.params[i] ** 2)
+            # regularization = torch.log(1 + self.params[i] ** 2)
             # Sum the weighted loss and the regularization term
-            loss_sum += weighted_loss + regularization
+            loss_sum += weighted_loss # + regularization
 
         return loss_sum
 

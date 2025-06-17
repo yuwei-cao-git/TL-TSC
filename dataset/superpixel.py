@@ -9,6 +9,7 @@ from os.path import join
 from .augment import pointCloudTransform, image_augment
 import torchvision.transforms.v2 as transforms
 
+
 class SuperpixelDataset(Dataset):
     def __init__(
         self,
@@ -17,6 +18,8 @@ class SuperpixelDataset(Dataset):
         normalization=None,
         image_transform=None,
         point_cloud_transform=None,
+        img_mean=None,
+        img_std=None,
     ):
         self.superpixel_files = superpixel_files
         self.image_transform = image_transform
@@ -27,7 +30,7 @@ class SuperpixelDataset(Dataset):
         self.transforms = transforms.Compose(
             [
                 transforms.ToImage(), 
-                transforms.ToDtype(torch.float32, scale=True) 
+                transforms.ToDtype(torch.float32, scale=True)
             ]
         )
 
@@ -139,20 +142,33 @@ class SuperpixelDataModule(LightningDataModule):
                 normalization=self.aug_norm,
                 image_transform=None,
                 point_cloud_transform=None,
+                img_mean=self.config["img_mean"],
+                img_std=self.config["img_std"],
             )
             if split == "train":
                 if not (
                     self.image_transform is None or self.point_cloud_transform is False
                 ):
-                    aug_dataset = SuperpixelDataset(
+                    aug_pc_dataset = SuperpixelDataset(
+                        superpixel_files,
+                        rotate=self.aug_rotate,
+                        normalization=self.aug_norm,
+                        image_transform=None,
+                        point_cloud_transform=self.point_cloud_transform,
+                        img_mean=self.config["img_mean"],
+                        img_std=self.config["img_std"],
+                    )
+                    aug_img_dataset = SuperpixelDataset(
                         superpixel_files,
                         rotate=self.aug_rotate,
                         normalization=self.aug_norm,
                         image_transform=self.image_transform,
-                        point_cloud_transform=self.point_cloud_transform,
+                        point_cloud_transform=None,
+                        img_mean=self.config["img_mean"],
+                        img_std=self.config["img_std"],
                     )
                     self.datasets["train"] = torch.utils.data.ConcatDataset(
-                        [self.datasets["train"], aug_dataset]
+                        [self.datasets["train"], aug_pc_dataset, aug_img_dataset]
                     )
 
     def train_dataloader(self):

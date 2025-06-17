@@ -1,7 +1,7 @@
 # config_ovf.yaml
 
 # General
-dataset: ovf
+dataset: ovf_superpixel_dataset
 tile_size: 128
 n_bands: 9
 class_weights: [0.121, 0.033, 0.045, 0.090, 0.012, 0.041, 0.020, 0.103, 0.334, 0.010, 0.191]
@@ -14,9 +14,9 @@ img_std: [56.02, 56.74, 57.51, 57.80, 59.51, 59.12, 57.88, 58.77, 57.07]
 # Training parameters
 task: regression
 head:  fuse_head # Options: no_pc_head, fuse_head, all_head, no_img_head
-pretrained_ckpt: None #tl_logs/Fuse_resnet_pointnext_rmf/wandblogs/TL-TSC/weoooqof/checkpoints/epoch=15-step=51936.ckpt
+pretrained_ckpt: None #tl_logs/no_img_head_unet_pointnet_rmf_cosine/wandblogs/TL-TSC/28g98vp3/checkpoints/epoch=0-step=3246.ckpt
 batch_size: 64
-max_epochs: 15
+max_epochs: 100
 optimizer: adamW                 # Options: adam, adamW, sgd
 scheduler: cosine         # Options: plateau, steplr, asha, cosine, cosinewarmup
 lr: 0.0001
@@ -26,9 +26,9 @@ momentum: 0.9
 weight_decay: 0.0001
 
 # Loss weights
-weighted_loss: false
-multitasks_uncertain_loss: false
-loss_func: mse
+weighted_cls_loss: false
+multitasks_uncertain_loss: true
+loss_func: mae
 
 # Model architecture
 network: ResUnet
@@ -38,7 +38,7 @@ encoder: b                      # Options: s, b, l, xl
 fusion_dim: 128
 dp_fuse: 0.5
 dp_pc: 0.5
-use_ms: true
+use_ms: false
 linear_layers_dims: [512, 256]
 
 # Data transforms
