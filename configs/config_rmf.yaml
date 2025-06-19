@@ -1,15 +1,16 @@
 # config_rmf.yaml
 
 # General
-dataset: rmf_superpixel_dataset                        # Options: rmf, rmf_superpixel_dataset
+dataset: sp_rmf                        # Options: rmf, rmf_superpixel_dataset
 tile_size: 128
 n_bands: 9
-class_weights: [0.134, 0.024, 0.055, 0.044, 0.025, 0.032, 0.261, 0.006, 0.420]
+rmf_class_weights: [0.134, 0.024, 0.055, 0.044, 0.025, 0.032, 0.261, 0.006, 0.420]
+sp_rmf_class_weights: [0.226, 0.027, 0.126, 0.061, 0.022, 0.025, 0.01, 0.009, 0.406]
 class_names: ["BF", "BW", "CE", "LA", "PT", "PJ", "PO", "SB", "SW"]
 n_classes: 9
 season_map: ["img_s2_spring", "img_s2_summer", "img_s2_fall", "img_s2_winter"]
-img_mean: [127.01, 141.89, 127.91, 144.28, 155.25, 155.67, 152.29, 147.12, 157.88]
-img_std: [73.04, 69.87, 64.70, 62.85, 54.15, 51.63, 48.04, 48.44, 50.08]
+sp_rmf_img_mean: [920.1809430729845, 921.5027463761281, 923.1322882989192, 923.1357989509519, 924.2261560969149, 925.7465253040547, 926.1880968292417, 927.7422025461592, 929.3898971087292]
+sp_rmf_img_std: [852.3897042149514, 852.713679253585, 853.7126362290414, 853.0980368191534, 853.5234899738994, 854.2830181177632, 854.3510332413363, 855.316006451998, 856.0372265135278]
 
 # Training parameters
 task: regression
@@ -34,7 +35,7 @@ loss_func: mae
 network: ResUnet
 emb_dims: 768
 num_points: 7168
-encoder: s                      # Options: s, b, l, xl
+encoder: b                      # Options: s, b, l, xl
 fusion_dim: 128
 dp_fuse: 0.7
 dp_pc: 0.5

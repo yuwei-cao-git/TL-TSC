@@ -27,10 +27,15 @@ class SuperpixelDataset(Dataset):
         self.rotate = rotate
         self.norm = normalization
         # Create a transform to resize and normalize the input images
+        # Convert to [0,1] by dividing by 65535 before Normalize
+        mean = [m / 65535.0 for m in img_mean]
+        std = [s / 65535.0 for s in img_std]
+
         self.transforms = transforms.Compose(
             [
                 transforms.ToImage(), 
-                transforms.ToDtype(torch.float32, scale=True)
+                transforms.ToDtype(torch.float32, scale=True),
+                transforms.Normalize(mean=mean, std=std)
             ]
         )
 
@@ -136,14 +141,16 @@ class SuperpixelDataModule(LightningDataModule):
                 for f in os.listdir(data_dir)
                 if f.endswith(".npz")
             ]
+            img_mean=self.config[f"{self.config['dataset']}_img_mean"]
+            img_std=self.config[f"{self.config['dataset']}_img_std"]
             self.datasets[split] = SuperpixelDataset(
                 superpixel_files,
                 rotate=None,
                 normalization=self.aug_norm,
                 image_transform=None,
                 point_cloud_transform=None,
-                img_mean=self.config["img_mean"],
-                img_std=self.config["img_std"],
+                img_mean=img_mean,
+                img_std=img_std,
             )
             if split == "train":
                 if not (
@@ -155,8 +162,8 @@ class SuperpixelDataModule(LightningDataModule):
                         normalization=self.aug_norm,
                         image_transform=None,
                         point_cloud_transform=self.point_cloud_transform,
-                        img_mean=self.config["img_mean"],
-                        img_std=self.config["img_std"],
+                        img_mean=img_mean,
+                        img_std=img_std,
                     )
                     aug_img_dataset = SuperpixelDataset(
                         superpixel_files,
@@ -164,8 +171,8 @@ class SuperpixelDataModule(LightningDataModule):
                         normalization=self.aug_norm,
                         image_transform=self.image_transform,
                         point_cloud_transform=None,
-                        img_mean=self.config["img_mean"],
-                        img_std=self.config["img_std"],
+                        img_mean=img_mean,
+                        img_std=img_std,
                     )
                     self.datasets["train"] = torch.utils.data.ConcatDataset(
                         [self.datasets["train"], aug_pc_dataset, aug_img_dataset]

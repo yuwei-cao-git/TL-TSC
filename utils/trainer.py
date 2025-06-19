@@ -81,12 +81,12 @@ def train(config):
     
     print("start setting dataset")
     # Initialize the DataModule
-    if config["dataset"] in ["rmf_superpixel_dataset", "ovf_superpixel_dataset"]:
-        from dataset.superpixel import SuperpixelDataModule
-        data_module = SuperpixelDataModule(config)
-    else:
+    if config["dataset"] in ["ovf", "rmf"]:
         from dataset.balanced_dataset import BalancedDataModule
         data_module = BalancedDataModule(config)
+    else:
+        from dataset.superpixel import SuperpixelDataModule
+        data_module = SuperpixelDataModule(config)
     # Use the calculated input channels from the DataModule to initialize the model
     
     model = FusionModel(config, n_classes=config["n_classes"])
