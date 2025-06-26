@@ -8,7 +8,7 @@ from torch.utils.data import DataLoader
 from os.path import join
 from .augment import pointCloudTransform, image_augment
 import torchvision.transforms.v2 as transforms
-
+import open3d as o3d
 
 class SuperpixelDataset(Dataset):
     def __init__(
@@ -26,16 +26,12 @@ class SuperpixelDataset(Dataset):
         self.point_cloud_transform = point_cloud_transform
         self.rotate = rotate
         self.norm = normalization
-        # Create a transform to resize and normalize the input images
-        # Convert to [0,1] by dividing by 65535 before Normalize
-        mean = [m / 65535.0 for m in img_mean]
-        std = [s / 65535.0 for s in img_std]
 
         self.transforms = transforms.Compose(
             [
                 transforms.ToImage(), 
                 transforms.ToDtype(torch.float32, scale=True),
-                transforms.Normalize(mean=mean, std=std)
+                transforms.Normalize(mean=img_mean, std=img_std)
             ]
         )
 
@@ -52,7 +48,7 @@ class SuperpixelDataset(Dataset):
         label = data["label"]  # Shape: (num_classes,)
         per_pixel_labels = data["per_pixel_labels"]  # Shape: (num_classes, 128, 128)
         nodata_mask = data["nodata_mask"]  # Shape: (128, 128)
-        xyz = coords - np.mean(coords, axis=0)
+        #xyz = coords - np.mean(coords, axis=0)
 
         superpixel_images = torch.from_numpy(
             superpixel_images
@@ -68,28 +64,43 @@ class SuperpixelDataset(Dataset):
         if self.image_transform != None:
             superpixel_images = image_augment(superpixel_images, self.image_transform, 128)
 
+        #m = np.max(np.linalg.norm(xyz, axis=1, keepdims=True))
+        #norm_xyz = xyz / m
+        #coords = np.concatenate([coords, norm_xyz], axis=-1)
+        min_coords = np.min(coords, axis=0)
+        max_coords = np.max(coords, axis=0)
+
+        center = (min_coords + max_coords) / 2.0
+        coords_centered = coords - center
+
+        z_range = max_coords[2] - min_coords[2] + 1e-8  # avoid divide-by-zero
+        norm_coords = coords_centered / z_range
+        
+        # Convert numpy array to Open3D PointCloud
+        pcd = o3d.geometry.PointCloud()
+        pcd.points = o3d.utility.Vector3dVector(coords)
+
+        # Estimate normals (change radius/knn depending on density)
+        pcd.estimate_normals(search_param=o3d.geometry.KDTreeSearchParamKNN(knn=16))
+        normals = np.asarray(pcd.normals)  # Shape: (N, 3)
+        
         # Apply point cloud transforms if any
         if self.point_cloud_transform:
-            xyz, coords, label = pointCloudTransform(
-                xyz, pc_feat=coords, target=label, rot=self.rotate
+            norm_coords, normals, label = pointCloudTransform(
+                norm_coords, pc_feat=normals, target=label, rot=self.rotate
             )
 
-        if self.norm:
-            m = np.max(np.linalg.norm(xyz, axis=1, keepdims=True))
-            norm_xyz = xyz / m
-            coords = np.concatenate([coords, norm_xyz], axis=-1)
-
         # After applying transforms
-        coords = torch.from_numpy(coords).float()  # Shape: (7168, 3)
-        xyz = torch.from_numpy(xyz).float()  # Shape: (7168, 3)
+        normals = torch.from_numpy(normals).float()  # Shape: (7168, 3)
+        norm_coords = torch.from_numpy(norm_coords).float()  # Shape: (7168, 3)
         label = torch.from_numpy(label).float()  # Shape: (num_classes,)
 
         sample = {
             "images": superpixel_images,  # Padded images of shape [num_seasons, num_channels, 128, 128]
             "mask": nodata_mask,  # Padded masks of shape [num_seasons, 128, 128]
             "per_pixel_labels": per_pixel_labels,  # Tensor: (num_classes, 128, 128)
-            "point_cloud": xyz,
-            "pc_feat": coords,
+            "point_cloud": norm_coords,
+            "pc_feat": normals,
             "label": label,
         }
         return sample
@@ -110,24 +121,21 @@ class SuperpixelDataModule(LightningDataModule):
         self.data_dirs = {
             "train": join(
                 config["data_dir"],
-                f"{config['dataset']}",
                 "tile_128",
                 "train",
-                "superpixel",
+                f"{config['dataset']}"
             ),
             "val": join(
                 config["data_dir"],
-                f"{config['dataset']}",
                 "tile_128",
                 "val",
-                "superpixel",
+                f"{config['dataset']}"
             ),
             "test": join(
                 config["data_dir"],
-                f"{config['dataset']}",
                 "tile_128",
                 "test",
-                "superpixel",
+                f"{config['dataset']}"
             ),
         }
 

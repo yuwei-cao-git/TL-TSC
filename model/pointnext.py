@@ -20,11 +20,14 @@ class PointNextEncoder(nn.Module):
 
         self.backbone = PointNext(config["emb_dims"], encoder=self.encoder)
         self.norm = nn.BatchNorm1d(config["emb_dims"])
+        self.act = nn.ReLU()
 
     def forward(self, pc_feat, xyz):
         features = self.backbone(pc_feat, xyz)  # (B, C, N)
         features = self.norm(features)
-        return features
+        out = features.mean(dim=-1)  # Global feature: (B, C)
+        out = self.act(out)
+        return out
 
 class PointNextClassifier(nn.Module):
     def __init__(self, config, n_classes):
@@ -33,7 +36,7 @@ class PointNextClassifier(nn.Module):
         self.n_classes = n_classes
         self.task = config["task"]
 
-        self.act = nn.ReLU()
+        
         self.cls_head = nn.Sequential(
             nn.Linear(config["emb_dims"], 512),
             nn.BatchNorm1d(512),
@@ -47,9 +50,7 @@ class PointNextClassifier(nn.Module):
         )
 
     def forward(self, pc_feats):
-        out = pc_feats.mean(dim=-1)  # Global feature: (B, C)
-        out = self.act(out)
-        logits = self.cls_head(out)
+        logits = self.cls_head(pc_feats)
 
         preds = F.softmax(logits, dim=1)
         return preds

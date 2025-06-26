@@ -43,6 +43,7 @@ class BalancedDataset(Dataset):
         data = np.load(self.dataset_files[idx], allow_pickle=True)
         
         # Select the images based on the data2use list
+        # images = [self.transforms(data[image_key]) for image_key in self.images_list]
         images = [self.transforms(data[image_key]) for image_key in self.images_list]
         
         # on-the-fly augment

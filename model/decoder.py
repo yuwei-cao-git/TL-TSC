@@ -102,7 +102,7 @@ class MambaFusion(nn.Module):
         grid = grid.unsqueeze(0).repeat(B, 1, 1)  # (B, 2, 88 * 45)
     
         # Pool over points (max pooling over point cloud features)
-        pc_emb = torch.max(pc_emb, dim=2)[0]  # Shape: (batch_size, feature_dim)
+        #pc_emb = torch.max(pc_emb, dim=2)[0]  # Shape: (batch_size, feature_dim)
         
         # Expand point cloud features to (B, C_point, H, W)
         point_cloud_expanded = pc_emb.unsqueeze(2).repeat(
