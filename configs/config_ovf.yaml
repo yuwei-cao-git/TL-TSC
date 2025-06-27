@@ -1,0 +1,52 @@
+# config_ovf.yaml
+
+# General
+dataset: ovf_sp
+tile_size: 128
+n_bands: 9
+ovf_class_weights: [0.121, 0.033, 0.045, 0.090, 0.012, 0.041, 0.020, 0.103, 0.334, 0.010, 0.191]
+ovf_sp_class_weights: [0.130, 0.016, 0.168, 0.192, 0.130, 0.047, 0.08, 0.024, 0.161, 0.021, 0.033]
+class_names: ['AB', 'PO', 'MR', 'BF', 'CE', 'PW', 'MH', 'BW', 'SW', 'OR', 'PR']
+n_classes: 11
+season_map: ["img_s2_2020_spring", "img_s2_2020_summer", "img_s2_2020_fall", "img_s2_2020_winter"]
+ovf_img_mean: [77.70884877, 87.54467291, 77.68712775, 95.82130423, 115.36178432, 117.97432742, 119.43950191, 118.58491624, 103.22995657]
+ovf_img_std: [56.02312515, 56.73913842, 57.50745356, 57.80231563, 59.51462302, 59.11728818, 57.87918154, 58.7677839, 57.06629256]
+ovf_sp_img_mean: [0.14757489470198473, 0.1475651466642695, 0.1475657229029522, 0.14758563915242204, 0.14757906042746155, 0.1475585439293639, 0.14756916833007566, 0.14756527871896763, 0.14757182142901046]
+ovf_sp_img_std: [0.10836365688360661, 0.10834604929226879, 0.10836763049494343, 0.10835532456270518, 0.1083637444904122, 0.10835970856214919, 0.10834131960055408, 0.10834611874109756, 0.10834747053326532]
+# Training parameters
+task: regression
+head:  fuse_head # Options: no_pc_head, fuse_head, all_head, no_img_head
+pretrained_ckpt: None #tl_logs/no_img_head_unet_pointnet_rmf_cosine/wandblogs/TL-TSC/28g98vp3/checkpoints/epoch=0-step=3246.ckpt
+batch_size: 64
+max_epochs: 100
+optimizer: adamW                 # Options: adam, adamW, sgd
+scheduler: cosine         # Options: plateau, steplr, asha, cosine, cosinewarmup
+lr: 0.0001
+patience: 10
+step_size: 10
+momentum: 0.9
+weight_decay: 0.0001
+
+# Loss weights
+weighted_cls_loss: false
+multitasks_uncertain_loss: true
+loss_func: mae
+
+# Model architecture
+network: ResUnet
+emb_dims: 768
+num_points: 7168
+encoder: b                      # Options: s, b, l, xl
+fusion_dim: 128
+dp_fuse: 0.7
+dp_pc: 0.5
+use_ms: false
+linear_layers_dims: [512, 256]
+
+# Data transforms
+image_transform: compose
+point_cloud_transform: true
+rotate: false
+
+# Hardware
+gpus: 4
