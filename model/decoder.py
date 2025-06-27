@@ -5,7 +5,7 @@ import torch.nn.functional as F
 import numpy as np
 from mamba_ssm import Mamba
 from einops import rearrange
-from timm.models.layers import trunc_normal_
+from timm.layers import trunc_normal_
 
 # -----------------------------------------------------------------------------------
 # Fusion block & Classify head - late feature fusion
