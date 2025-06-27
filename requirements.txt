@@ -64,7 +64,6 @@ snuggs==1.4.7+computecanada
 sympy==1.13.1+computecanada
 tensorboardX==2.6.2.2+computecanada
 threadpoolctl==3.6.0+computecanada
-timm==1.0.15+computecanada
 tokenizers==0.21.1+computecanada
 torch==2.5.0+computecanada
 torchaudio==2.5.0+computecanada
