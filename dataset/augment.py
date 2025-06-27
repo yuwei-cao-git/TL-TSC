@@ -185,7 +185,7 @@ def pointCloudTransform(xyz, pc_feat, target, rot=False):
 
     return aug_xyz, aug_feats, target
 
-
+    
 def image_augment(img, image_transform, tile_size):
     if image_transform == "random":
         transform = transforms.RandomApply(
@@ -207,6 +207,7 @@ def image_augment(img, image_transform, tile_size):
     elif image_transform == "compose":
         transform = transforms.Compose(
             [
+                # transforms.RandomResizedCrop(224, scale=(0.2, 1.0), interpolation=interpol_mode),  # 3 is bicubic
                 transforms.RandomCrop(size=(tile_size, tile_size)),
                 transforms.RandomHorizontalFlip(p=0.5),
                 transforms.RandomPerspective(distortion_scale=0.6, p=1.0),
@@ -214,6 +215,7 @@ def image_augment(img, image_transform, tile_size):
                 transforms.RandomAffine(
                     degrees=(30, 70), translate=(0.1, 0.3), scale=(0.5, 0.75)
                 ),
+                #transforms.Resize(224, 224)
             ]
         )
     else:

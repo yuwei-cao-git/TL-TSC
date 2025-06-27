@@ -2,95 +2,76 @@ import argparse
 from utils.trainer import train
 import os
 import torch
-import numpy as np
+import yaml
 
+def load_config(config_path):
+    with open(config_path, 'r') as f:
+        return yaml.safe_load(f)
 
-def main():
-    # Create argument parser
-    # Define a custom argument type for a list of integers
-    def list_of_ints(arg):
-        return list(map(int, arg.split(",")))
+def override_config(cfg, args):
+    if args.gpus is not None:
+        cfg['gpus'] = args.gpus
+    if args.batch_size is not None:
+        cfg['batch_size'] = args.batch_size
+    if args.head is not None:
+        cfg['head'] = args.head
+    if args.network is not None:
+        cfg['network'] = args.network
+    if args.dataset is not None:
+        cfg['dataset'] = args.dataset
+    if args.pretrained_ckpt is not None:
+        cfg['pretrained_ckpt'] = args.pretrained_ckpt
+    # hps
+    if args.lr is not None:
+        cfg['lr'] = args.lr
+    if args.multitasks_uncertain_loss is not None:
+        cfg['multitasks_uncertain_loss'] = args.multitasks_uncertain_loss
+    if args.loss_func is not None:
+        cfg['loss_func'] = args.loss_func
+    return cfg
 
+    
+def parse_args():
     parser = argparse.ArgumentParser(description="Train model with given parameters")
-
     # Add arguments
-    parser.add_argument("--task", type=str, default="regression")
-    parser.add_argument("--dataset", type=str, default="rmf")
+    parser.add_argument('--config', type=str, required=True, help='Path to config YAML file')
     parser.add_argument("--data_dir", type=str, default=None, help="path to data dir")
-    parser.add_argument("--max_epochs", type=int, default=150, help="Number of epochs to train the model")
-    parser.add_argument("--batch_size", type=int, default=8, help="Number of epochs to train the model")
-    parser.add_argument("--emb_dims", type=int, default=768)
-    parser.add_argument("--num_points", type=int, default=7168)
-    parser.add_argument("--encoder", default="b", choices=["s", "b", "l", "xl"])
-    parser.add_argument("--fusion_dim", type=int, default=128)
-    parser.add_argument("--optimizer", default="adamW", choices=["adam", "adamW", "sgd"])
-    parser.add_argument("--scheduler", default="cosinewarmup", choices=["plateau", "steplr", "asha", "cosine", "cosinewarmup"])
-    parser.add_argument("--img_lr", type=float, default=5e-4, help="initial learning rate")
-    parser.add_argument("--pc_lr", type=float, default=1e-4, help="initial learning rate")
-    parser.add_argument("--fuse_lr", type=float, default=1e-4, help="initial learning rate")
-    parser.add_argument("--pc_loss_weight", type=float, default=2.0)
-    parser.add_argument("--img_loss_weight", type=float, default=1.0)
-    parser.add_argument("--fuse_loss_weight", type=float, default=2.0)
-    parser.add_argument("--leading_loss", action="store_true")
-    parser.add_argument("--lead_loss_weight", type=float, default=0.15)
-    parser.add_argument("--leading_class_weights", type=bool, default=True)
-    parser.add_argument("--weighted_loss", action="store_true")
-    parser.add_argument("--patience", type=int, default=10)
-    parser.add_argument("--step_size", type=int, default=10)
-    parser.add_argument("--momentum", type=float, default=0.9)
-    parser.add_argument("--weight_decay", type=float, default=1e-4)
-    parser.add_argument("--dp_fuse", type=float, default=0.7)
-    parser.add_argument("--dp_pc", type=float, default=0.5)
-    parser.add_argument("--use_mf", action="store_true", help="Use multisesason fusion stack)")
-    parser.add_argument("--spatial_attention", action="store_true", help="Use spatial attention in mf fusion")
-    parser.add_argument("--use_residual", action="store_true", help="Use residual connections (set flag to enable)",)
-    parser.add_argument("--fuse_feature", default=True, help="feature fusion")
-    parser.add_argument("--mamba_fuse", action="store_true", help="Use mamba fusion (set flag to enable)",)
-    parser.add_argument("--linear_layers_dims", type=list_of_ints, default=[512, 256])
-    parser.add_argument("--img_transforms", default="compose", choices=["compose", "random", "None"])
-    parser.add_argument("--pc_transforms", default=True, type=bool)
-    parser.add_argument("--rotate", default=False, type=bool)
-    parser.add_argument("--tile_size", default=64, type=int, choices=[32, 64, 128])
-    parser.add_argument("--loss", default="wmse")
-    parser.add_argument("--gpus", type=int, default=torch.cuda.device_count())
-    parser.add_argument("--log_name", default="Fuse_ff_mamba_pointnext_b_Unet_10")
-
+    parser.add_argument("--log_name", default="Fuse_resnet_pointnext_rmf")
+    parser.add_argument('--gpus', type=int, help='Override learning rate')
+    parser.add_argument('--batch_size', type=int, help='Override batch size')
+    parser.add_argument('--head', type=str, help='Override head option')
+    parser.add_argument('--network', type=str, help='Override head option')
+    parser.add_argument('--dataset', type=str, help='Override dataset')
+    parser.add_argument('--lr', type=float)
+    parser.add_argument('--multitasks_uncertain_loss', type=bool, default=True)
+    parser.add_argument('--loss_func', type=str)
+    parser.add_argument('--pretrained_ckpt', default=None)
+    return parser.parse_args()
+    
+def main():
     # Parse arguments
-    params = vars(parser.parse_args())
-    params["save_dir"] = os.path.join(os.getcwd(), "tl_logs")
-    params["data_dir"] = (
-        params["data_dir"]
-        if params["data_dir"] is not None
-        else os.path.join(os.getcwd(), "data", f"{params['dataset']}_tl_dataset")
+    args = parse_args()
+    cfg = load_config(args.config)
+    cfg = override_config(cfg, args)
+    cfg['log_name'] = args.log_name
+    cfg['save_dir'] = os.path.join(os.getcwd(), 'tl_logs')
+    cfg["data_dir"] = (
+        args.data_dir
+        if args.data_dir is not None
+        else os.path.join(os.getcwd(), "data")
     )
-    class_weights = [
-        0.134,
-        0.024,
-        0.055,
-        0.044,
-        0.025,
-        0.032,
-        0.261,
-        0.006,
-        0.420,
-    ] if params["dataset"] == "rmf" else [0.130, 0.016, 0.168, 0.192, 0.130, 0.047, 0.080, 0.024, 0.161, 0.021, 0.033]
-    class_weights = torch.from_numpy(np.array(class_weights)).float()
-
-    params["train_weights"] = class_weights
-    if not os.path.exists(params["save_dir"]):
-        os.makedirs(params["save_dir"])
+    if cfg["loss_func"] in ["wmse", "wrmse", "wkl"]:
+        class_weights = cfg.get(f'{args.dataset}_class_weights', None)
+        cfg['class_weights'] = torch.tensor(class_weights).float()
+    else:
+        cfg['class_weights'] = None
     
-    params["classes"] = ["BF", "BW", "CE", "LA", "PT", "PJ", "PO", "SB", "SW"] if params["dataset"] == "rmf" else ['AB', 'PO', 'MR', 'BF', 'CE', 'PW', 'MH', 'BW', 'SW', 'OR', 'PR']
-    params["n_classes"] = 9 if params["dataset"] == "rmf" else 11
-    params["seasons"] = ["img_s2_spring", "img_s2_summer", "img_s2_fall", "img_s2_winter"] if params["dataset"] == "rmf" else ["img_s2_2020_spring", "img_s2_2020_summer", "img_s2_2020_fall", "img_s2_2020_winter"]
-    
-    print(params)
-
+    os.makedirs(cfg['save_dir'], exist_ok=True)
+    print(cfg)
     # Call the train function with parsed arguments
-    train(params)
+    train(cfg)
 
 
 if __name__ == "__main__":
     main()
-    # python train_fuse.py --dataset 'rmf' --data_dir '/mnt/g/rmf/rmf_tl_dataset' --pc_transforms True --spatial_attention --tile_size 64 --linear_layers_dims 256,128 
-    # python train_fuse.py --dataset 'ovf' --data_dir '/mnt/g/ovf/ovf_tl_dataset' --pc_transforms True --spatial_attention --tile_size 64 --linear_layers_dims 256,128 
+    # python train_fuse.py --data_dir '/mnt/g/ovf' --config 'configs/config_ovf.yaml'

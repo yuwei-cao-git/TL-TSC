@@ -4,12 +4,16 @@ aiohttp==3.12.4+computecanada
 aiosignal==1.3.2+computecanada
 annotated_types==0.7.0+computecanada
 attrs==25.3.0+computecanada
+<<<<<<< HEAD
 blinker==1.9.0+computecanada
+=======
+>>>>>>> d40ddd2c07d2d0842ae30fdbddf393a823fcced3
 certifi==2025.6.15+computecanada
 charset_normalizer==3.4.1+computecanada
 click==8.2.1+computecanada
 click-plugins==1.1.1+computecanada
 cligj==0.7.2+computecanada
+<<<<<<< HEAD
 ConfigArgParse==1.7+computecanada
 contourpy==1.3.1+computecanada
 cycler==0.12.1+computecanada
@@ -20,6 +24,11 @@ fastjsonschema==2.21.1+computecanada
 filelock==3.18.0+computecanada
 flask==3.0.3+computecanada
 fonttools==4.58.4+computecanada
+=======
+docker-pycreds==0.4.0+computecanada
+einops==0.8.1+computecanada
+filelock==3.18.0+computecanada
+>>>>>>> d40ddd2c07d2d0842ae30fdbddf393a823fcced3
 frozenlist==1.7.0+computecanada
 fsspec==2025.5.1+computecanada
 geopandas==1.0.1+computecanada
@@ -29,20 +38,27 @@ hf_xet==1.1.3+computecanada
 huggingface_hub==0.32.5+computecanada
 idna==3.10+computecanada
 imageio==2.37.0+computecanada
+<<<<<<< HEAD
 importlib_metadata==8.7.0+computecanada
 itsdangerous==2.2.0+computecanada
+=======
+>>>>>>> d40ddd2c07d2d0842ae30fdbddf393a823fcced3
 jinja2==3.1.6+computecanada
 joblib==1.5.1+computecanada
 jsonschema==4.24.0+computecanada
 jsonschema_specifications==2025.4.1+computecanada
+<<<<<<< HEAD
 jupyter_core==5.8.1+computecanada
 kiwisolver==1.4.8+computecanada
+=======
+>>>>>>> d40ddd2c07d2d0842ae30fdbddf393a823fcced3
 laspy==2.5.4+computecanada
 laszip==0.2.3+computecanada
 lightning==2.5.0+computecanada
 lightning_utilities==0.14.3+computecanada
 mamba_ssm==2.2.4+computecanada
 MarkupSafe==2.1.5+computecanada
+<<<<<<< HEAD
 matplotlib==3.10.0+computecanada
 mpmath==1.3.0+computecanada
 msgpack==1.1.0+computecanada
@@ -50,10 +66,15 @@ multidict==6.4.4+computecanada
 narwhals==1.44.0+computecanada
 nbformat==5.10.4+computecanada
 nest_asyncio==1.6.0+computecanada
+=======
+msgpack==1.1.0+computecanada
+multidict==6.4.4+computecanada
+>>>>>>> d40ddd2c07d2d0842ae30fdbddf393a823fcced3
 networkx==3.5+computecanada
 ninja==1.11.1+computecanada
 numpy==1.26.4+computecanada
 open3d==0.18.0+computecanada
+<<<<<<< HEAD
 packaging==24.2+computecanada
 pandas==2.2.3+computecanada
 pillow==11.1.0+computecanada
@@ -72,25 +93,47 @@ pyproj==3.6.1+computecanada
 python_dateutil==2.9.0.post0+computecanada
 pytorch_lightning==2.5.1+computecanada
 pytz==2025.2+computecanada
+=======
+Pillow_SIMD==9.5.0.post2+computecanada
+pointnext==0.0.5+computecanada
+propcache==0.3.2+computecanada
+protobuf==5.29.5+computecanada
+pydantic==2.11.5+computecanada
+pydantic_core==2.33.2+computecanada
+pyogrio==0.10.0+computecanada
+pyproj==3.6.1+computecanada
+pytorch_lightning==2.5.1+computecanada
+>>>>>>> d40ddd2c07d2d0842ae30fdbddf393a823fcced3
 PyYAML==6.0.2+computecanada
 rasterio==1.3.10+computecanada
 ray==2.43.0+computecanada
 referencing==0.36.2+computecanada
 regex==2024.11.6+computecanada
 requests==2.32.4+computecanada
+<<<<<<< HEAD
 retrying==1.4.0+computecanada
 rpds_py==0.21.0+computecanada
 safetensors==0.5.3+computecanada
 scikit_learn==1.6.1+computecanada
 scipy==1.15.1+computecanada
+=======
+rpds_py==0.21.0+computecanada
+safetensors==0.5.3+computecanada
+scikit_learn==1.6.1+computecanada
+>>>>>>> d40ddd2c07d2d0842ae30fdbddf393a823fcced3
 seaborn==0.13.2+computecanada
 sentry_sdk==2.30.0+computecanada
 setproctitle==1.3.4+computecanada
 shapely==2.0.7+computecanada
+<<<<<<< HEAD
 six==1.17.0+computecanada
 smmap==5.0.2+computecanada
 snuggs==1.4.7+computecanada
 stringcase==1.2.0+computecanada
+=======
+smmap==5.0.2+computecanada
+snuggs==1.4.7+computecanada
+>>>>>>> d40ddd2c07d2d0842ae30fdbddf393a823fcced3
 sympy==1.13.1+computecanada
 tensorboardX==2.6.2.2+computecanada
 threadpoolctl==3.6.0+computecanada
@@ -105,6 +148,7 @@ torchsummary==1.5.1+computecanada
 torchtext==0.18.0+computecanada
 torchvision==0.20.0+computecanada
 tqdm==4.67.1+computecanada
+<<<<<<< HEAD
 traitlets==5.14.3+computecanada
 transformers==4.52.4+computecanada
 triton==3.3.1+computecanada
@@ -116,3 +160,11 @@ wandb==0.19.6+computecanada
 werkzeug==3.0.6+computecanada
 yarl==1.20.0+computecanada
 zipp==3.23.0+computecanada
+=======
+transformers==4.52.4+computecanada
+triton==3.3.1+computecanada
+typing_inspection==0.4.1+computecanada
+urllib3==2.5.0+computecanada
+wandb==0.19.6+computecanada
+yarl==1.20.0+computecanada
+>>>>>>> d40ddd2c07d2d0842ae30fdbddf393a823fcced3

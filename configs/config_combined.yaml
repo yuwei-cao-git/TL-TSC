@@ -1,0 +1,55 @@
+# config_ovf.yaml
+
+# General
+dataset: cps # rmf_csp, ovf_csp
+tile_size: 128
+n_bands: 9
+csp_class_weights: [1.0,1.0,1.0,1.0]
+rmf_csp_class_weights: [1.0,1.0,1.0,1.0]
+ovf_csp_class_weights: [0.65510872,0.06113203,0.25741579,0.02634347]
+class_names: ['BF', 'BW', 'CE', 'PO']
+n_classes: 4
+csp_img_mean: [0.1448249182868422, 0.1448027451662597, 0.14481569188767365, 0.14482059341223194, 0.14478666407335403, 0.14481651035856763, 0.14484013440482582, 0.1447905053060724, 0.14480209410986677]
+csp_img_std: [0.11299644323392927, 0.1129833230815902, 0.11303391194903452, 0.11301553501305191, 0.1129627185275434, 0.1130232356927594, 0.11301038817588169, 0.11297985960180822, 0.11298820136541934]
+rmf_csp_img_mean: [0.017331620606324597, 0.017351731319272007, 0.017379245790426857, 0.017421763060609854, 0.017422187588030005, 0.017425079468816076, 0.017472541634388997, 0.01747997595857069, 0.017453324127133588]
+rmf_csp_img_std: [0.015699462009318606, 0.015711331586007123, 0.01573929841857595, 0.015763357786740418, 0.015770427763874946, 0.015710193669139595, 0.015780091374521573, 0.015779030853898902, 0.01575249901025435]
+ovf_csp_img_mean: [0.1505242619907268, 0.1505002231704223, 0.1505124952116691, 0.1505157016832538, 0.1504802653139528, 0.15051130978884084, 0.15053386197231972, 0.1504816450683923, 0.1504949762169201]
+ovf_csp_img_std: [0.11211086212092589, 0.11209918214318379, 0.1121530754081391, 0.1121356020390227, 0.1120817243524055, 0.11214442113940257, 0.11213171736917088, 0.11210264824419061, 0.1121095196899389]
+
+# Training parameters
+task: regression
+head:  fuse_head # Options: no_pc_head, fuse_head, all_head, no_img_head
+pretrained_ckpt: None #tl_logs/no_img_head_unet_pointnet_rmf_cosine/wandblogs/TL-TSC/28g98vp3/checkpoints/epoch=0-step=3246.ckpt
+batch_size: 64
+max_epochs: 100
+optimizer: adamW                 # Options: adam, adamW, sgd
+scheduler: cosine         # Options: plateau, steplr, asha, cosine, cosinewarmup
+lr: 0.0001
+patience: 10
+step_size: 10
+momentum: 0.9
+weight_decay: 0.0001
+
+# Loss weights
+weighted_cls_loss: false
+multitasks_uncertain_loss: true
+loss_func: mae
+
+# Model architecture
+network: ResUnet
+emb_dims: 768
+num_points: 7168
+encoder: b                      # Options: s, b, l, xl
+fusion_dim: 128
+dp_fuse: 0.7
+dp_pc: 0.5
+use_ms: false
+linear_layers_dims: [512, 256]
+
+# Data transforms
+image_transform: compose
+point_cloud_transform: true
+rotate: false
+
+# Hardware
+gpus: 4
