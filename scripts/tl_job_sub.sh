@@ -21,8 +21,7 @@ echo "Source code cloned!"
 # data transfer
 mkdir -p data
 # extract an archive to a different directory, the ‘-C’ option is followed by the destination path
-tar -xf $project/TL-TSC/data/ovf_tl_dataset.tar -C ./data
-tar -I pigz -xf $project/TL-TSC/data/ovf_superpixel_dataset.tar.gz -C ./data || { echo "ovf extract failed"; exit 1; }
+tar -xf $project/TL-TSC/data/tl_dataset.tar -C ./data
 ls ./data
 echo "Data transfered"
 
