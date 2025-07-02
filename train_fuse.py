@@ -28,6 +28,8 @@ def override_config(cfg, args):
         cfg['multitasks_uncertain_loss'] = args.multitasks_uncertain_loss
     if args.loss_func is not None:
         cfg['loss_func'] = args.loss_func
+    if args.pc_normal is not None:
+        cfg['pc_normal'] = args.pc_normal
     return cfg
 
     
@@ -46,6 +48,7 @@ def parse_args():
     parser.add_argument('--multitasks_uncertain_loss', type=bool, default=True)
     parser.add_argument('--loss_func', type=str)
     parser.add_argument('--pretrained_ckpt', default=None)
+    parser.add_argument('--pc_normal', type=bool, default=True)
     return parser.parse_args()
     
 def main():

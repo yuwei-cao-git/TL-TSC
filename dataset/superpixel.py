@@ -15,7 +15,7 @@ class SuperpixelDataset(Dataset):
         self,
         superpixel_files,
         rotate=None,
-        normalization=None,
+        pc_normal=None,
         image_transform=None,
         point_cloud_transform=None,
         img_mean=None,
@@ -25,7 +25,7 @@ class SuperpixelDataset(Dataset):
         self.image_transform = image_transform
         self.point_cloud_transform = point_cloud_transform
         self.rotate = rotate
-        self.norm = normalization
+        self.norm = pc_normal
 
         self.transforms = transforms.Compose(
             [
@@ -48,7 +48,6 @@ class SuperpixelDataset(Dataset):
         label = data["label"]  # Shape: (num_classes,)
         per_pixel_labels = data["per_pixel_labels"]  # Shape: (num_classes, 128, 128)
         nodata_mask = data["nodata_mask"]  # Shape: (128, 128)
-        #xyz = coords - np.mean(coords, axis=0)
 
         superpixel_images = torch.from_numpy(
             superpixel_images
@@ -63,26 +62,28 @@ class SuperpixelDataset(Dataset):
         # Apply transforms if needed
         if self.image_transform != None:
             superpixel_images = image_augment(superpixel_images, self.image_transform, 128)
+        if self.norm:
+            min_coords = np.min(coords, axis=0)
+            max_coords = np.max(coords, axis=0)
 
-        #m = np.max(np.linalg.norm(xyz, axis=1, keepdims=True))
-        #norm_xyz = xyz / m
-        #coords = np.concatenate([coords, norm_xyz], axis=-1)
-        min_coords = np.min(coords, axis=0)
-        max_coords = np.max(coords, axis=0)
+            center = (min_coords + max_coords) / 2.0
+            coords_centered = coords - center
 
-        center = (min_coords + max_coords) / 2.0
-        coords_centered = coords - center
+            z_range = max_coords[2] - min_coords[2] + 1e-8  # avoid divide-by-zero
+            norm_coords = coords_centered / z_range
+            
+            # Convert numpy array to Open3D PointCloud
+            pcd = o3d.geometry.PointCloud()
+            pcd.points = o3d.utility.Vector3dVector(coords)
 
-        z_range = max_coords[2] - min_coords[2] + 1e-8  # avoid divide-by-zero
-        norm_coords = coords_centered / z_range
-        
-        # Convert numpy array to Open3D PointCloud
-        pcd = o3d.geometry.PointCloud()
-        pcd.points = o3d.utility.Vector3dVector(coords)
-
-        # Estimate normals (change radius/knn depending on density)
-        pcd.estimate_normals(search_param=o3d.geometry.KDTreeSearchParamKNN(knn=16))
-        normals = np.asarray(pcd.normals)  # Shape: (N, 3)
+            # Estimate normals (change radius/knn depending on density)
+            pcd.estimate_normals(search_param=o3d.geometry.KDTreeSearchParamKNN(knn=16))
+            normals = np.asarray(pcd.normals)  # Shape: (N, 3)
+        else:
+            xyz = coords - np.mean(coords, axis=0)
+            m = np.max(np.linalg.norm(xyz, axis=1, keepdims=True))
+            norm_coords = xyz / m
+            normals = xyz
         
         # Apply point cloud transforms if any
         if self.point_cloud_transform:
@@ -117,7 +118,7 @@ class SuperpixelDataModule(LightningDataModule):
         )
         self.point_cloud_transform = config["point_cloud_transform"]
         self.aug_rotate = config["rotate"]
-        self.aug_norm = True
+        self.aug_pc_norm = config["pc_normal"]
         self.data_dirs = {
             "train": join(
                 config["data_dir"],
@@ -154,7 +155,7 @@ class SuperpixelDataModule(LightningDataModule):
             self.datasets[split] = SuperpixelDataset(
                 superpixel_files,
                 rotate=None,
-                normalization=self.aug_norm,
+                pc_normal=self.aug_pc_norm,
                 image_transform=None,
                 point_cloud_transform=None,
                 img_mean=img_mean,
@@ -167,7 +168,7 @@ class SuperpixelDataModule(LightningDataModule):
                     aug_pc_dataset = SuperpixelDataset(
                         superpixel_files,
                         rotate=self.aug_rotate,
-                        normalization=self.aug_norm,
+                        pc_normal=self.aug_pc_norm,
                         image_transform=None,
                         point_cloud_transform=self.point_cloud_transform,
                         img_mean=img_mean,
@@ -176,7 +177,7 @@ class SuperpixelDataModule(LightningDataModule):
                     aug_img_dataset = SuperpixelDataset(
                         superpixel_files,
                         rotate=self.aug_rotate,
-                        normalization=self.aug_norm,
+                        pc_normal=self.aug_pc_norm,
                         image_transform=self.image_transform,
                         point_cloud_transform=None,
                         img_mean=img_mean,
