@@ -143,17 +143,10 @@ def generate_combined_data_for_split(
                     )
 
                     # Assign pixel values for valid pixels
-                    # Extract the float32 values
-                    float_values = season_image[channel_idx][combined_mask]
-
-                    # Convert float32 to uint16 (assumes data in [0,1])
-                    uint16_values = np.clip((float_values * 65535).round(), 0, 65535).astype(np.uint16)
+                    pixel_values = season_image[channel_idx][combined_mask]
 
                     # Assign scaled values
-                    padded_channel_image[combined_mask] = uint16_values
-
-                    # Optional: if you want the final superpixel_images to be uint16 too
-                    superpixel_images = superpixel_images.astype(np.uint16)
+                    padded_channel_image[combined_mask] = pixel_values
 
                     # Assign to superpixel_images array
                     superpixel_images[season_idx, channel_idx, :, :] = (

@@ -41,10 +41,7 @@ species_sums = np.sum(labels, axis=0)  # Shape: (num_classes,)
 total_sum = np.sum(species_sums)
 overall_proportions = species_sums / total_sum
 
-# Step 3: Define Target Split Ratios and Tolerance (already set above)
-
-
-# Step 4: Adapt the Iterative Splitting Function
+# Step 3: Adapt the Iterative Splitting Function
 def check_balance(labels, indices_list, target_split, tolerance):
     """
     Check if the species proportions are within the ±tolerance for the target split.
@@ -98,7 +95,7 @@ def iterative_split_superpixels(
     )
 
 
-# Step 5: Perform the Iterative Splitting
+# Step 4: Perform the Iterative Splitting
 print("Performing iterative splitting to balance the dataset...")
 train_indices, val_indices, test_indices = iterative_split_superpixels(
     labels, target_split=target_split, tolerance=tolerance
@@ -108,7 +105,7 @@ print(f"Training samples: {len(train_indices)}")
 print(f"Validation samples: {len(val_indices)}")
 print(f"Testing samples: {len(test_indices)}")
 
-# Step 6: Save the Superpixel File Names for Each Split
+# Step 5: Save the Superpixel File Names for Each Split
 print("Saving the superpixel file names for each split...")
 # Map indices to file names
 train_files = [file_names[i] for i in train_indices]
@@ -125,7 +122,7 @@ save_file_names(train_files, os.path.join(output_dir, "train_superpixels.txt"))
 save_file_names(val_files, os.path.join(output_dir, "val_superpixels.txt"))
 save_file_names(test_files, os.path.join(output_dir, "test_superpixels.txt"))
 
-# Step 7: Verify and Visualize the Species Proportions in Each Split
+# Step 6: Verify and Visualize the Species Proportions in Each Split
 print("Calculating species proportions for each split...")
 
 

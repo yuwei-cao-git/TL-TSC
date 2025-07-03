@@ -24,7 +24,7 @@ def safe_parse_specs(x):
     else:
         raise ValueError("Invalid perc_specs format")
 
-def generate_superpixels(tile_path, season, size_threshold, shapefile, output_dir):
+def generate_superpixels(tile_path, size_threshold, shapefile, output_dir):
     tile_name = os.path.splitext(os.path.basename(tile_path))[0]
     output_file = os.path.join(output_dir, f"{tile_name}.npz")
 
@@ -126,7 +126,7 @@ if __name__ == "__main__":
         print(f"Processing {len(tile_paths)} tiles for season: {season}")
 
         results = Parallel(n_jobs=4)(
-            delayed(generate_superpixels)(tile_path, season, size_threshold, shapefile, output_dir)
+            delayed(generate_superpixels)(tile_path, size_threshold, shapefile, output_dir)
             for tile_path in tqdm(tile_paths)
         )
 
