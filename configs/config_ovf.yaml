@@ -36,12 +36,12 @@ loss_func: mae
 network: ResUnet
 emb_dims: 768
 num_points: 7168
-encoder: b                      # Options: s, b, l, xl
+encoder: l                      # Options: s, b, l, xl
 fusion_dim: 128
 dp_fuse: 0.7
 dp_pc: 0.5
 use_ms: false
-linear_layers_dims: [512, 256]
+linear_layers_dims: [256, 128]
 
 # Data transforms
 image_transform: compose

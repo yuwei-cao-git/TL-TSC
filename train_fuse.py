@@ -24,6 +24,8 @@ def override_config(cfg, args):
     # hps
     if args.lr is not None:
         cfg['lr'] = args.lr
+    if args.lr is not None:
+        cfg['scheduler'] = args.scheduler
     if args.multitasks_uncertain_loss is not None:
         cfg['multitasks_uncertain_loss'] = args.multitasks_uncertain_loss
     if args.loss_func is not None:
@@ -47,6 +49,7 @@ def parse_args():
     parser.add_argument('--lr', type=float)
     parser.add_argument('--multitasks_uncertain_loss', type=bool, default=True)
     parser.add_argument('--loss_func', type=str)
+    parser.add_argument('--scheduler', type=str)
     parser.add_argument('--pretrained_ckpt', default=None)
     parser.add_argument('--pc_normal', type=bool, default=True)
     return parser.parse_args()

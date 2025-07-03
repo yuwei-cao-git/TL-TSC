@@ -208,7 +208,6 @@ def generate_combined_data_for_split(
 
 
 if __name__ == "__main__":
-    resolutions = ["20m"]
     splits = ["train", "test", "val"]
     tile_npz_dir = f"/mnt/d/Sync/research/tree_species_estimation/tree_dataset/ovf/processed/ovf_s2_compressed"
     for split in splits:
