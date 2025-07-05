@@ -30,11 +30,11 @@ class PointNextEncoder(nn.Module):
         return out
 
 class PointNextClassifier(nn.Module):
-    def __init__(self, config, n_classes):
+    def __init__(self, config, n_classes, return_logits):
         super(PointNextClassifier, self).__init__()
         self.config = config
         self.n_classes = n_classes
-        self.task = config["task"]
+        self.return_logits = return_logits
 
         
         self.cls_head = nn.Sequential(
@@ -51,16 +51,18 @@ class PointNextClassifier(nn.Module):
 
     def forward(self, pc_feats):
         logits = self.cls_head(pc_feats)
-
-        preds = F.softmax(logits, dim=1)
-        return preds
+        if self.return_logits:
+            return logits
+        else:
+            preds = F.softmax(logits, dim=1)
+            return preds
         
 class PointNextModel(nn.Module):
-    def __init__(self, config, in_dim, n_classes, decoder=True):
+    def __init__(self, config, in_dim, n_classes, decoder=True, return_logits=False):
         super(PointNextModel, self).__init__()
         self.use_decoder = decoder
         self.encoder = PointNextEncoder(config, in_dim)
-        self.decoder = PointNextClassifier(config, n_classes) if decoder else None
+        self.decoder = PointNextClassifier(config, n_classes, return_logits) if decoder else None
 
     def forward(self, pc_feat, xyz):
         pc_feats = self.encoder(pc_feat, xyz)

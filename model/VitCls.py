@@ -60,4 +60,4 @@ class S2Transformer(nn.Module):
         
         x = self.head(x1) # [batch, n_class]
         
-        return x
+        return x, x1

@@ -1,5 +1,6 @@
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 
 
 class MSELoss(nn.Module):
@@ -201,3 +202,30 @@ def calc_masked_loss(loss_func_name, valid_outputs, valid_targets, weights=None)
         return calc_mae_loss(valid_outputs, valid_targets)
     elif loss_func_name == "pinball":
         return calc_pinball_loss(valid_outputs, valid_targets)
+    
+class MultiLabelFocalLoss(nn.Module):
+    def __init__(self, alpha=1.0, gamma=2.0, reduction='mean'):
+        super(MultiLabelFocalLoss, self).__init__()
+        self.alpha = alpha
+        self.gamma = gamma
+        self.reduction = reduction
+
+    def forward(self, logits, targets):
+        """
+        logits: raw model output, shape (B, C)
+        targets: 0/1 multi-label tensor, shape (B, C)
+        """
+        probs = torch.sigmoid(logits)
+        ce_loss = F.binary_cross_entropy_with_logits(logits, targets, reduction='none')
+
+        pt = torch.where(targets == 1, probs, 1 - probs)
+        focal_term = (1 - pt) ** self.gamma
+
+        loss = self.alpha * focal_term * ce_loss
+
+        if self.reduction == 'mean':
+            return loss.mean()
+        elif self.reduction == 'sum':
+            return loss.sum()
+        else:
+            return loss

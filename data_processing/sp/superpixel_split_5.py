@@ -8,7 +8,7 @@ import pandas as pd
 import shutil
 
 # Adjusted parameters as per your request
-folder_path = "/mnt/d/Sync/research/tree_species_estimation/tree_dataset/ovf/processed/ovf_superpixel"
+folder_path = "/mnt/d/Sync/research/tree_species_estimation/tree_dataset/ovf/processed/ovf_superpixel/**"
 output_dir = "/mnt/d/Sync/research/tree_species_estimation/tree_dataset/ovf/processed/dataset"
 species_names = ['AB', 'PO', 'SW', 'BW', 'BF', 'CE', 'MR', 'PW', 'MH', 'OR', 'PR']
 target_split = [0.7, 0.15, 0.15]

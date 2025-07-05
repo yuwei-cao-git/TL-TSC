@@ -4,7 +4,7 @@ from pytorch_lightning import Trainer, seed_everything
 from pytorch_lightning.callbacks import EarlyStopping, ModelCheckpoint
 from lightning.pytorch.loggers import WandbLogger
 # from pytorch_lightning.utilities.model_summary import ModelSummary
-from model.fuse import FusionModel
+from model.top2 import FusionModel
 import yaml
 
 def load_backbone_weights(model, checkpoint_path):
@@ -62,11 +62,11 @@ def train(config):
     )
 
     # Define a checkpoint callback to save the best model
-    metric = "ave_val_r2"
+    metric = "val_loss"
     early_stopping = EarlyStopping(
         monitor=metric,  # Metric to monitor
         patience=10,  # Number of epochs with no improvement after which training will be stopped
-        mode="max",  # Set "min" for validation loss
+        mode="min",  # Set "min" for validation loss
         verbose=True,
     )
     

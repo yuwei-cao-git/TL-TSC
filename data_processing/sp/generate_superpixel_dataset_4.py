@@ -206,7 +206,7 @@ if __name__ == "__main__":
     for split in splits:
         point_cloud_dir = f"/mnt/g/ovf/superpxiel_plots/"  # Directory containing .laz files per POLYID
         polygon_file_path = f"/mnt/d/Sync/research/tree_species_estimation/tree_dataset/ovf/processed/ovf_plots/superpixel_plots/superpixel_plots_Tilename.gpkg"  # Path to polygon file with specs_perc per polygon
-        output_superpixel_dir = f"/mnt/d/Sync/research/tree_species_estimation/tree_dataset/ovf/processed/ovf_superpixel/{split}"
+        output_superpixel_dir = f"/mnt/d/Sync/research/tree_species_estimation/tree_dataset/ovf/processed/ovf_superpixel_dataset/{split}"
 
         split_file_path = f"/mnt/d/Sync/research/tree_species_estimation/tree_dataset/ovf/processed/dataset/{split}_tiles.txt"  # Path to the split file (train/test/val)
 
