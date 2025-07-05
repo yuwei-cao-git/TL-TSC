@@ -93,6 +93,18 @@ class PointNeXtLightning(pl.LightningModule):
             f"{stage}_precision": self.val_precision.compute(),
             f"{stage}_recall": self.val_recall.compute(),
         })
+        
+        # Log all metrics
+        for key, value in logs.items():
+            self.log(
+                key,
+                value,
+                on_step=True,
+                on_epoch=True,
+                prog_bar=True,
+                logger=True,
+                sync_dist=True,
+            )
 
         return loss
 
