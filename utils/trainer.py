@@ -4,7 +4,8 @@ from pytorch_lightning import Trainer, seed_everything
 from pytorch_lightning.callbacks import EarlyStopping, ModelCheckpoint
 from lightning.pytorch.loggers import WandbLogger
 # from pytorch_lightning.utilities.model_summary import ModelSummary
-from model.top2 import FusionModel
+# from model.fuse import FusionModel
+from model.top2_pc import PointNeXtLightning
 import yaml
 
 def load_backbone_weights(model, checkpoint_path):
@@ -89,7 +90,7 @@ def train(config):
         data_module = SuperpixelDataModule(config)
     # Use the calculated input channels from the DataModule to initialize the model
     
-    model = FusionModel(config, n_classes=config["n_classes"])
+    model = PointNeXtLightning(config, n_classes=config["n_classes"])
     if config["pretrained_ckpt"] != "None":
         # load backbone weights only, ignore head mismatch
         model = load_backbone_weights(model, config["pretrained_ckpt"])

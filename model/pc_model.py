@@ -4,7 +4,8 @@ import pytorch_lightning as pl
 from torch.optim import Adam, SGD, AdamW
 from torch.optim.lr_scheduler import StepLR, ReduceLROnPlateau, CosineAnnealingLR
 from .pointnext import PointNextModel
-from .loss import calc_loss
+from .loss import calc_masked_loss
+from timm.scheduler import CosineLRScheduler
 
 # from sklearn.metrics import r2_score
 from torchmetrics.classification import MulticlassF1Score, MulticlassAccuracy
@@ -15,16 +16,16 @@ class PointNeXtLightning(pl.LightningModule):
     def __init__(self, params, n_classes):
         super(PointNeXtLightning, self).__init__()
         self.params = params
-        self.model = PointNextModel(self.cfg, 
+        self.model = PointNextModel(self.params, 
                                     in_dim=3, #if self.cfg["dataset"] in ["rmf", "ovf"] else 6, 
                                     n_classes=n_classes, 
                                     decoder=True,
-                                    return_logits=True
+                                    return_logits=False
                                 )
 
         # Loss function and other parameters
-        if self.cfg["loss_func"] in ["wmse", "wrmse", "wkl"]:
-            self.weights = self.cfg["class_weights"]
+        if self.params["loss_func"] in ["wmse", "wrmse", "wkl"]:
+            self.weights = self.params["class_weights"]
 
         self.train_r2 = R2Score()
 
@@ -43,6 +44,7 @@ class PointNeXtLightning(pl.LightningModule):
         self.test_oa = MulticlassAccuracy(
             num_classes=self.params["n_classes"], average="micro"
         )
+        self.loss_func=self.params["loss_func"]
 
     def forward(self, point_cloud, xyz):
         """
@@ -54,8 +56,7 @@ class PointNeXtLightning(pl.LightningModule):
         Returns:
             logits: Class logits for each point (B, N, num_classes)
         """
-        logits = self.model(point_cloud, xyz)
-        preds = logits / logits.sum(dim=-1, keepdim=True)
+        preds, _ = self.model(point_cloud, xyz)
         return preds
 
     def foward_compute_loss_and_metrics(self, xyz, feats, targets, stage="val"):
@@ -71,18 +72,16 @@ class PointNeXtLightning(pl.LightningModule):
         xyz = xyz.permute(0, 2, 1)
         feats = feats.permute(0, 2, 1)
         preds = self.forward(xyz, feats)
+        preds_rounded = torch.round(preds, decimals=2)
 
         # Compute the loss with the WeightedMSELoss, which will handle the weights
-        if self.cfg["loss_func"] in ["wmse", "wrmse", "wkl"]:
+        if self.params["loss_func"] in ["wmse", "wrmse", "wkl"]:
             weights = self.weights.to(preds.device)
             # Compute the loss with the WeightedMSELoss, which will handle the weights
-            loss = calc_loss(targets, preds, weights)
         else:
             weights = None
-            loss = F.mse_loss(preds, targets)
-
-        # Round outputs to two decimal place/one
-        preds_rounded = torch.round(preds, decimals=2)
+        
+        loss = calc_masked_loss(self.loss_func, targets, preds_rounded, weights)
 
         # Calculate R² and F1 score for valid pixels
         if stage == "train":
@@ -100,9 +99,6 @@ class PointNeXtLightning(pl.LightningModule):
             f1 = self.test_f1(pred_lead, true_lead)
             oa = self.test_oa(pred_lead, true_lead)
 
-        # Compute RMSE
-        rmse = torch.sqrt(loss)
-
         # Log the loss and R² score
         sync_state = True
         self.log(
@@ -117,14 +113,7 @@ class PointNeXtLightning(pl.LightningModule):
             on_step=True,
             on_epoch=(stage != "train"),
         )
-        self.log(
-            f"{stage}_rmse",
-            rmse,
-            logger=True,
-            sync_dist=sync_state,
-            on_step=True,
-            on_epoch=(stage != "train"),
-        )
+        
         if stage != "train":
             self.log(
                 f"{stage}_f1",
@@ -210,6 +199,11 @@ class PointNeXtLightning(pl.LightningModule):
                 eta_min=0,
                 last_epoch=-1,
                 verbose=False,
+            )
+            return {"optimizer": optimizer, "lr_scheduler": scheduler}
+        elif self.params["scheduler"] == "cosinewarmup":
+            scheduler = torch.optim.lr_scheduler.CosineAnnealingWarmRestarts(
+                optimizer, T_0=10, eta_min=1e-6
             )
             return {"optimizer": optimizer, "lr_scheduler": scheduler}
         else:
