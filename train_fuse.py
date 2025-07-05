@@ -15,6 +15,8 @@ def override_config(cfg, args):
         cfg['batch_size'] = args.batch_size
     if args.head is not None:
         cfg['head'] = args.head
+    if args.encoder is not None:
+        cfg['encoder'] = args.encoder
     if args.network is not None:
         cfg['network'] = args.network
     if args.dataset is not None:
@@ -45,6 +47,7 @@ def parse_args():
     parser.add_argument('--batch_size', type=int, help='Override batch size')
     parser.add_argument('--head', type=str, help='Override head option')
     parser.add_argument('--network', type=str, help='Override head option')
+    parser.add_argument('--encoder', type=str, help='Override encoder option')
     parser.add_argument('--dataset', type=str, help='Override dataset')
     parser.add_argument('--lr', type=float)
     parser.add_argument('--multitasks_uncertain_loss', type=bool, default=True)
