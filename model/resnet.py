@@ -37,9 +37,10 @@ class FCNResNet50Decoder(nn.Module):
     """
     FCN classifier head and upsampling for segmentation output.
     """
-    def __init__(self, encoder_channels=2048, n_classes=9, upsample='bilinear'):
+    def __init__(self, encoder_channels=2048, n_classes=9, upsample='bilinear', return_logits=False):
         super().__init__()
         self.decoder_upsample = upsample
+        self.return_logits = return_logits
         if self.decoder_upsample == 'bilinear':
             from torchvision.models.segmentation.fcn import FCNHead
             self.classifier = FCNHead(encoder_channels, n_classes)
@@ -51,17 +52,19 @@ class FCNResNet50Decoder(nn.Module):
         logits = self.classifier(features)  # (B, n_classes, H/8, W/8)
         if self.decoder_upsample == 'bilinear':
             logits = F.interpolate(logits, size=input_shape, mode='bilinear', align_corners=False)
-        preds = F.softmax(logits, dim=1)
-        return preds
+        if self.return_logits:
+            return logits
+        else:
+            return F.softmax(logits, dim=1)
     
     
 class FCNResNet50(nn.Module):
-    def __init__(self, n_channels, n_classes, upsample_method='bilinear', pretrained=False, decoder=True):
+    def __init__(self, n_channels, n_classes, upsample_method='bilinear', pretrained=False, decoder=True, return_logits=False):
         super().__init__()
         self.use_decoder = decoder
         self.encoder = FCNResNet50Encoder(n_channels, pretrained=pretrained)
         if self.use_decoder:
-            self.decoder = FCNResNet50Decoder(encoder_channels=2048, n_classes=n_classes, upsample=upsample_method)
+            self.decoder = FCNResNet50Decoder(encoder_channels=2048, n_classes=n_classes, upsample=upsample_method, return_logits=return_logits)
 
     def forward(self, x):
         features = self.encoder(x)

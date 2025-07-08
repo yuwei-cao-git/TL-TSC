@@ -40,24 +40,28 @@ class UNetDecoder(nn.Module):
 
 
 class UNetClassifier(nn.Module):
-    def __init__(self, in_channels, n_classes):
+    def __init__(self, in_channels, n_classes, return_logit=False):
         super().__init__()
         self.outc = OutConv(in_channels, n_classes)
+        self.return_logits = return_logits
 
-    def forward(self, x, return_logits=False):
+    def forward(self, x):
         logits = self.outc(x)
-        return F.softmax(logits, dim=1)
+        if self.return_logits:
+            return logits
+        else:
+            return F.softmax(logits, dim=1)
 
 
 class UNet(nn.Module):
-    def __init__(self, n_channels, n_classes, bilinear=True, decoder=True):
+    def __init__(self, n_channels, n_classes, bilinear=True, decoder=True, return_logits=False):
         super().__init__()
         self.encoder = UNetEncoder(n_channels, bilinear)
         self.use_decoder = decoder
 
         if decoder:
             self.decoder = UNetDecoder(bilinear)
-            self.classifier = UNetClassifier(64, n_classes)
+            self.classifier = UNetClassifier(64, n_classes, return_logits)
 
     def forward(self, x):
         bottleneck, skips = self.encoder(x)

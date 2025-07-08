@@ -9,7 +9,6 @@ import pytorch_lightning as pl
 from .decoder import MambaFusionDecoder
 from .pointnext import PointNextModel
 from torchmetrics.classification import Accuracy, ConfusionMatrix
-from .loss import apply_mask
 
 
 class FusionModel(pl.LightningModule):
@@ -32,15 +31,15 @@ class FusionModel(pl.LightningModule):
         # Image stream backbone
         if self.cfg["network"] == "Unet":
             from .unet import UNet
-            self.s2_model = UNet(n_channels=total_input_channels, n_classes=n_classes, decoder=self.cfg["head"] in ["no_pc_head", "all_head"], return_logits=True)
+            self.s2_model = UNet(n_channels=total_input_channels, n_classes=n_classes, decoder=self.cfg["head"] in ["no_pc_head", "all_head"])
         elif self.cfg["network"] == "ResUnet":
             from .ResUnet import ResUnet
-            self.s2_model = ResUnet(n_channels=total_input_channels, n_classes=n_classes, decoder=self.cfg["head"] in ["no_pc_head", "all_head"], return_logits=True)
+            self.s2_model = ResUnet(n_channels=total_input_channels, n_classes=n_classes, decoder=self.cfg["head"] in ["no_pc_head", "all_head"])
         elif self.cfg["network"] == "ResNet":
             from .resnet import FCNResNet50
-            self.s2_model = FCNResNet50(n_channels=total_input_channels, n_classes=n_classes, upsample_method='bilinear', pretrained=True, decoder=self.cfg["head"] in ["no_pc_head", "all_head"], return_logits=True)
+            self.s2_model = FCNResNet50(n_channels=total_input_channels, n_classes=n_classes, upsample_method='bilinear', pretrained=True, decoder=self.cfg["head"] in ["no_pc_head", "all_head"])
 
-        self.pc_model = PointNextModel(self.cfg, in_dim=3, n_classes=n_classes, decoder=self.cfg["head"] in ["no_img_head", "all_head"], return_logits=True)
+        self.pc_model = PointNextModel(self.cfg, in_dim=3, n_classes=n_classes, decoder=self.cfg["head"] in ["no_img_head", "all_head"])
 
         if self.cfg["network"] == "ResNet":
             img_chs = 2048
@@ -59,13 +58,11 @@ class FusionModel(pl.LightningModule):
             num_classes=n_classes,
             drop=self.cfg["dp_fuse"],
             last_feat_size=(self.cfg["tile_size"] // 8) if self.cfg["network"] == "ResNet" else (self.cfg["tile_size"] // 16),
-            return_feature=False,
-            return_logits=True
+            return_feature=False
         )
 
-        self.criterion = nn.CrossEntropyLoss(ignore_index=255)
+        self.criterion = nn.CrossEntropyLoss()
         self.metric = Accuracy(task="multiclass", num_classes=n_classes)
-        self.top2_metric = Accuracy(task="multiclass", num_classes=n_classes, top_k=2)
         self.confmat = ConfusionMatrix(task="multiclass", num_classes=n_classes)
         self.validation_step_outputs = []
 
@@ -82,85 +79,67 @@ class FusionModel(pl.LightningModule):
                 B, _, _, H, W = images.shape
                 stacked_features = images.view(B, -1, H, W)
 
-        pixel_logits, img_emb = None, None
+        image_outputs, img_emb = None, None
         if self.cfg["head"] in ["no_pc_head", "all_head"]:
-            pixel_logits, img_emb = self.s2_model(stacked_features)
+            image_outputs, img_emb = self.s2_model(stacked_features)
         else:
             img_emb = self.s2_model(stacked_features)
 
-        point_logits, pc_emb = None, None
+        point_outputs, pc_emb = None, None
         if self.cfg["head"] in ["no_img_head", "all_head"]:
-            point_logits, pc_emb = self.pc_model(pc_feat, xyz)
+            point_outputs, pc_emb = self.pc_model(pc_feat, xyz)
         else:
             pc_emb = self.pc_model(pc_feat, xyz)
 
-        fuse_logits = self.fuse_head(img_emb, pc_emb)
+        class_output = self.fuse_head(img_emb, pc_emb)
 
         if self.cfg["head"] == "no_pc_head":
-            return pixel_logits, None, fuse_logits
+            return image_outputs, None, class_output
         elif self.cfg["head"] == "fuse_head":
-            return None, None, fuse_logits
+            return None, None, class_output
         elif self.cfg["head"] == "no_img_head":
-            return None, point_logits, fuse_logits
+            return None, point_outputs, class_output
         else:
-            return pixel_logits, point_logits, fuse_logits
+            return image_outputs, point_outputs, class_output
 
     def forward_and_metrics(self, images, img_masks, pc_feat, point_clouds, labels, pixel_labels, stage):
         pixel_preds, pc_preds, fuse_preds = self.forward(images, pc_feat, point_clouds)
+
         logs = {}
 
-        # Ensure labels are class indices
-        true_labels = torch.argmax(labels, dim=1) if labels.ndim == 2 else labels
-
-        # PC Stream
         if pc_preds is not None:
-            loss_point = self.criterion(pc_preds, true_labels)
-            acc_pc = self.metric(pc_preds, true_labels)
+            loss_point = self.criterion(pc_preds, labels)
+            acc_pc = self.metric(pc_preds, labels)
             logs.update({f"pc_{stage}_acc": acc_pc, f"pc_{stage}_loss": loss_point})
         else:
             loss_point = 0
 
-        # Image Stream
         if pixel_preds is not None and pixel_labels is not None:
             pixel_labels = torch.argmax(pixel_labels, dim=1) if pixel_labels.dim() == 4 else pixel_labels
-            valid_pixel_preds, valid_pixel_true = apply_mask(pixel_preds, pixel_labels, img_masks, multi_class=False)
-            
-            if valid_pixel_preds.numel() > 0:
-                loss_pixel = self.criterion(valid_pixel_preds, valid_pixel_true)
-                acc_pix = self.metric(valid_pixel_preds.argmax(dim=1), valid_pixel_true)
-                logs.update({f"pixel_{stage}_acc": acc_pix, f"pixel_{stage}_loss": loss_pixel})
-
-                # Optional: consistency loss (uniform predictions in superpixel)
-                avg_preds = valid_pixel_preds.mean(dim=0, keepdim=True)
-                expanded_avg = avg_preds.expand_as(valid_pixel_preds)
-                kl_div = nn.KLDivLoss(reduction='batchmean')
-                consistency_loss = kl_div(valid_pixel_preds.log_softmax(dim=1), expanded_avg.softmax(dim=1))
-                logs[f"pixel_{stage}_consistency"] = consistency_loss
-                loss_pixel += 0.1 * consistency_loss
-            else:
-                loss_pixel = 0
+            B, C, H, W = pixel_preds.shape
+            loss_pixel = self.criterion(pixel_preds.view(B, C, -1).permute(0, 2, 1).reshape(-1, C), pixel_labels.view(-1))
+            acc_pix = self.metric(pixel_preds.argmax(1).view(-1), pixel_labels.view(-1))
+            logs.update({f"pixel_{stage}_acc": acc_pix, f"pixel_{stage}_loss": loss_pixel})
         else:
             loss_pixel = 0
 
-        # Fusion Stream
-        loss_fuse = self.criterion(fuse_preds, true_labels)
-        acc_fuse = self.metric(fuse_preds, true_labels)
-        acc_fuse_top2 = self.top2_metric(fuse_preds, labels)
-        logs.update({f"fuse_{stage}_acc": acc_fuse, f"fuse_{stage}_top2": acc_fuse_top2, f"fuse_{stage}_loss": loss_fuse})
+        loss_fuse = self.criterion(fuse_preds, labels)
+        acc_fuse = self.metric(fuse_preds, labels)
+        logs.update({f"fuse_{stage}_acc": acc_fuse, f"fuse_{stage}_loss": loss_fuse})
 
-        # Total loss
         total_loss = loss_fuse + loss_point + loss_pixel
-        logs[f"{stage}_loss"] = total_loss
 
-        # Logging
+        logs.update({f"{stage}_loss": total_loss})
         for key, value in logs.items():
             self.log(key, value, on_step=True, on_epoch=True, prog_bar=True, logger=True, sync_dist=True)
 
         if stage == "val":
-            self.validation_step_outputs.append({"val_target": true_labels, "val_pred": fuse_preds})
+            self.validation_step_outputs.append({"val_target": labels, "val_pred": fuse_preds})
 
-        return (true_labels, fuse_preds, total_loss) if stage == "test" else total_loss
-
+        if stage == "test":
+            return labels, fuse_preds, total_loss
+        else:
+            return total_loss
 
     def training_step(self, batch, batch_idx):
         return self._shared_step(batch, stage="train")
@@ -189,10 +168,8 @@ class FusionModel(pl.LightningModule):
         cm = self.confmat(pred_classes, test_true)
 
         acc = self.metric(pred_classes, test_true)
-        acc_top2 = self.top2_metric(test_pred, test_true)
         self.log("val_acc_epoch", acc, sync_dist=True)
-        self.log("val_top2_acc_epoch", acc_top2, sync_dist=True)
-        print(f"Validation Accuracy: {acc}, Top-2 Accuracy: {acc_top2}")
+        print(f"Validation Accuracy: {acc}")
         print("Confusion Matrix:")
         print(cm)
 

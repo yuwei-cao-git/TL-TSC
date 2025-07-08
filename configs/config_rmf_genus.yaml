@@ -1,0 +1,50 @@
+# config_rmf.yaml
+
+# General
+dataset: rmf_genus                        # Options: rmf, rmf_superpixel_dataset
+tile_size: 128
+n_bands: 9
+rmf_genus_class_weights: [0.07031139, 0.01921179, 0.07409001, 0.42451091, 0.17147074, 0.10330588, 0.13709928]
+class_names: ['poplar', 'spruce', 'birch', 'fir', 'cedar', 'pine', 'larch']
+n_classes: 7
+rmf_genus_img_mean: [0.004822857583753649, 0.007047905637215315, 0.005892141591621212, 0.010819556944127189, 0.023745498150013228, 0.027247440585650647, 0.011765756306711905, 0.006245175966976923, 0.029544049234855548]
+rmf_genus_img_std: [0.009788130895193833, 0.009465678241968112, 0.009729859205615024, 0.009675598174706408, 0.010284967545505303, 0.010874876809787881, 0.005248977757169651, 0.0023418301231748627, 0.011048436198000514]
+
+# Training parameters
+task: regression
+head:  all_head # Options: no_pc_head, fuse_head, all_head, no_img_head
+pretrained_ckpt: None
+batch_size: 64
+max_epochs: 100
+optimizer: adamW                 # Options: adam, adamW, sgd
+scheduler: cosine         # Options: plateau, steplr, asha, cosine, cosinewarmup
+lr: 0.0001
+patience: 10
+step_size: 10
+momentum: 0.9
+weight_decay: 0.0001
+
+# Loss weights
+weighted_cls_loss: false
+multitasks_uncertain_loss: false
+loss_func: mae
+
+# Model architecture
+network: ResUnet
+emb_dims: 768
+num_points: 7168
+encoder: b                      # Options: s, b, l, xl
+fusion_dim: 128
+dp_fuse: 0.3
+dp_pc: 0.3
+use_ms: true
+linear_layers_dims: [512, 256]
+
+# Data transforms
+image_transform: compose
+point_cloud_transform: true
+rotate: false
+pc_normal: true
+
+# Hardware
+gpus: 4
