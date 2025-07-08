@@ -9,6 +9,8 @@ def load_config(config_path):
         return yaml.safe_load(f)
 
 def override_config(cfg, args):
+    if args.task is not None:
+        cfg['task'] = args.task
     if args.gpus is not None:
         cfg['gpus'] = args.gpus
     if args.batch_size is not None:
@@ -40,6 +42,7 @@ def override_config(cfg, args):
 def parse_args():
     parser = argparse.ArgumentParser(description="Train model with given parameters")
     # Add arguments
+    parser.add_argument('--task', type=str)
     parser.add_argument('--config', type=str, required=True, help='Path to config YAML file')
     parser.add_argument("--data_dir", type=str, default=None, help="path to data dir")
     parser.add_argument("--log_name", default="Fuse_resnet_pointnext_rmf")

@@ -11,7 +11,7 @@ ovf_genus_img_mean: [0.022147550403000482, 0.02499438361077816, 0.02368992373497
 ovf_genus_img_std: [0.012999625893269426, 0.012271758163250874, 0.01276091068905686, 0.01238779664766976, 0.012663241727718, 0.013506290784859074, 0.009199217187739049, 0.005517428473610487, 0.013364242383911356]
 
 # Training parameters
-task: regression
+task: tsc
 head:  fuse_head # Options: no_pc_head, fuse_head, all_head, no_img_head
 pretrained_ckpt: None #tl_logs/no_img_head_unet_pointnet_rmf_cosine/wandblogs/TL-TSC/28g98vp3/checkpoints/epoch=0-step=3246.ckpt
 batch_size: 64

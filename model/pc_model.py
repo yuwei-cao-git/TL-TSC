@@ -1,11 +1,9 @@
 import torch
-import torch.nn.functional as F
 import pytorch_lightning as pl
 from torch.optim import Adam, SGD, AdamW
 from torch.optim.lr_scheduler import StepLR, ReduceLROnPlateau, CosineAnnealingLR
 from .pointnext import PointNextModel
 from .loss import calc_masked_loss
-from timm.scheduler import CosineLRScheduler
 
 # from sklearn.metrics import r2_score
 from torchmetrics.classification import MulticlassF1Score, MulticlassAccuracy
