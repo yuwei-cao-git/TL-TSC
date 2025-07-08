@@ -43,7 +43,7 @@ class UNetClassifier(nn.Module):
     def __init__(self, in_channels, n_classes, return_logit=False):
         super().__init__()
         self.outc = OutConv(in_channels, n_classes)
-        self.return_logits = return_logits
+        self.return_logits = return_logit
 
     def forward(self, x):
         logits = self.outc(x)

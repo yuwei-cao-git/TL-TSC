@@ -1,219 +1,231 @@
-import os
-import pandas as pd
-import numpy as np
-
 import torch
 import torch.nn as nn
-import pytorch_lightning as pl
-
-from .decoder import MambaFusionDecoder
-from .pointnext import PointNextModel
-from torchmetrics.classification import Accuracy, ConfusionMatrix
-from .loss import apply_mask
+import torch.nn.functional as F
 
 
-class FusionModel(pl.LightningModule):
-    def __init__(self, config, n_classes):
-        super().__init__()
-        self.save_hyperparameters(config)
+class MSELoss(nn.Module):
+    def __init__(self):
+        super(MSELoss, self).__init__()
 
-        self.cfg = config
-        self.lr = self.cfg["lr"]
-        self.ms_fusion = self.cfg["use_ms"]
+    def forward(self, y_pred, y_true):
+        squared_errors = torch.square(y_pred - y_true)
+        loss = torch.mean(squared_errors)
+        return loss
 
-        # Multi-season fusion block
-        if self.ms_fusion:
-            from .seasonal_fusion import FusionBlock
-            self.mf_module = FusionBlock(n_inputs=4, in_ch=self.cfg["n_bands"], n_filters=64)
-            total_input_channels = 64
+# MSE loss
+def calc_mse_loss(valid_outputs, valid_targets):
+    mse = MSELoss()
+    loss = mse(valid_outputs, valid_targets)
+
+    return loss
+class WeightedMSELoss(nn.Module):
+    def __init__(self, weights):
+        super(WeightedMSELoss, self).__init__()
+        self.weights = weights
+
+    def forward(self, y_pred, y_true):
+        squared_errors = torch.square(y_pred - y_true)
+        weighted_squared_errors = squared_errors * self.weights
+        loss = torch.mean(weighted_squared_errors)
+        return loss
+
+def calc_wmse_loss(valid_outputs, valid_targets, weights):
+    weighted_mse = WeightedMSELoss(weights)
+    loss = weighted_mse(valid_outputs, valid_targets)
+
+    return loss
+
+class PinballLoss:
+    def __init__(self, quantile=0.10, reduction="none"):
+        self.quantile = quantile
+        assert 0 < self.quantile
+        assert self.quantile < 1
+        self.reduction = reduction
+
+    def __call__(self, output, target):
+        assert output.shape == target.shape
+        loss = torch.zeros_like(target, dtype=torch.float)
+        error = output - target
+        smaller_index = error < 0
+        bigger_index = 0 < error
+        loss[smaller_index] = self.quantile * (abs(error)[smaller_index])
+        loss[bigger_index] = (1 - self.quantile) * (abs(error)[bigger_index])
+
+        if self.reduction == "sum":
+            loss = loss.sum()
+        if self.reduction == "mean":
+            loss = loss.mean()
+
+        return loss
+    
+# MAE loss
+def calc_mae_loss(valid_outputs, valid_targets):
+    loss = torch.sum(torch.abs(valid_outputs - valid_targets), dim=1)
+
+    return torch.mean(loss)
+
+# margin loss
+# mainfold loss
+
+
+def calc_pinball_loss(y_true, y_pred):
+    pinball_loss = PinballLoss(quantile=0.10, reduction="mean")
+    loss = pinball_loss(y_pred, y_true)
+
+    return loss
+
+class AutomaticWeightedLoss(nn.Module):
+    """
+    Automatically weighted multi-task loss.
+
+    Params:
+        num: int
+            The number of loss functions to combine.
+        x: tuple
+            A tuple containing multiple task losses.
+
+    Examples:
+        loss1 = 1
+        loss2 = 2
+        awl = AutomaticWeightedLoss(2)
+        loss_sum = awl(loss1, loss2)
+    """
+    def __init__(self, num=2):
+        super(AutomaticWeightedLoss, self).__init__()
+        # Initialize parameters for weighting each loss, with gradients enabled
+        params = torch.ones(num, requires_grad=True)
+        self.params = nn.Parameter(params)
+
+    def forward(self, *losses):
+        """
+        Forward pass to compute the combined loss.
+
+        Args:
+            *losses: Variable length argument list of individual loss values.
+
+        Returns:
+            torch.Tensor: The combined weighted loss.
+        """
+        loss_sum = 0
+        for i, loss in enumerate(losses):
+            # Compute the weighted loss component for each task
+            weighted_loss = 0.5 / (self.params[i] ** 2) * loss
+            # Add a regularization term to encourage the learning of useful weights
+            # regularization = torch.log(1 + self.params[i] ** 2)
+            # Sum the weighted loss and the regularization term
+            loss_sum += weighted_loss # + regularization
+
+        return loss_sum
+
+
+def apply_mask(outputs, targets, mask, multi_class=True, keep_shp=False):
+    """
+    Applies the mask to outputs and targets to exclude invalid data points.
+
+    Args:
+        outputs: Model predictions (batch_size, num_classes, H, W).
+        targets: Ground truth labels (same shape as outputs).
+        mask: Boolean mask indicating invalid data points (True for invalid).
+
+    Returns:
+        valid_outputs: Masked and reshaped outputs.
+        valid_targets: Masked and reshaped targets.
+    """
+    # Expand the mask to match outputs and targets
+    class_dim = 1
+    if keep_shp:
+        # Set invalid outputs and targets to 255
+        if not multi_class:
+            expanded_mask = mask
         else:
-            total_input_channels = self.cfg["n_bands"] * 4
-
-        # Image stream backbone
-        if self.cfg["network"] == "Unet":
-            from .unet import UNet
-            self.s2_model = UNet(n_channels=total_input_channels, n_classes=n_classes, decoder=self.cfg["head"] in ["no_pc_head", "all_head"], return_logits=True)
-        elif self.cfg["network"] == "ResUnet":
-            from .ResUnet import ResUnet
-            self.s2_model = ResUnet(n_channels=total_input_channels, n_classes=n_classes, decoder=self.cfg["head"] in ["no_pc_head", "all_head"], return_logits=True)
-        elif self.cfg["network"] == "ResNet":
-            from .resnet import FCNResNet50
-            self.s2_model = FCNResNet50(n_channels=total_input_channels, n_classes=n_classes, upsample_method='bilinear', pretrained=True, decoder=self.cfg["head"] in ["no_pc_head", "all_head"], return_logits=True)
-
-        self.pc_model = PointNextModel(self.cfg, in_dim=3, n_classes=n_classes, decoder=self.cfg["head"] in ["no_img_head", "all_head"], return_logits=True)
-
-        if self.cfg["network"] == "ResNet":
-            img_chs = 2048
-        elif self.cfg["network"] == "ResUnet":
-            img_chs = 1024
-        elif self.cfg["network"] == "Vit":
-            img_chs = 768
-        else:
-            img_chs = 512
-
-        self.fuse_head = MambaFusionDecoder(
-            in_img_chs=img_chs,
-            in_pc_chs=self.cfg["emb_dims"],
-            dim=self.cfg["fusion_dim"],
-            hidden_ch=self.cfg["linear_layers_dims"],
-            num_classes=n_classes,
-            drop=self.cfg["dp_fuse"],
-            last_feat_size=(self.cfg["tile_size"] // 8) if self.cfg["network"] == "ResNet" else (self.cfg["tile_size"] // 16),
-            return_feature=False,
-            return_logits=True
-        )
-
-        self.criterion = nn.CrossEntropyLoss(ignore_index=255)
-        self.metric = Accuracy(task="multiclass", num_classes=n_classes)
-        self.top2_metric = Accuracy(task="multiclass", num_classes=n_classes, top_k=2)
-        self.confmat = ConfusionMatrix(task="multiclass", num_classes=n_classes)
-        self.validation_step_outputs = []
-
-    def forward(self, images, pc_feat, xyz):
-        pc_feat = pc_feat.permute(0, 2, 1) if pc_feat is not None else None
-        xyz = xyz.permute(0, 2, 1) if xyz is not None else None
-
-        if self.ms_fusion:
-            stacked_features = self.mf_module(images)
-        else:
-            if self.cfg["dataset"] in ['rmf', 'ovf']:
-                stacked_features = torch.cat(images, dim=1)
-            else:
-                B, _, _, H, W = images.shape
-                stacked_features = images.view(B, -1, H, W)
-
-        pixel_logits, img_emb = None, None
-        if self.cfg["head"] in ["no_pc_head", "all_head"]:
-            pixel_logits, img_emb = self.s2_model(stacked_features)
-        else:
-            img_emb = self.s2_model(stacked_features)
-
-        point_logits, pc_emb = None, None
-        if self.cfg["head"] in ["no_img_head", "all_head"]:
-            point_logits, pc_emb = self.pc_model(pc_feat, xyz)
-        else:
-            pc_emb = self.pc_model(pc_feat, xyz)
-
-        fuse_logits = self.fuse_head(img_emb, pc_emb)
-
-        if self.cfg["head"] == "no_pc_head":
-            return pixel_logits, None, fuse_logits
-        elif self.cfg["head"] == "fuse_head":
-            return None, None, fuse_logits
-        elif self.cfg["head"] == "no_img_head":
-            return None, point_logits, fuse_logits
-        else:
-            return pixel_logits, point_logits, fuse_logits
-
-    def forward_and_metrics(self, images, img_masks, pc_feat, point_clouds, labels, pixel_labels, stage):
-        pixel_preds, pc_preds, fuse_preds = self.forward(images, pc_feat, point_clouds)
-        logs = {}
-
-        # Ensure labels are class indices
-        true_labels = torch.argmax(labels, dim=1) if labels.ndim == 2 else labels
-
-        # PC Stream
-        if pc_preds is not None:
-            loss_point = self.criterion(pc_preds, true_labels)
-            acc_pc = self.metric(pc_preds, true_labels)
-            logs.update({f"pc_{stage}_acc": acc_pc, f"pc_{stage}_loss": loss_point})
-        else:
-            loss_point = 0
-
-        # Image Stream
-        if pixel_preds is not None and pixel_labels is not None:
-            pixel_labels = torch.argmax(pixel_labels, dim=1) if pixel_labels.dim() == 4 else pixel_labels
-            valid_pixel_preds, valid_pixel_true = apply_mask(pixel_preds, pixel_labels, img_masks, multi_class=False)
+            expanded_mask = mask.unsqueeze(class_dim).expand_as(outputs)
+        outputs = outputs.clone()
+        targets = targets.clone()
+        outputs[expanded_mask] = 255
+        targets[expanded_mask] = 255
+        return outputs, targets
+    else:
+        if multi_class:
+            permute_dims = None # Initialize to None
+            expected_mask_shape = (outputs.size(0), outputs.size(2), outputs.size(3))
+            # Permute to (B, H, W, C) for masking
+            permute_dims = (0, 2, 3, 1)
+            # Validate mask shape
+            if mask.shape != expected_mask_shape:
+                raise ValueError(f"Mask shape mismatch. Expected {expected_mask_shape}, got {mask.shape}")
             
-            if valid_pixel_preds.numel() > 0:
-                loss_pixel = self.criterion(valid_pixel_preds, valid_pixel_true)
-                acc_pix = self.metric(valid_pixel_preds.argmax(dim=1), valid_pixel_true)
-                logs.update({f"pixel_{stage}_acc": acc_pix, f"pixel_{stage}_loss": loss_pixel})
+            # Permute to put class dimension last: (B, H, W, C)
+            outputs_permuted = outputs.permute(*permute_dims).contiguous()
+            targets_permuted = targets.permute(*permute_dims).contiguous()
+            
+            # Apply mask to exclude invalid data points
+            valid_outputs = outputs_permuted[~mask]
+            valid_targets = targets_permuted[~mask]
 
-                # Optional: consistency loss (uniform predictions in superpixel)
-                avg_preds = valid_pixel_preds.mean(dim=0, keepdim=True)
-                expanded_avg = avg_preds.expand_as(valid_pixel_preds)
-                kl_div = nn.KLDivLoss(reduction='batchmean')
-                consistency_loss = kl_div(valid_pixel_preds.log_softmax(dim=1), expanded_avg.softmax(dim=1))
-                logs[f"pixel_{stage}_consistency"] = consistency_loss
-                loss_pixel += 0.1 * consistency_loss
-            else:
-                loss_pixel = 0
+            return valid_outputs, valid_targets
         else:
-            loss_pixel = 0
+            expanded_mask = mask
+            # Assuming mask applies element-wise or needs broadcasting correctly
+            valid_outputs = outputs[~expanded_mask]
+            valid_targets = targets[~expanded_mask]
+            return valid_outputs, valid_targets
+        
 
-        # Fusion Stream
-        loss_fuse = self.criterion(fuse_preds, true_labels)
-        acc_fuse = self.metric(fuse_preds, true_labels)
-        acc_fuse_top2 = self.top2_metric(fuse_preds, labels)
-        logs.update({f"fuse_{stage}_acc": acc_fuse, f"fuse_{stage}_top2": acc_fuse_top2, f"fuse_{stage}_loss": loss_fuse})
+def weighted_kl_divergence(y_true, y_pred, weights):
+    loss = torch.sum(
+        weights * y_true * torch.log((y_true + 1e-8) / (y_pred + 1e-8)), dim=1
+    )
+    return torch.mean(loss)
 
-        # Total loss
-        total_loss = loss_fuse + loss_point + loss_pixel
-        logs[f"{stage}_loss"] = total_loss
+def calc_mae_loss(valid_outputs, valid_targets):
+    loss = torch.sum(torch.abs(valid_outputs - valid_targets), dim=1)
 
-        # Logging
-        for key, value in logs.items():
-            self.log(key, value, on_step=True, on_epoch=True, prog_bar=True, logger=True, sync_dist=True)
+    return torch.mean(loss)
 
-        if stage == "val":
-            self.validation_step_outputs.append({"val_target": true_labels, "val_pred": fuse_preds})
+# Rooted Weighted loss
+def calc_rwmse_loss(valid_outputs, valid_targets, weights):
+    weighted_mse = WeightedMSELoss(weights)
+    loss = weighted_mse(valid_outputs, valid_targets)
 
-        return (true_labels, fuse_preds, total_loss) if stage == "test" else total_loss
+    return torch.sqrt(loss)
 
+def calc_masked_loss(loss_func_name, valid_outputs, valid_targets, weights=None):
+    if loss_func_name == "wmse":
+        return calc_wmse_loss(valid_outputs, valid_targets, weights)
+    elif loss_func_name == "wrmse":
+        return calc_rwmse_loss(valid_outputs, valid_targets, weights)
+    elif loss_func_name == "mse":
+        return calc_mse_loss(valid_outputs, valid_targets)
+    elif loss_func_name == "wkl":
+        return weighted_kl_divergence(valid_targets, valid_outputs, weights)
+    elif loss_func_name == "mae":
+        return calc_mae_loss(valid_outputs, valid_targets)
+    elif loss_func_name == "pinball":
+        return calc_pinball_loss(valid_outputs, valid_targets)
+    
+class MultiLabelFocalLoss(nn.Module):
+    def __init__(self, alpha=1.0, gamma=2.0, reduction='mean'):
+        super(MultiLabelFocalLoss, self).__init__()
+        self.alpha = alpha
+        self.gamma = gamma
+        self.reduction = reduction
 
-    def training_step(self, batch, batch_idx):
-        return self._shared_step(batch, stage="train")
+    def forward(self, logits, targets):
+        """
+        logits: raw model output, shape (B, C)
+        targets: 0/1 multi-label tensor, shape (B, C)
+        """
+        probs = torch.sigmoid(logits)
+        ce_loss = F.binary_cross_entropy_with_logits(logits, targets, reduction='none')
 
-    def validation_step(self, batch, batch_idx):
-        return self._shared_step(batch, stage="val")
+        pt = torch.where(targets == 1, probs, 1 - probs)
+        focal_term = (1 - pt) ** self.gamma
 
-    def test_step(self, batch, batch_idx):
-        return self._shared_step(batch, stage="test")
+        loss = self.alpha * focal_term * ce_loss
 
-    def _shared_step(self, batch, stage):
-        return self.forward_and_metrics(
-            batch.get("images"),
-            batch.get("mask"),
-            batch.get("pc_feat"),
-            batch.get("point_cloud"),
-            batch.get("label"),
-            batch.get("per_pixel_labels"),
-            stage
-        )
-
-    def on_validation_epoch_end(self):
-        test_true = torch.cat([x["val_target"] for x in self.validation_step_outputs], dim=0)
-        test_pred = torch.cat([x["val_pred"] for x in self.validation_step_outputs], dim=0)
-        pred_classes = torch.argmax(test_pred, dim=1)
-        cm = self.confmat(pred_classes, test_true)
-
-        acc = self.metric(pred_classes, test_true)
-        acc_top2 = self.top2_metric(test_pred, test_true)
-        self.log("val_acc_epoch", acc, sync_dist=True)
-        self.log("val_top2_acc_epoch", acc_top2, sync_dist=True)
-        print(f"Validation Accuracy: {acc}, Top-2 Accuracy: {acc_top2}")
-        print("Confusion Matrix:")
-        print(cm)
-
-        self.save_to_file(test_true, test_pred, self.cfg["class_names"])
-        self.validation_step_outputs.clear()
-
-    def save_to_file(self, labels, outputs, classes):
-        labels = labels.cpu().numpy()
-        outputs = outputs.cpu().numpy()
-        data = {
-            "SampleID": np.arange(len(labels)),
-            "True_class": labels,
-            "Pred_class": np.argmax(outputs, axis=1),
-        }
-        df = pd.DataFrame(data)
-        output_dir = os.path.join(self.cfg["save_dir"], self.cfg["log_name"], "outputs")
-        os.makedirs(output_dir, exist_ok=True)
-        df.to_csv(os.path.join(output_dir, "test_outputs.csv"), mode="a")
-
-    def configure_optimizers(self):
-        params = list(self.parameters())
-        optimizer = torch.optim.Adam(params, lr=self.lr)
-        scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=10, gamma=0.1)
-        return {"optimizer": optimizer, "lr_scheduler": scheduler}
+        if self.reduction == 'mean':
+            return loss.mean()
+        elif self.reduction == 'sum':
+            return loss.sum()
+        else:
+            return loss
