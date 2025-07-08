@@ -52,7 +52,7 @@ class PointNextClassifier(nn.Module):
     def forward(self, pc_feats):
         logits = self.cls_head(pc_feats)
         if self.return_logits:
-            return logits
+            return F.log_softmax(logits, -1)
         else:
             preds = F.softmax(logits, dim=1)
             return preds

@@ -95,11 +95,11 @@ def train(config):
         from model.lse import FusionModel
         model = FusionModel(config, n_classes=config["n_classes"])
     elif config["task"] == "pc_tsc":
-        from model.pc_model import PointNeXtLightning
-        model = PointNeXtLightning(config, n_classes=config["n_classes"])
+        from model.pc_model import PCModel
+        model = PCModel(config, n_classes=config["n_classes"])
     elif config["task"] == "pc_top2":
-        from model.top2_pc import PointNeXtLightning
-        model = PointNeXtLightning(config, n_classes=config["n_classes"])
+        from model.top2_pc import PCModel
+        model = PCModel(config, n_classes=config["n_classes"])
     else:
         from model.top2 import FusionModel
         model = FusionModel(config, n_classes=config["n_classes"])

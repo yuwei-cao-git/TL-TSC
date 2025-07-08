@@ -48,7 +48,7 @@ class UNetClassifier(nn.Module):
     def forward(self, x):
         logits = self.outc(x)
         if self.return_logits:
-            return logits
+            return F.log_softmax(logits, dim=1)
         else:
             return F.softmax(logits, dim=1)
 

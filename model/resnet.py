@@ -53,7 +53,7 @@ class FCNResNet50Decoder(nn.Module):
         if self.decoder_upsample == 'bilinear':
             logits = F.interpolate(logits, size=input_shape, mode='bilinear', align_corners=False)
         if self.return_logits:
-            return logits
+            return F.log_softmax(logits, dim=1)
         else:
             return F.softmax(logits, dim=1)
     

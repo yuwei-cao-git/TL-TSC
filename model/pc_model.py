@@ -10,9 +10,9 @@ from torchmetrics.classification import MulticlassF1Score, MulticlassAccuracy
 from torchmetrics.regression import R2Score
 
 
-class PointNeXtLightning(pl.LightningModule):
+class PCModel(pl.LightningModule):
     def __init__(self, params, n_classes):
-        super(PointNeXtLightning, self).__init__()
+        super(PCModel, self).__init__()
         self.params = params
         self.model = PointNextModel(self.params, 
                                     in_dim=3, #if self.cfg["dataset"] in ["rmf", "ovf"] else 6, 

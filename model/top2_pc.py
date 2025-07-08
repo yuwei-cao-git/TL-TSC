@@ -3,7 +3,7 @@ import torch.nn.functional as F
 import pytorch_lightning as pl
 from torch.optim import Adam, SGD, AdamW
 from torch.optim.lr_scheduler import StepLR, ReduceLROnPlateau, CosineAnnealingLR
-from .pointnext import PointNextModel
+
 
 from torchmetrics.classification import (
     MultilabelPrecision, MultilabelRecall, MultilabelF1Score, MultilabelAccuracy
@@ -12,16 +12,24 @@ from torchmetrics.classification import (
 from .loss import MultiLabelFocalLoss
 
 
-class PointNeXtLightning(pl.LightningModule):
+class PCModel(pl.LightningModule):
     def __init__(self, params, n_classes):
-        super(PointNeXtLightning, self).__init__()
+        super(PCModel, self).__init__()
         self.params = params
-        self.model = PointNextModel(self.params, 
-                                    in_dim=3, #if self.cfg["dataset"] in ["rmf", "ovf"] else 6, 
-                                    n_classes=n_classes, 
-                                    decoder=True,
-                                    return_logits=True
-                                )
+        if self.params["network"] == "pointnext":
+            from .pointnext import PointNextModel
+            self.model = PointNextModel(self.params, 
+                                        in_dim=3, #if self.cfg["dataset"] in ["rmf", "ovf"] else 6, 
+                                        n_classes=n_classes, 
+                                        decoder=True,
+                                        return_logits=True
+                                    )
+        elif self.params["network"] == "repsurf":
+            from .repsurf_ssg_umb import RepsurfaceModel
+            self.model = RepsurfaceModel(n_classes=n_classes, return_logits=True)
+        elif self.params["network"] == "repsurf2x":
+            from .repsurf_ssg_umb_2x import RepsurfaceModel
+            self.model = RepsurfaceModel(n_classes=n_classes, return_logits=True)
 
         # Loss function and other parameters
         if self.params["loss_func"] in ["wmse", "wrmse", "wkl"]:

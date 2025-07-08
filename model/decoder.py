@@ -169,8 +169,7 @@ class MLP(nn.Module):
         x = self.dropout2(x)
         logits = self.fc3(x)  # [batch_size, num_classes]
         if self.return_logits:
-            # return F.log_softmax(logits, dim=1)
-            return logits
+            return F.log_softmax(logits, dim=1)
         else:
             
             # Lower T -> sharper, Higher T -> flatter
