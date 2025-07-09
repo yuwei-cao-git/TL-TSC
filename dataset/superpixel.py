@@ -114,7 +114,6 @@ class SuperpixelDataset(Dataset):
             if self.sampling:
                 norm_coords = farthest_point_sample(xyz, 1024)
             feats = xyz
-            print(norm_coords.shape)
         
         # Apply point cloud transforms if any
         if self.point_cloud_transform:

@@ -30,6 +30,8 @@ def override_config(cfg, args):
         cfg['lr'] = args.lr
     if args.scheduler is not None:
         cfg['scheduler'] = args.scheduler
+    if args.optimizer is not None:
+        cfg['optimizer'] = args.optimizer
     if args.multitasks_uncertain_loss:
         cfg['multitasks_uncertain_loss'] = args.multitasks_uncertain_loss
     if args.loss_func is not None:
@@ -58,9 +60,10 @@ def parse_args():
     parser.add_argument('--multitasks_uncertain_loss', type=bool, default=False)
     parser.add_argument('--loss_func', type=str)
     parser.add_argument('--scheduler', type=str)
+    parser.add_argument('--optimizer', type=str)
     parser.add_argument('--pretrained_ckpt', default=None)
     parser.add_argument('--pc_normal', type=bool, default=False)
-    parser.add_argument('--fps', type=bool, default=False)
+    parser.add_argument('--fps', type=bool, default=False) 
     return parser.parse_args()
     
 def main():
