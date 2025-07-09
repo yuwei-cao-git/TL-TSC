@@ -190,7 +190,4 @@ log.txt
 train.sh
 
 # undertest
-modules
-model/repsurf_ssg_umb_2x.py
-model/repsurf_ssg_umb.py
 log_2.txt
