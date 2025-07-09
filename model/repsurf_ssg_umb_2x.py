@@ -9,15 +9,15 @@ from modules.repsurface_utils import SurfaceAbstractionCD, UmbrellaSurfaceConstr
 
 
 class RepsurfaceModel(nn.Module):
-    def __init__(self, n_classes, return_logits, decoder=True):
+    def __init__(self, n_classes, return_type='softmax', decoder=True):
         super(RepsurfaceModel, self).__init__()
         center_channel = 3
         repsurf_channel = 10
 
-        self.init_nsample = 7168
+        self.init_nsample = 1024
         self.return_dist = False
         
-        self.return_logits = return_logits
+        self.return_type = return_type
         self.decoder = decoder
         self.surface_constructor = UmbrellaSurfaceConstructor(8 + 1, repsurf_channel,
                                         return_dist=False, aggr_type=sum,
@@ -60,8 +60,10 @@ class RepsurfaceModel(nn.Module):
         feature = feature.view(-1, 2048)
         if self.decoder:
             logits = self.classfier(feature)
-            if self.return_logits:
+            if self.return_type == 'logsoftmax':
                 return F.log_softmax(logits, -1), feature
+            elif self.return_type == 'logits':
+                return logits, feature
             else:
                 return F.softmax(feature, dim=1), feature
         else:

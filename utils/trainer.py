@@ -92,13 +92,13 @@ def train(config):
         from model.fuse import FusionModel
         model = FusionModel(config, n_classes=config["n_classes"])
     elif config["task"] == "lsc":
-        from model.lse import FusionModel
+        from model.lsc import FusionModel
         model = FusionModel(config, n_classes=config["n_classes"])
     elif config["task"] == "pc_tsc":
         from model.pc_model import PCModel
         model = PCModel(config, n_classes=config["n_classes"])
-    elif config["task"] == "pc_top2":
-        from model.top2_pc import PCModel
+    elif config["task"] == "pc_lsc":
+        from model.lsc_pc import PCModel
         model = PCModel(config, n_classes=config["n_classes"])
     else:
         from model.top2 import FusionModel

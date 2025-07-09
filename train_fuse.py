@@ -28,14 +28,16 @@ def override_config(cfg, args):
     # hps
     if args.lr is not None:
         cfg['lr'] = args.lr
-    if args.lr is not None:
+    if args.scheduler is not None:
         cfg['scheduler'] = args.scheduler
-    if args.multitasks_uncertain_loss is not None:
+    if args.multitasks_uncertain_loss:
         cfg['multitasks_uncertain_loss'] = args.multitasks_uncertain_loss
     if args.loss_func is not None:
         cfg['loss_func'] = args.loss_func
-    if args.pc_normal is not None:
+    if args.pc_normal:
         cfg['pc_normal'] = args.pc_normal
+    if args.fps:
+        cfg['fps'] = args.fps
     return cfg
 
     
@@ -53,11 +55,12 @@ def parse_args():
     parser.add_argument('--encoder', type=str, help='Override encoder option')
     parser.add_argument('--dataset', type=str, help='Override dataset')
     parser.add_argument('--lr', type=float)
-    parser.add_argument('--multitasks_uncertain_loss', type=bool, default=True)
+    parser.add_argument('--multitasks_uncertain_loss', type=bool, default=False)
     parser.add_argument('--loss_func', type=str)
     parser.add_argument('--scheduler', type=str)
     parser.add_argument('--pretrained_ckpt', default=None)
-    parser.add_argument('--pc_normal', type=bool, default=True)
+    parser.add_argument('--pc_normal', type=bool, default=False)
+    parser.add_argument('--fps', type=bool, default=False)
     return parser.parse_args()
     
 def main():

@@ -1,13 +1,13 @@
 import torch
+from torch import nn
 import torch.nn.functional as F
 import pytorch_lightning as pl
 from torch.optim import Adam, SGD, AdamW
 from torch.optim.lr_scheduler import StepLR, ReduceLROnPlateau, CosineAnnealingLR
 
 
-from torchmetrics.classification import (
-    MultilabelPrecision, MultilabelRecall, MultilabelF1Score, MultilabelAccuracy
-)
+from torchmetrics import Accuracy, F1Score, Precision, Recall
+
 
 from .loss import MultiLabelFocalLoss
 
@@ -22,24 +22,22 @@ class PCModel(pl.LightningModule):
                                         in_dim=3, #if self.cfg["dataset"] in ["rmf", "ovf"] else 6, 
                                         n_classes=n_classes, 
                                         decoder=True,
-                                        return_type='logits'
+                                        return_type='logsoftmax'
                                     )
         elif self.params["network"] == "repsurf":
             from .repsurf_ssg_umb import RepsurfaceModel
-            self.model = RepsurfaceModel(n_classes=n_classes, return_logits=True, decoder=True)
+            self.model = RepsurfaceModel(n_classes=n_classes, return_type='logsoftmax', decoder=True)
         elif self.params["network"] == "repsurf2x":
             from .repsurf_ssg_umb_2x import RepsurfaceModel
-            self.model = RepsurfaceModel(n_classes=n_classes, return_logits=True, decoder=True)
+            self.model = RepsurfaceModel(n_classes=n_classes, return_type='logsoftmax', decoder=True)
 
         # Metrics
-        #self.criterion = nn.BCEWithLogitsLoss()
-        self.criterion = MultiLabelFocalLoss()
+        self.criterion = nn.NLLLoss() # or nn.CrossEntropyLoss()  if using 'logits' as output
+        self.val_acc = Accuracy(task="multiclass", num_classes=n_classes, average="macro")
+        self.val_f1 = F1Score(task="multiclass", num_classes=n_classes, average="macro")
+        self.val_precision = Precision(task="multiclass", num_classes=n_classes, average="macro")
+        self.val_recall = Recall(task="multiclass", num_classes=n_classes, average="macro")
 
-        # TorchMetrics for multi-label (top-2)
-        self.val_acc = MultilabelAccuracy(num_labels=n_classes, threshold=0.3, average="macro")
-        self.val_f1 = MultilabelF1Score(num_labels=n_classes, threshold=0.3, average="macro")
-        self.val_precision = MultilabelPrecision(num_labels=n_classes, threshold=0.3, average="macro")
-        self.val_recall = MultilabelRecall(num_labels=n_classes, threshold=0.3, average="macro")
 
         # Optimizer and scheduler settings
         self.optimizer_type = self.params["optimizer"]
@@ -48,48 +46,44 @@ class PCModel(pl.LightningModule):
         self.validation_step_outputs = []
 
 
-    def forward(self, point_cloud, xyz):
+    def forward(self, point_cloud, feats):
         """
         Args:
             point_cloud: Input point cloud tensor (B, N, 3), where:
             B = Batch size, N = Number of points, 3 = (x, y, z) coordinates
-            xyz: The spatial coordinates of points
+            feats: The normals of points
             category: Optional category tensor if categories are used
         Returns:
             logits: Class logits for each point (B, N, num_classes)
         """
-        logits, _ = self.model(point_cloud, xyz)
+        if self.params["network"] == "pointnext":
+            logits, _ = self.model(point_cloud, feats)
+        else:
+            logits, _ = self.model(point_cloud)
         return logits
 
     def foward_compute_loss_and_metrics(self, xyz, feats, targets, stage="val"):
-        """
-        Forward operations, computes the masked loss, R² score, and logs the metrics.
-
-        Args:
-        - stage: One of 'train', 'val', or 'test', used for logging purposes.
-
-        Returns:
-        - loss: The computed loss.
-        """
         logs = {}
         xyz = xyz.permute(0, 2, 1)
         feats = feats.permute(0, 2, 1)
-        logits = self.forward(xyz, feats)
-        
-        # Top-2 2-hot ground truth
-        label_2hot = torch.zeros_like(targets)
-        top2_labels = torch.topk(targets, k=2, dim=1).indices  # shape: (B, 2)
-        label_2hot.scatter_(1, top2_labels, 1.0)
-        
-        loss = self.criterion(logits, label_2hot)
+        logits = self.forward(xyz, feats)  # (B, n_classes)
 
-        probs = torch.sigmoid(logits)
-        self.val_acc.update(probs, label_2hot.int())
-        self.val_f1.update(probs, label_2hot.int())
-        self.val_precision.update(probs, label_2hot.int())
-        self.val_recall.update(probs, label_2hot.int())
+        # Prepare single-label target: index of max proportion per sample
+        leading_label = targets.argmax(dim=1)  # shape: (B,)
 
-        
+        if logits.shape == leading_label.shape:  # this is not expected, check!
+            raise RuntimeError("logits should be (B, n_classes), target should be (B,)")
+
+        # If output is logits, use CrossEntropyLoss. If log_softmax, use NLLLoss.
+        loss = self.criterion(logits, leading_label)
+
+        preds = logits.argmax(dim=1)  # predicted class indices
+
+        self.val_acc.update(preds, leading_label)
+        self.val_f1.update(preds, leading_label)
+        self.val_precision.update(preds, leading_label)
+        self.val_recall.update(preds, leading_label)
+
         logs.update({
             f"{stage}_loss": loss,
             f"{stage}_acc": self.val_acc.compute(),
@@ -97,20 +91,13 @@ class PCModel(pl.LightningModule):
             f"{stage}_precision": self.val_precision.compute(),
             f"{stage}_recall": self.val_recall.compute(),
         })
-        
+
         # Log all metrics
         for key, value in logs.items():
-            self.log(
-                key,
-                value,
-                on_step=True,
-                on_epoch=True,
-                prog_bar=True,
-                logger=True,
-                sync_dist=True,
-            )
+            self.log(key, value, on_step=True, on_epoch=True, prog_bar=True, logger=True, sync_dist=True)
 
         return loss
+
 
     def training_step(self, batch, batch_idx):
         point_cloud = batch["point_cloud"] if "point_cloud" in batch else None

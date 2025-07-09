@@ -8,8 +8,8 @@ import pytorch_lightning as pl
 
 from .decoder import MambaFusionDecoder
 from .pointnext import PointNextModel
-from torchmetrics.classification import Accuracy, ConfusionMatrix, F1Score
-from .loss import apply_mask
+from torchmetrics import Accuracy, ConfusionMatrix, F1Score
+from .loss import apply_mask, SmoothClsLoss
 
 
 class FusionModel(pl.LightningModule):
@@ -61,9 +61,8 @@ class FusionModel(pl.LightningModule):
             return_feature=False
         )
 
-        self.criterion = nn.BCEWithLogitsLoss()
-        self.metric = Accuracy(task="multiclass", num_classes=n_classes, top_k=1)
-        self.top2_metric = Accuracy(task="multiclass", num_classes=n_classes, top_k=2)
+        self.criterion = nn.NLLLoss() #SmoothClsLoss(smoothing_ratio=0.1)
+        self.metric = Accuracy(task="multiclass", num_classes=n_classes)
         self.f1_metric = F1Score(task="multiclass", num_classes=n_classes, average='macro')
         self.confmat = ConfusionMatrix(task="multiclass", num_classes=n_classes)
         self.validation_step_outputs = []
@@ -111,25 +110,23 @@ class FusionModel(pl.LightningModule):
         true_cls = labels.argmax(dim=1)
 
         if pc_preds is not None:
-            loss_point = self.criterion(pc_preds, labels)
+            loss_point = self.criterion(pc_preds, true_cls)
             pred_pc_cls = pc_preds.argmax(dim=1)
             acc_pc = self.metric(pred_pc_cls, true_cls)
-            acc_pc_top2 = self.top2_metric(pc_preds, true_cls)
             f1_pc = self.f1_metric(pc_preds, true_cls)
-            logs.update({f"pc_{stage}_acc": acc_pc, f"pc_{stage}_top2": acc_pc_top2, f"pc_{stage}_f1": f1_pc, f"pc_{stage}_loss": loss_point})
+            logs.update({f"pc_{stage}_acc": acc_pc, f"pc_{stage}_f1": f1_pc, f"pc_{stage}_loss": loss_point})
         else:
             loss_point = 0
 
         if pixel_preds is not None and pixel_labels is not None:
             valid_pixel_preds, valid_pixel_true = apply_mask(pixel_preds, pixel_labels, img_masks, multi_class=True)
             if valid_pixel_preds.numel() > 0:
-                loss_pixel = self.criterion(valid_pixel_preds, valid_pixel_true)
-                pred_pix_cls = valid_pixel_preds.argmax(dim=1)
                 true_pix_cls = valid_pixel_true.argmax(dim=1)
+                loss_pixel = self.criterion(valid_pixel_preds, true_pix_cls)
+                pred_pix_cls = valid_pixel_preds.argmax(dim=1)
                 acc_pix = self.metric(pred_pix_cls, true_pix_cls)
-                acc_pix_top2 = self.top2_metric(valid_pixel_preds, true_pix_cls)
                 f1_pix = self.f1_metric(valid_pixel_preds, true_pix_cls)
-                logs.update({f"pixel_{stage}_acc": acc_pix, f"pixel_{stage}_top2": acc_pix_top2, f"pixel_{stage}_f1": f1_pix, f"pixel_{stage}_loss": loss_pixel})
+                logs.update({f"pixel_{stage}_acc": acc_pix, f"pixel_{stage}_f1": f1_pix, f"pixel_{stage}_loss": loss_pixel})
 
                 avg_preds = valid_pixel_preds.mean(dim=0, keepdim=True)
                 consistency_loss = nn.KLDivLoss(reduction='batchmean')(valid_pixel_preds.log_softmax(dim=1), avg_preds.softmax(dim=1).expand_as(valid_pixel_preds))
@@ -140,12 +137,11 @@ class FusionModel(pl.LightningModule):
         else:
             loss_pixel = 0
 
-        loss_fuse = self.criterion(fuse_preds, labels)
+        loss_fuse = self.criterion(fuse_preds, true_cls)
         pred_fuse_cls = fuse_preds.argmax(dim=1)
         acc_fuse = self.metric(pred_fuse_cls, true_cls)
-        acc_fuse_top2 = self.top2_metric(fuse_preds, true_cls)
         f1_fuse = self.f1_metric(fuse_preds, true_cls)
-        logs.update({f"fuse_{stage}_acc": acc_fuse, f"fuse_{stage}_top2": acc_fuse_top2, f"fuse_{stage}_f1": f1_fuse, f"fuse_{stage}_loss": loss_fuse})
+        logs.update({f"fuse_{stage}_acc": acc_fuse, f"fuse_{stage}_f1": f1_fuse, f"fuse_{stage}_loss": loss_fuse})
 
         total_loss = loss_fuse + loss_point + loss_pixel
         logs.update({f"{stage}_loss": total_loss})
@@ -189,12 +185,10 @@ class FusionModel(pl.LightningModule):
         cm = self.confmat(pred_classes, true_classes)
 
         acc = self.metric(pred_classes, true_classes)
-        acc_top2 = self.top2_metric(test_pred, true_classes)
         f1 = self.f1_metric(test_pred, true_classes)
         self.log("val_acc_epoch", acc, sync_dist=True)
-        self.log("val_top2_acc_epoch", acc_top2, sync_dist=True)
         self.log("val_f1_epoch", f1, sync_dist=True)
-        print(f"Validation Accuracy: {acc}, Top-2 Accuracy: {acc_top2}, F1 Score: {f1}")
+        print(f"Validation Accuracy: {acc}, F1 Score: {f1}")
         print("Confusion Matrix:")
         print(cm)
 

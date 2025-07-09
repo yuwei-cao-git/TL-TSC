@@ -3,7 +3,7 @@
 // #include <THC/THC.h>
 #include <ATen/cuda/CUDAContext.h>
 
-#include "knnquery_cuda_kernel.h"
+#include "ballquery_cuda_kernel.h"
 
 // extern THCState *state;
 
@@ -11,8 +11,17 @@
 #define CHECK_CONTIGUOUS(x) TORCH_CHECK(x.is_contiguous(), #x, " must be contiguous ")
 #define CHECK_INPUT(x) CHECK_CUDA(x);CHECK_CONTIGUOUS(x)
 
+void ballquery_cuda(int b, int n, int m, float radius, int nsample, at::Tensor new_xyz_tensor, at::Tensor xyz_tensor, at::Tensor idx_tensor)
+{
+    const float *new_xyz = new_xyz_tensor.data_ptr<float>();
+    const float *xyz = xyz_tensor.data_ptr<float>();
+    int *idx = idx_tensor.data_ptr<int>();
 
-void knnquery_cuda(int b, int n, int m, int nsample, at::Tensor xyz_tensor, at::Tensor new_xyz_tensor, at::Tensor idx_tensor, at::Tensor dist2_tensor)
+    ballquery_cuda_launcher(b, n, m, radius, nsample, new_xyz, xyz, idx);
+}
+
+
+void ballquery_cuda_fast(int b, int n, int m, float radius, int nsample, at::Tensor new_xyz_tensor, at::Tensor xyz_tensor, at::Tensor idx_tensor)
 {
     CHECK_INPUT(new_xyz_tensor);
     CHECK_INPUT(xyz_tensor);
@@ -20,9 +29,8 @@ void knnquery_cuda(int b, int n, int m, int nsample, at::Tensor xyz_tensor, at::
     const float *new_xyz = new_xyz_tensor.data_ptr<float>();
     const float *xyz = xyz_tensor.data_ptr<float>();
     int *idx = idx_tensor.data_ptr<int>();
-    float *dist2 = dist2_tensor.data_ptr<float>();
 
     cudaStream_t stream = at::cuda::getCurrentCUDAStream();
 
-    knnquery_cuda_launcher(b, n, m, nsample, xyz, new_xyz, idx, dist2, stream);
+    ballquery_cuda_launcher_fast(b, n, m, radius, nsample, new_xyz, xyz, idx, stream);
 }

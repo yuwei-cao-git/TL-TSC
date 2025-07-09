@@ -229,3 +229,29 @@ class MultiLabelFocalLoss(nn.Module):
             return loss.sum()
         else:
             return loss
+        
+class SmoothClsLoss(nn.Module):
+    def __init__(self, smoothing_ratio=0.1):
+        super(SmoothClsLoss, self).__init__()
+        self.smoothing_ratio = smoothing_ratio
+
+    def forward(self, pred, target):
+        eps = self.smoothing_ratio
+        n_class = pred.size(1)
+
+        one_hot = torch.zeros_like(pred).scatter(1, target.view(-1, 1), 1)
+        one_hot = one_hot * (1 - eps) + (1 - one_hot) * eps / (n_class - 1)
+        # log_prb = F.log_softmax(pred, dim=1)
+
+        loss = -(one_hot * pred).sum(dim=1).mean()
+        return loss
+
+
+class ClsLoss(nn.Module):
+    def __init__(self):
+        super(ClsLoss, self).__init__()
+
+    def forward(self, pred, target):
+        total_loss = F.nll_loss(pred, target)
+
+        return total_loss
