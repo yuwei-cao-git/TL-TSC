@@ -77,26 +77,28 @@ class ResUnetDecoder(nn.Module):
 
 
 class ResUnetClassifier(nn.Module):
-    def __init__(self, in_channels, n_classes, return_logits=False):
+    def __init__(self, in_channels, n_classes, return_type):
         super().__init__()
         self.out_conv = nn.Conv2d(in_channels, n_classes, kernel_size=1)
-        self.return_logits = return_logits
+        self.return_type = return_type
 
     def forward(self, x):
         logits = self.out_conv(x)
-        if self.return_logits:
+        if self.return_type == 'logsoftmax':
             return F.log_softmax(logits, dim=1)
+        elif self.return_type == 'logits':
+            return logits
         else:
             return F.softmax(logits, dim=1)
 
 class ResUnet(nn.Module):
-    def __init__(self, n_channels=52, n_classes=9, block_expansion=2, decoder=True, return_logits=False):
+    def __init__(self, n_channels=52, n_classes=9, block_expansion=2, return_type='softmax', decoder=True):
         super().__init__()
         self.use_decoder = decoder
         self.encoder = ResUnetEncoder(n_channels, block_expansion)
         if self.use_decoder:
             self.decoder = ResUnetDecoder(block_expansion)
-            self.classifier = ResUnetClassifier(32 * block_expansion, n_classes, return_logits)
+            self.classifier = ResUnetClassifier(32 * block_expansion, n_classes, return_type)
 
     def forward(self, x):
         b1, skip_connections = self.encoder(x)

@@ -22,18 +22,14 @@ class PCModel(pl.LightningModule):
                                         in_dim=3, #if self.cfg["dataset"] in ["rmf", "ovf"] else 6, 
                                         n_classes=n_classes, 
                                         decoder=True,
-                                        return_logits=True
+                                        return_type='logits'
                                     )
         elif self.params["network"] == "repsurf":
             from .repsurf_ssg_umb import RepsurfaceModel
-            self.model = RepsurfaceModel(n_classes=n_classes, return_logits=True)
+            self.model = RepsurfaceModel(n_classes=n_classes, return_logits=True, decoder=True)
         elif self.params["network"] == "repsurf2x":
             from .repsurf_ssg_umb_2x import RepsurfaceModel
-            self.model = RepsurfaceModel(n_classes=n_classes, return_logits=True)
-
-        # Loss function and other parameters
-        if self.params["loss_func"] in ["wmse", "wrmse", "wkl"]:
-            self.weights = self.params["class_weights"]
+            self.model = RepsurfaceModel(n_classes=n_classes, return_logits=True, decoder=True)
 
         # Metrics
         #self.criterion = nn.BCEWithLogitsLoss()

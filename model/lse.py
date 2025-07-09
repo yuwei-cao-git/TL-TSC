@@ -30,15 +30,15 @@ class FusionModel(pl.LightningModule):
 
         if self.cfg["network"] == "Unet":
             from .unet import UNet
-            self.s2_model = UNet(n_channels=total_input_channels, n_classes=n_classes, decoder=self.cfg["head"] in ["no_pc_head", "all_head"])
+            self.s2_model = UNet(n_channels=total_input_channels, n_classes=n_classes, decoder=self.cfg["head"] in ["no_pc_head", "all_head"], return_type='logsoftmax')
         elif self.cfg["network"] == "ResUnet":
             from .ResUnet import ResUnet
-            self.s2_model = ResUnet(n_channels=total_input_channels, n_classes=n_classes, decoder=self.cfg["head"] in ["no_pc_head", "all_head"])
+            self.s2_model = ResUnet(n_channels=total_input_channels, n_classes=n_classes, decoder=self.cfg["head"] in ["no_pc_head", "all_head"], return_type='logsoftmax')
         elif self.cfg["network"] == "ResNet":
             from .resnet import FCNResNet50
-            self.s2_model = FCNResNet50(n_channels=total_input_channels, n_classes=n_classes, upsample_method='bilinear', pretrained=True, decoder=self.cfg["head"] in ["no_pc_head", "all_head"])
+            self.s2_model = FCNResNet50(n_channels=total_input_channels, n_classes=n_classes, upsample_method='bilinear', pretrained=True, decoder=self.cfg["head"] in ["no_pc_head", "all_head"], return_type='logsoftmax')
 
-        self.pc_model = PointNextModel(self.cfg, in_dim=3, n_classes=n_classes, decoder=self.cfg["head"] in ["no_img_head", "all_head"])
+        self.pc_model = PointNextModel(self.cfg, in_dim=3, n_classes=n_classes, decoder=self.cfg["head"] in ["no_img_head", "all_head"], return_type='logsoftmax')
 
         if self.cfg["network"] == "ResNet":
             img_chs = 2048
@@ -57,6 +57,7 @@ class FusionModel(pl.LightningModule):
             num_classes=n_classes,
             drop=self.cfg["dp_fuse"],
             last_feat_size=(self.cfg["tile_size"] // 8) if self.cfg["network"] == "ResNet" else (self.cfg["tile_size"] // 16),
+            return_type='logsoftmax',
             return_feature=False
         )
 

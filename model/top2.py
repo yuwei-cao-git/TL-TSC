@@ -85,7 +85,7 @@ class FusionModel(pl.LightningModule):
             last_feat_size=(self.cfg["tile_size"]
             // 8) if self.cfg["network"] == "ResNet" else (self.cfg["tile_size"]
             // 16),
-            return_logits=True,
+            return_type='logits',
             return_feature=False
         )
         

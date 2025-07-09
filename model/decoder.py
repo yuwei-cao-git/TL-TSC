@@ -145,10 +145,10 @@ class MLP(nn.Module):
         hidden_ch=[128, 128],
         num_classes=9,
         dropout_prob=0.1,
-        return_logits=False,
+        return_type='logits',
     ):
         super(MLP, self).__init__()
-        self.return_logits = return_logits
+        self.return_type = return_type
         self.conv = ConvBNReLU(in_ch, in_ch, kernel_size=3)
         self.pooling = nn.AdaptiveAvgPool2d(1)
         self.fc1 = nn.Linear(in_ch, hidden_ch[0])
@@ -168,10 +168,11 @@ class MLP(nn.Module):
         x = F.relu(self.bn2(self.fc2(x)))
         x = self.dropout2(x)
         logits = self.fc3(x)  # [batch_size, num_classes]
-        if self.return_logits:
+        if self.return_type == 'logsoftmax':
             return F.log_softmax(logits, dim=1)
+        elif self.return_type == 'logits':
+            return logits
         else:
-            
             # Lower T -> sharper, Higher T -> flatter
             # return F.log_softmax(logits / 0.5, dim=1)
             class_output = F.softmax(logits, dim=1)
@@ -190,7 +191,7 @@ class MambaFusionDecoder(nn.Module):
         d_conv=4,
         expand=2,
         last_feat_size=8,
-        return_logits=False,
+        return_type='softmax',
         return_feature=False
     ):
         super(MambaFusionDecoder, self).__init__()
@@ -212,7 +213,7 @@ class MambaFusionDecoder(nn.Module):
             hidden_ch=hidden_ch,
             num_classes=num_classes,
             dropout_prob=drop,
-            return_logits=return_logits,
+            return_type=return_type,
         )
         self.return_feature=return_feature
 

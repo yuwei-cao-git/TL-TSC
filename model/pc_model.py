@@ -17,8 +17,7 @@ class PCModel(pl.LightningModule):
         self.model = PointNextModel(self.params, 
                                     in_dim=3, #if self.cfg["dataset"] in ["rmf", "ovf"] else 6, 
                                     n_classes=n_classes, 
-                                    decoder=True,
-                                    return_logits=False
+                                    decoder=True
                                 )
 
         # Loss function and other parameters

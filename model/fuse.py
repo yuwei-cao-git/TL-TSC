@@ -69,7 +69,7 @@ class FusionModel(pl.LightningModule):
         self.pc_model = PointNextModel(self.cfg, 
                                     in_dim=3, #if self.cfg["dataset"] in ["rmf", "ovf"] else 6, 
                                     n_classes=n_classes, 
-                                    decoder=self.cfg["head"] == "no_img_head" or self.cfg["head"] == "all_head"
+                                    decoder=self.cfg["head"] == "no_img_head" or self.cfg["head"] == "all_head",
                                 )
 
         # Late Fusion and classification layers with additional MLPs

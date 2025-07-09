@@ -41,7 +41,7 @@ encoder: b                      # Options: s, b, l, xl
 fusion_dim: 128
 dp_fuse: 0.3
 dp_pc: 0.3
-use_ms: false
+use_ms: True
 linear_layers_dims: [512, 256]
 
 # Data transforms

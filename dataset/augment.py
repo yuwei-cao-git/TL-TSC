@@ -171,11 +171,11 @@ def random_noise(coords, n, dim=1, x=None):
 
 def pointCloudTransform(xyz, pc_feat, target, rot=False):
     # Point Removal
-    n = random.randint(round(len(xyz) * 0.9), len(xyz))
-    aug_xyz, aug_feats = point_removal(xyz, n, x=pc_feat)
-    aug_xyz, aug_feats = random_noise(aug_xyz, n=(len(xyz) - n), x=aug_feats)
+    # n = random.randint(round(len(xyz) * 0.9), len(xyz))
+    # aug_xyz, aug_feats = point_removal(xyz, n, x=pc_feat)
+    # aug_xyz, aug_feats = random_noise(aug_xyz, n=(len(xyz) - n), x=aug_feats)
     # aug_xyz, aug_feats = random_scale(aug_xyz, x=aug_feats)
-    aug_xyz, aug_feats = point_translate(aug_xyz, x=aug_feats)
+    aug_xyz, aug_feats = point_translate(xyz, x=pc_feat)
     # aug_xyz, aug_feats = point_jitter(aug_xyz, x=aug_feats)
     if rot:
         aug_xyz, aug_feats = point_rotate_perturbation(aug_xyz, x=aug_feats)
