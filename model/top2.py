@@ -37,7 +37,8 @@ class FusionModel(pl.LightningModule):
             self.s2_model = UNet(
                 n_channels=total_input_channels,
                 n_classes=n_classes,
-                decoder=False
+                decoder=False,
+                return_type='logits',
             )
         elif self.cfg["network"] == "ResUnet":
             from .ResUnet import ResUnet
@@ -45,7 +46,8 @@ class FusionModel(pl.LightningModule):
             self.s2_model = ResUnet(
                 n_channels=total_input_channels,
                 n_classes=n_classes,
-                decoder=False
+                decoder=False,
+                return_type='logits',
             )
         elif self.cfg["network"] == "ResNet":
             from .resnet import FCNResNet50
@@ -53,6 +55,7 @@ class FusionModel(pl.LightningModule):
             self.s2_model = FCNResNet50(
                 n_channels=total_input_channels,
                 n_classes=n_classes,
+                return_type='logits',
                 upsample_method='bilinear',
                 pretrained=True,
                 decoder=False

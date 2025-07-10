@@ -61,7 +61,7 @@ class FCNResNet50Decoder(nn.Module):
     
     
 class FCNResNet50(nn.Module):
-    def __init__(self, n_channels, n_classes, return_type, upsample_method='bilinear', pretrained=False, decoder=True):
+    def __init__(self, n_channels, n_classes, return_type='softmax', upsample_method='bilinear', pretrained=False, decoder=True):
         super().__init__()
         self.use_decoder = decoder
         self.encoder = FCNResNet50Encoder(n_channels, pretrained=pretrained)

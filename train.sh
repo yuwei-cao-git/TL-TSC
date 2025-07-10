@@ -1,26 +1,26 @@
 #!/bin/bash
 
-LOG_FILE="log_2.txt"
+LOG_FILE="log_genus.txt"
 SLEEP_DURATION=10  # seconds
 
 echo "Starting training..." | tee -a "$LOG_FILE"
 
 # List of commands to run
 commands=(
-    # no-pc head
-    "python train_fuse.py --data_dir '/mnt/g/ovf/ovf_superpixel_dataset' --config 'configs/config_ovf_genus.yaml' --task 'tsc' --log_name 'no_pc_head_unet_pointnetb_ovf_genus_normal_lr1e4_wmse_cosine' --gpus 1 --batch_size 16 --head 'no_pc_head' --dataset 'ovf_genus' --network 'Unet' --lr 1e-4 --loss_func 'wmse'"
-    "python train_fuse.py --data_dir '/mnt/g/rmf/rmf_superpixel_dataset' --config 'configs/config_rmf_genus.yaml' --task 'tsc' --log_name 'no_pc_head_unet_pointnetb_rmf_genus_normal_lr1e4_wmse_cosine' --gpus 1 --batch_size 16 --head 'no_pc_head' --dataset 'rmf_genus' --network 'Unet' --lr 1e-4 --loss_func 'wmse'"
-    "python train_fuse.py --data_dir '/mnt/g/ovf/ovf_superpixel_dataset' --config 'configs/config_ovf_genus.yaml' --task 'tsc' --log_name 'no_pc_head_unet_pointnetb_ovf_genus_normal_lr1e4_wmse_cosine_tuned' --gpus 1 --batch_size 16 --head 'no_pc_head' --dataset 'ovf_genus' --network 'Unet' --lr 1e-4 --loss_func 'wmse' --pretrained_ckpt 'tl_logs/no_pc_head_unet_pointnetb_rmf_genus_normal_lr1e4_wmse_cosine/checkpoints/final_model.ckpt'"
-    
     # all head
-    "python train_fuse.py --data_dir '/mnt/g/ovf/ovf_superpixel_dataset' --config 'configs/config_ovf_genus.yaml' --task 'tsc' --log_name 'all_head_unet_pointnetb_ovf_genus_normal_lr1e4_wmse_cosine' --gpus 1 --batch_size 16 --head 'all_head' --dataset 'ovf_genus' --network 'Unet' --lr 1e-4 --loss_func 'wmse'"
-    "python train_fuse.py --data_dir '/mnt/g/rmf/rmf_superpixel_dataset' --config 'configs/config_rmf_genus.yaml' --task 'tsc' --log_name 'all_head_unet_pointnetb_rmf_genus_normal_lr1e4_wmse_cosine' --gpus 1 --batch_size 16 --head 'all_head' --dataset 'rmf_genus' --network 'Unet' --lr 1e-4 --loss_func 'wmse'"
-    "python train_fuse.py --data_dir '/mnt/g/ovf/ovf_superpixel_dataset' --config 'configs/config_ovf_genus.yaml' --task 'tsc' --log_name 'all_head_unet_pointnetb_ovf_genus_normal_lr1e4_wmse_cosine_tuned' --gpus 1 --batch_size 16 --head 'all_head' --dataset 'ovf_genus' --network 'Unet' --lr 1e-4 --loss_func 'wmse' --pretrained_ckpt 'tl_logs/all_head_unet_pointnetb_rmf_genus_normal_lr1e4_wmse_cosine/checkpoints/final_model.ckpt'"
+    "python train_fuse.py --data_dir '/mnt/g/ovf/ovf_superpixel_dataset' --config 'configs/config_ovf_genus.yaml' --pc_normal True --task 'tsc' --log_name 'all_head_unet_pointnetb_ovf_genus_normal_lr1e4_wmse_cosine' --gpus 1 --batch_size 16 --head 'all_head' --dataset 'ovf_genus' --network 'Unet' --lr 1e-4 --loss_func 'wmse'"
+    "python train_fuse.py --data_dir '/mnt/g/rmf/rmf_superpixel_dataset' --config 'configs/config_rmf_genus.yaml' --pc_normal True --task 'tsc' --log_name 'all_head_unet_pointnetb_rmf_genus_normal_lr1e4_wmse_cosine' --gpus 1 --batch_size 16 --head 'all_head' --dataset 'rmf_genus' --network 'Unet' --lr 1e-4 --loss_func 'wmse'"
+    "python train_fuse.py --data_dir '/mnt/g/ovf/ovf_superpixel_dataset' --config 'configs/config_ovf_genus.yaml' --pc_normal True --task 'tsc' --log_name 'all_head_unet_pointnetb_ovf_genus_normal_lr1e4_wmse_cosine_tuned' --gpus 1 --batch_size 16 --head 'all_head' --dataset 'ovf_genus' --network 'Unet' --lr 1e-4 --loss_func 'wmse' --pretrained_ckpt 'tl_logs/all_head_unet_pointnetb_rmf_genus_normal_lr1e4_wmse_cosine/checkpoints/final_model.ckpt'"
+    
+    # no-pc head
+    "python train_fuse.py --data_dir '/mnt/g/ovf/ovf_superpixel_dataset' --config 'configs/config_ovf_genus.yaml' --pc_normal True --task 'tsc' --log_name 'no_pc_head_unet_pointnetb_ovf_genus_normal_lr1e4_wmse_cosine' --gpus 1 --batch_size 16 --head 'no_pc_head' --dataset 'ovf_genus' --network 'Unet' --lr 1e-4 --loss_func 'wmse'"
+    "python train_fuse.py --data_dir '/mnt/g/rmf/rmf_superpixel_dataset' --config 'configs/config_rmf_genus.yaml' --pc_normal True --task 'tsc' --log_name 'no_pc_head_unet_pointnetb_rmf_genus_normal_lr1e4_wmse_cosine' --gpus 1 --batch_size 16 --head 'no_pc_head' --dataset 'rmf_genus' --network 'Unet' --lr 1e-4 --loss_func 'wmse'"
+    "python train_fuse.py --data_dir '/mnt/g/ovf/ovf_superpixel_dataset' --config 'configs/config_ovf_genus.yaml' --pc_normal True --task 'tsc' --log_name 'no_pc_head_unet_pointnetb_ovf_genus_normal_lr1e4_wmse_cosine_tuned' --gpus 1 --batch_size 16 --head 'no_pc_head' --dataset 'ovf_genus' --network 'Unet' --lr 1e-4 --loss_func 'wmse' --pretrained_ckpt 'tl_logs/no_pc_head_unet_pointnetb_rmf_genus_normal_lr1e4_wmse_cosine/checkpoints/final_model.ckpt'"
     
     # no-img head
-    "python train_fuse.py --data_dir '/mnt/g/ovf/ovf_superpixel_dataset' --config 'configs/config_ovf_genus.yaml' --task 'tsc' --log_name 'no_img_head_unet_pointnetb_ovf_genus_normal_lr1e4_wmse_cosine' --gpus 1 --batch_size 16 --head 'no_img_head' --dataset 'ovf_genus' --network 'Unet' --lr 1e-4 --loss_func 'wmse'"
-    "python train_fuse.py --data_dir '/mnt/g/rmf/rmf_superpixel_dataset' --config 'configs/config_rmf_genus.yaml' --task 'tsc' --log_name 'no_img_head_unet_pointnetb_rmf_genus_normal_lr1e4_wmse_cosine' --gpus 1 --batch_size 16 --head 'no_img_head' --dataset 'rmf_genus' --network 'Unet' --lr 1e-4 --loss_func 'wmse'"
-    "python train_fuse.py --data_dir '/mnt/g/ovf/ovf_superpixel_dataset' --config 'configs/config_ovf_genus.yaml' --task 'tsc' --log_name 'no_img_head_unet_pointnetb_ovf_genus_normal_lr1e4_wmse_cosine_tuned' --gpus 1 --batch_size 16 --head 'no_img_head' --dataset 'ovf_genus' --network 'Unet' --lr 1e-4 --loss_func 'wmse' --pretrained_ckpt 'tl_logs/no_img_head_unet_pointnetb_rmf_genus_normal_lr1e4_wmse_cosine/checkpoints/final_model.ckpt'"
+    "python train_fuse.py --data_dir '/mnt/g/ovf/ovf_superpixel_dataset' --config 'configs/config_ovf_genus.yaml' --pc_normal True --task 'tsc' --log_name 'no_img_head_unet_pointnetb_ovf_genus_normal_lr1e4_wmse_cosine' --gpus 1 --batch_size 16 --head 'no_img_head' --dataset 'ovf_genus' --network 'Unet' --lr 1e-4 --loss_func 'wmse'"
+    "python train_fuse.py --data_dir '/mnt/g/rmf/rmf_superpixel_dataset' --config 'configs/config_rmf_genus.yaml' --pc_normal True --task 'tsc' --log_name 'no_img_head_unet_pointnetb_rmf_genus_normal_lr1e4_wmse_cosine' --gpus 1 --batch_size 16 --head 'no_img_head' --dataset 'rmf_genus' --network 'Unet' --lr 1e-4 --loss_func 'wmse'"
+    "python train_fuse.py --data_dir '/mnt/g/ovf/ovf_superpixel_dataset' --config 'configs/config_ovf_genus.yaml' --pc_normal True --task 'tsc' --log_name 'no_img_head_unet_pointnetb_ovf_genus_normal_lr1e4_wmse_cosine_tuned' --gpus 1 --batch_size 16 --head 'no_img_head' --dataset 'ovf_genus' --network 'Unet' --lr 1e-4 --loss_func 'wmse' --pretrained_ckpt 'tl_logs/no_img_head_unet_pointnetb_rmf_genus_normal_lr1e4_wmse_cosine/checkpoints/final_model.ckpt'"
 )
 
 # Loop over and run each command

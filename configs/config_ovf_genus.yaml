@@ -25,7 +25,7 @@ momentum: 0.9
 weight_decay: 0.0001
 
 # Loss weights
-multitasks_uncertain_loss: true
+multitasks_uncertain_loss: false
 loss_func: mae
 
 # Model architecture
@@ -37,7 +37,7 @@ encoder: b                      # Options: s, b, l, xl
 fusion_dim: 128
 dp_fuse: 0.3
 dp_pc: 0.3
-use_ms: true
+use_ms: false
 linear_layers_dims: [512, 256]
 
 # Data transforms

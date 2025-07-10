@@ -190,4 +190,5 @@ log.txt
 train.sh
 
 # undertest
-log_2.txt
+log_*.txt
+log_genus.txt
