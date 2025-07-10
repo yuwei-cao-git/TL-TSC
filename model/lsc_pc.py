@@ -32,7 +32,7 @@ class PCModel(pl.LightningModule):
             self.model = RepsurfaceModel(n_classes=n_classes, return_type='logsoftmax', decoder=True)
 
         # Metrics
-        self.criterion = nn.NLLLoss() # or nn.CrossEntropyLoss()  if using 'logits' as output
+        self.criterion = nn.NLLLoss() # or nn.CrossEntropyLoss()  if using 'logits' as output or SmoothClsLoss(smoothing_ratio=0.1)
         self.val_acc = Accuracy(task="multiclass", num_classes=n_classes, average="macro")
         self.val_f1 = F1Score(task="multiclass", num_classes=n_classes, average="macro")
         self.val_precision = Precision(task="multiclass", num_classes=n_classes, average="macro")

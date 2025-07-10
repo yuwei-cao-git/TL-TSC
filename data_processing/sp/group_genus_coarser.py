@@ -28,8 +28,8 @@ species_to_genus = {
 genus_order = ['hardwood', 'poplar', 'spruce', 'fir', 'cedar', 'pine']
 
 # === Input/Output Paths ===
-src_folder = "/mnt/g/ovf/ovf_superpixel_dataset/tile_128"
-output_dir = "/mnt/g/ovf/ovf_superpixel_dataset/tile_128"
+src_folder = "/mnt/g/ovf/ovf_superpixel_dataset_v2/tile_128"
+output_dir = "/mnt/g/ovf/ovf_superpixel_dataset_v2/tile_128"
 os.makedirs(output_dir, exist_ok=True)
 
 # ==============================
