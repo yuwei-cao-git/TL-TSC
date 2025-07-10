@@ -1,0 +1,50 @@
+# config_ovf.yaml
+
+# General
+dataset: ovf_coarser
+tile_size: 128
+n_bands: 9
+ovf_coarser_class_weights:  [0.02482688, 0.02986951, 0.51120736, 0.23517747, 0.15256409, 0.04635469]
+class_names: ['hardwood', 'poplar', 'spruce', 'fir', 'cedar', 'pine']
+n_classes: 6
+ovf_coarser_img_mean: [0.07040999759427623, 0.08587373048915613, 0.08045808701009402, 0.12400434986857192, 0.23019581396353014, 0.25849728430797275, 0.2749642273887025, 0.1326707504855784, 0.07667908989426381]
+ovf_coarser_img_std: [0.0832371436804791, 0.07839810823240403, 0.08502098434352626, 0.07916339736084663, 0.07761945926469391, 0.08609785353793915, 0.08828227674625447, 0.04974592761883653, 0.029212422793703927]
+
+# Training parameters
+task: tsc
+head:  fuse_head # Options: no_pc_head, fuse_head, all_head, no_img_head
+pretrained_ckpt: None #tl_logs/no_img_head_unet_pointnet_rmf_cosine/wandblogs/TL-TSC/28g98vp3/checkpoints/epoch=0-step=3246.ckpt
+batch_size: 64
+max_epochs: 100
+optimizer: adamW                 # Options: adam, adamW, sgd
+scheduler: cosine         # Options: plateau, steplr, asha, cosine, cosinewarmup
+lr: 0.0001
+patience: 10
+step_size: 10
+momentum: 0.9
+weight_decay: 0.0001
+
+# Loss weights
+multitasks_uncertain_loss: false
+loss_func: mae
+
+# Model architecture
+network: ResUnet
+emb_dims: 768
+num_points: 7168
+fps: false
+encoder: b                      # Options: s, b, l, xl
+fusion_dim: 128
+dp_fuse: 0.3
+dp_pc: 0.3
+use_ms: false
+linear_layers_dims: [512, 256]
+
+# Data transforms
+image_transform: compose
+point_cloud_transform: true
+rotate: false
+pc_normal: false
+
+# Hardware
+gpus: 4

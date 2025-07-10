@@ -10,20 +10,22 @@ from sklearn.model_selection import train_test_split
 dataset_name = "ovf"  # For logging only
 
 # For Dataset ovf
-species_names = ['ash', 'poplar', 'spruce', 'birch', 'fir', 'cedar', 'maple', 'pine', 'oak']
+species_names = ['AB', 'PO', 'MR', 'BF', 'CE', 'PW', 'MH', 'BW', 'SW', 'OR', 'PR']
 species_to_genus = {
-    'ash': 'hardwood',
-    'poplar': 'poplar',
-    'spruce': 'spruce',
-    'birch': 'hardwood',
-    'fir': 'fir',
-    'cedar': 'cedar',
-    'maple': 'hardwood',
-    'pine': 'pine',
-    'oak': 'hardwood',
+    'AB': 'hardwood',
+    'PO': 'poplar',
+    'SW': 'spruce',
+    'BW': 'hardwood',
+    'BF': 'fir',
+    'CE': 'cedar',
+    'MR': 'hardwood',
+    'MH': 'hardwood',
+    'PW': 'pine',
+    'PR': 'pine',
+    'OR': 'hardwood'
 }
 # After grouping, only these genus will remain (order is important!)
-genus_order = ['hardwood', 'poplar', 'spruce', 'birch', 'fir', 'cedar']
+genus_order = ['hardwood', 'poplar', 'spruce', 'fir', 'cedar', 'pine']
 
 # === Input/Output Paths ===
 src_folder = "/mnt/g/ovf/ovf_superpixel_dataset/tile_128"
@@ -57,7 +59,7 @@ def check_balance(labels, indices_list, target_split, tolerance):
             return False
     return True
 
-def iterative_split_superpixels(labels, target_split=[0.7,0.15,0.15], max_iter=5000, tolerance=0.02):
+def iterative_split_superpixels(labels, target_split=[0.7,0.15,0.15], max_iter=15000, tolerance=0.01):
     num_samples = labels.shape[0]
     indices = np.arange(num_samples)
     for i in range(max_iter):
@@ -99,7 +101,7 @@ def save_genus_files(indices, split_name, file_paths, dst_folder, species_list, 
 
 print(f"=== {dataset_name.upper()} : Genus Grouping & Split ===")
 print("Scanning files...")
-superpixel_files = sorted(glob(os.path.join(src_folder, "**/ovf_genus/*.npz")))
+superpixel_files = sorted(glob(os.path.join(src_folder, "**/ovf_sp/*.npz")))
 file_names = [os.path.basename(f) for f in superpixel_files]
 labels_genus = []
 
