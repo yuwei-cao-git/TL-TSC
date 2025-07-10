@@ -107,10 +107,10 @@ class FusionModel(pl.LightningModule):
         # use it during test/val/not uncertainty weighted loss - equal loss
         self.loss_func = self.cfg["loss_func"]
         if self.cfg["head"] == "no_img_head" or self.cfg["head"] == "all_head":
-            self.pc_loss_weight = self.cfg.get("pc_loss_weight", 10.0) # /0.005
+            self.pc_loss_weight = self.cfg.get("pc_loss_weight", 1.0) # /0.005
         if self.cfg["head"] == "no_pc_head" or self.cfg["head"] == "all_head":
             self.img_loss_weight = self.cfg.get("img_loss_weight", 1.0) # /0.15
-        self.fuse_loss_weight = self.cfg.get("fuse_loss_weight", 10.0) # /0.005
+        self.fuse_loss_weight = self.cfg.get("fuse_loss_weight", 1.0) # /0.005
         
         self.criterion = nn.MSELoss()
 
