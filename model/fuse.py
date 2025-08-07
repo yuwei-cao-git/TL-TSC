@@ -132,7 +132,15 @@ class FusionModel(pl.LightningModule):
         self.best_test_r2 = 0.0
         self.best_test_outputs = None
         self.validation_step_outputs = []
-
+    
+    def freeze_backbone(self):
+        if self.ms_fusion:  # mid fusion
+            for param in self.mf_module.parameters():
+                param.requires_grad = False
+        for param in self.s2_model.parameters():
+            param.requires_grad = False
+        for param in self.pc_model.parameters():
+            param.requires_grad = False
     
     def forward(self, images, pc_feat, xyz):
         image_outputs = None

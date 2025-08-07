@@ -61,11 +61,11 @@ def train(config):
     )
 
     # Define a checkpoint callback to save the best model
-    metric = "val_loss"
+    metric = "val_r2"
     early_stopping = EarlyStopping(
         monitor=metric,  # Metric to monitor
-        patience=5,  # Number of epochs with no improvement after which training will be stopped
-        mode="min",  # Set "min" for validation loss
+        patience=10,  # Number of epochs with no improvement after which training will be stopped
+        mode="max",  # Set "min" for validation loss
         verbose=True,
     )
     
@@ -89,7 +89,7 @@ def train(config):
     
     # Use the calculated input channels from the DataModule to initialize the model
     if config["task"] == "tsc":
-        from model.fuse import FusionModel
+        from model.decison_fuse import FusionModel
         model = FusionModel(config, n_classes=config["n_classes"])
     elif config["task"] == "lsc":
         from model.lsc import FusionModel
@@ -107,6 +107,11 @@ def train(config):
     if config["pretrained_ckpt"] != "None":
         # load backbone weights only, ignore head mismatch
         model = load_backbone_weights(model, config["pretrained_ckpt"])
+        
+        if config.get("fix_backbone", True):  # optional flag in config
+            model.freeze_backbone()
+        trainable_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
+        print(f"Trainable parameters: {trainable_params}")
 
     # Create a PyTorch Lightning Trainer
     trainer = Trainer(

@@ -7,13 +7,16 @@ n_bands: 9
 ovf_genus_class_weights: [0.26008143, 0.01824255, 0.30860924, 0.03829643, 0.14291682, 0.09194174, 0.05414323, 0.02824807, 0.05752048]
 class_names: ['ash', 'poplar', 'spruce', 'birch', 'fir', 'cedar', 'maple', 'pine', 'oak']
 n_classes: 9
+# v1
 ovf_genus_img_mean: [0.022147550403000482, 0.02499438361077816, 0.023689923734978725, 0.030525195475665602, 0.0463606190749604, 0.0506449330521166, 0.034527426686147875, 0.0254951683118125, 0.05374771524500641]
 ovf_genus_img_std: [0.012999625893269426, 0.012271758163250874, 0.01276091068905686, 0.01238779664766976, 0.012663241727718, 0.013506290784859074, 0.009199217187739049, 0.005517428473610487, 0.013364242383911356]
+# v2
 
 # Training parameters
 task: tsc
 head:  fuse_head # Options: no_pc_head, fuse_head, all_head, no_img_head
 pretrained_ckpt: None #tl_logs/no_img_head_unet_pointnet_rmf_cosine/wandblogs/TL-TSC/28g98vp3/checkpoints/epoch=0-step=3246.ckpt
+fix_backbone: false
 batch_size: 64
 max_epochs: 100
 optimizer: adamW                 # Options: adam, adamW, sgd
@@ -23,6 +26,7 @@ patience: 10
 step_size: 10
 momentum: 0.9
 weight_decay: 0.0001
+decision_fuse_type: weighted #average, weighted, mlp
 
 # Loss weights
 multitasks_uncertain_loss: false

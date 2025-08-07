@@ -29,7 +29,7 @@ class S2Transformer(nn.Module):
                     num_classes,
                     p_dropout = 0.3,
                     # args for VIT
-                    n_bands_vit=9,
+                    n_bands_vit=36,
                     img_size=128, 
                     patch_size=6, 
                     embed_dim=768, 

@@ -14,6 +14,7 @@ rmf_genus_img_std: [0.009788130895193833, 0.009465678241968112, 0.00972985920561
 task: tsc
 head:  all_head # Options: no_pc_head, fuse_head, all_head, no_img_head
 pretrained_ckpt: None
+fix_backbone: false
 batch_size: 64
 max_epochs: 100
 optimizer: adamW                 # Options: adam, adamW, sgd
@@ -23,6 +24,7 @@ patience: 10
 step_size: 10
 momentum: 0.9
 weight_decay: 0.0001
+decision_fuse_type: weighted #average, weighted, mlp
 
 # Loss weights
 weighted_cls_loss: false

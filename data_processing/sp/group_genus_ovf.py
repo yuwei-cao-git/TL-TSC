@@ -28,8 +28,8 @@ species_to_genus = {
 genus_order = ['ash', 'poplar', 'spruce', 'birch', 'fir', 'cedar', 'maple', 'pine', 'oak']
 
 # === Input/Output Paths ===
-src_folder = "/mnt/g/ovf/ovf_superpixel_dataset/tile_128"
-output_dir = "/mnt/g/ovf/ovf_superpixel_dataset/tile_128/ovf_genus"
+src_folder = "/mnt/g/ovf/ovf_superpixel_dataset_v2/tile_128"
+output_dir = "/mnt/g/ovf/ovf_superpixel_dataset_v2/tile_128"
 os.makedirs(output_dir, exist_ok=True)
 
 # ==============================
@@ -87,7 +87,7 @@ def save_genus_files(indices, split_name, file_paths, dst_folder, species_list, 
             data["label"], data["per_pixel_labels"], species_list, species_to_genus, genus_order
         )
         np.savez_compressed(
-            os.path.join(split_folder, file_name),
+            os.path.join(split_folder, 'ovf_genus', file_name),
             superpixel_images=data["superpixel_images"],
             point_cloud=data["point_cloud"],
             label=genus_label,

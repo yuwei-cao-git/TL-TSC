@@ -347,3 +347,46 @@ class SimpleUpDecoder(nn.Module):
         elif isinstance(m, nn.BatchNorm2d):
             nn.init.constant_(m.bias, 0)
             nn.init.constant_(m.weight, 1.0)
+            
+            
+import torch
+import torch.nn as nn
+import torch.nn.functional as F
+
+
+class DecisionLevelFusion(nn.Module):
+    def __init__(self, n_classes, method="average", weight_img=0.5, weight_pc=0.5):
+        super().__init__()
+        self.method = method
+        self.weight_img = weight_img
+        self.weight_pc = weight_pc
+
+        if method == "mlp":
+            self.fuse_mlp = nn.Sequential(
+                nn.Linear(2 * n_classes, 128),
+                nn.ReLU(),
+                nn.Linear(128, n_classes)
+            )
+
+    def forward(self, img_logits, pc_logits):
+        # Only one modality available
+        if img_logits is None:
+            return pc_logits
+        if pc_logits is None:
+            return img_logits
+
+        if self.method == "average":
+            return (img_logits + pc_logits) / 2
+
+        elif self.method == "weighted":
+            return self.weight_img * img_logits + self.weight_pc * pc_logits
+
+        elif self.method == "mlp":
+            # Ensure both logits have the same shape
+            if img_logits.shape != pc_logits.shape:
+                raise ValueError("Shape mismatch between img_logits and pc_logits")
+            fused_input = torch.cat([img_logits, pc_logits], dim=1)
+            return self.fuse_mlp(fused_input)
+
+        else:
+            raise ValueError(f"Unknown fusion method: {self.method}")

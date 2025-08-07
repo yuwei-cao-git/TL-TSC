@@ -17,6 +17,7 @@ rmf_sp_img_std: [0.013006695483180465, 0.013011662005455693, 0.01302692356736940
 task: tsc
 head:  all_head # Options: no_pc_head, fuse_head, all_head, no_img_head
 pretrained_ckpt: None
+fix_backbone: false
 batch_size: 64
 max_epochs: 100
 optimizer: adamW                 # Options: adam, adamW, sgd
@@ -26,6 +27,7 @@ patience: 10
 step_size: 10
 momentum: 0.9
 weight_decay: 0.0001
+decision_fuse_type: mlp #average, weighted, mlp
 
 # Loss weights
 weighted_cls_loss: false
@@ -36,6 +38,7 @@ loss_func: mae
 network: ResUnet
 emb_dims: 768
 num_points: 7168
+fps: false
 encoder: b                      # Options: s, b, l, xl
 fusion_dim: 128
 dp_fuse: 0.7

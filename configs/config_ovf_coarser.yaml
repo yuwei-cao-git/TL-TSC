@@ -18,6 +18,7 @@ ovf_coarser_img_std: [0.013001235936613913, 0.012274226049356364, 0.012735332075
 task: tsc
 head:  fuse_head # Options: no_pc_head, fuse_head, all_head, no_img_head
 pretrained_ckpt: None #tl_logs/no_img_head_unet_pointnet_rmf_cosine/wandblogs/TL-TSC/28g98vp3/checkpoints/epoch=0-step=3246.ckpt
+fix_backbone: false
 batch_size: 64
 max_epochs: 100
 optimizer: adamW                 # Options: adam, adamW, sgd
@@ -27,6 +28,7 @@ patience: 10
 step_size: 10
 momentum: 0.9
 weight_decay: 0.0001
+decision_fuse_type: weighted #average, weighted, mlp
 
 # Loss weights
 multitasks_uncertain_loss: false
