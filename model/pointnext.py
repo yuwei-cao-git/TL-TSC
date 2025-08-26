@@ -55,9 +55,11 @@ class PointNextClassifier(nn.Module):
             return F.log_softmax(logits, dim=1)
         elif self.return_type == 'logits':
             return logits
-        else:
+        elif self.return_type == 'softmax':
             preds = F.softmax(logits, dim=1)
             return preds
+        else:
+            return logits
         
 class PointNextModel(nn.Module):
     def __init__(self, config, in_dim, n_classes, decoder=True, return_type='softmax'):

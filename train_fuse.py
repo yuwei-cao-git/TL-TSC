@@ -83,9 +83,9 @@ def main():
     )
     if cfg["loss_func"] in ["wmse", "wrmse", "wkl"]:
         class_weights = cfg.get(f'{args.dataset}_class_weights', None)
-        cfg['class_weights'] = torch.tensor(class_weights).float()
+        cfg[f'{args.dataset}_class_weights'] = torch.tensor(class_weights).float()
     else:
-        cfg['class_weights'] = None
+        cfg[f'{args.dataset}_class_weights'] = None
     
     os.makedirs(cfg['save_dir'], exist_ok=True)
     print(cfg)

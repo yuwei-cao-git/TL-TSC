@@ -8,7 +8,7 @@ from .loss import calc_masked_loss
 # from sklearn.metrics import r2_score
 from torchmetrics.classification import MulticlassF1Score, MulticlassAccuracy
 from torchmetrics.regression import R2Score
-
+import torch.nn.functional as F
 
 class PCModel(pl.LightningModule):
     def __init__(self, params, n_classes):
@@ -22,7 +22,7 @@ class PCModel(pl.LightningModule):
 
         # Loss function and other parameters
         if self.params["loss_func"] in ["wmse", "wrmse", "wkl"]:
-            self.weights = self.params["class_weights"]
+            self.weights = self.params[f"{self.params['dataset']}_class_weights"]
 
         self.train_r2 = R2Score()
 
@@ -68,7 +68,8 @@ class PCModel(pl.LightningModule):
         """
         xyz = xyz.permute(0, 2, 1)
         feats = feats.permute(0, 2, 1)
-        preds = self.forward(xyz, feats)
+        logits = self.forward(xyz, feats)
+        preds = F.softmax(logits, dim=1)
         preds_rounded = torch.round(preds, decimals=2)
 
         # Compute the loss with the WeightedMSELoss, which will handle the weights

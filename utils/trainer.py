@@ -61,11 +61,11 @@ def train(config):
     )
 
     # Define a checkpoint callback to save the best model
-    metric = "val_r2"
+    metric = "val_loss"
     early_stopping = EarlyStopping(
         monitor=metric,  # Metric to monitor
         patience=10,  # Number of epochs with no improvement after which training will be stopped
-        mode="max",  # Set "min" for validation loss
+        mode="min",  # Set "min" for validation loss
         verbose=True,
     )
     
@@ -80,12 +80,19 @@ def train(config):
     
     print("start setting dataset")
     # Initialize the DataModule
-    if config["dataset"] in ["ovf", "rmf"]:
-        from dataset.balanced_dataset import BalancedDataModule
-        data_module = BalancedDataModule(config)
+    if config["task"] in ["tsc", "lsc"]:
+        if config["dataset"] in ["ovf", "rmf"]:
+            from dataset.balanced_dataset import BalancedDataModule
+            data_module = BalancedDataModule(config)
+        else:
+            from dataset.superpixel import SuperpixelDataModule
+            data_module = SuperpixelDataModule(config)
+    elif config["task"] in ["pc_tsc", "pc_lsc"]:
+        from dataset.pc import PcDataModule
+        data_module = PcDataModule(config)
     else:
-        from dataset.superpixel import SuperpixelDataModule
-        data_module = SuperpixelDataModule(config)
+        from dataset.s2 import S2DataModule
+        data_module = S2DataModule(config)
     
     # Use the calculated input channels from the DataModule to initialize the model
     if config["task"] == "tsc":
@@ -100,6 +107,9 @@ def train(config):
     elif config["task"] == "pc_lsc":
         from model.lsc_pc import PCModel
         model = PCModel(config, n_classes=config["n_classes"])
+    elif config["task"] == "img_tsc":
+        from model.s2_model import S2Model
+        model = S2Model(config, n_classes=config["n_classes"])
     else:
         from model.top2 import FusionModel
         model = FusionModel(config, n_classes=config["n_classes"])

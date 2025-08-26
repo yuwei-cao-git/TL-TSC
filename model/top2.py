@@ -50,7 +50,7 @@ class FusionModel(pl.LightningModule):
                 return_type='logits',
             )
         elif self.cfg["network"] == "ResNet":
-            from .resnet import FCNResNet50
+            from .resnet_fcn import FCNResNet50
 
             self.s2_model = FCNResNet50(
                 n_channels=total_input_channels,

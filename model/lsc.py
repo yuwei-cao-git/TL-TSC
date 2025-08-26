@@ -35,7 +35,7 @@ class FusionModel(pl.LightningModule):
             from .ResUnet import ResUnet
             self.s2_model = ResUnet(n_channels=total_input_channels, n_classes=n_classes, decoder=self.cfg["head"] in ["no_pc_head", "all_head"], return_type='logsoftmax')
         elif self.cfg["network"] == "ResNet":
-            from .resnet import FCNResNet50
+            from .resnet_fcn import FCNResNet50
             self.s2_model = FCNResNet50(n_channels=total_input_channels, n_classes=n_classes, upsample_method='bilinear', pretrained=True, decoder=self.cfg["head"] in ["no_pc_head", "all_head"], return_type='logsoftmax')
 
         self.pc_model = PointNextModel(self.cfg, in_dim=3, n_classes=n_classes, decoder=self.cfg["head"] in ["no_img_head", "all_head"], return_type='logsoftmax')

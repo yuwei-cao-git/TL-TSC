@@ -202,7 +202,7 @@ def generate_combined_data_for_split(
 
 if __name__ == "__main__":
     splits = ["train", "test", "val"]
-    tile_npz_dir = f"/mnt/d/Sync/research/tree_species_estimation/tree_dataset/ovf/processed/ovf_s2_compressed"
+    tile_npz_dir = f"/mnt/d/Sync/research/tree_species_estimation/tree_dataset/ovf/processed/ovf_s2_2s_compressed"
     for split in splits:
         point_cloud_dir = f"/mnt/g/ovf/superpxiel_plots/"  # Directory containing .laz files per POLYID
         polygon_file_path = f"/mnt/d/Sync/research/tree_species_estimation/tree_dataset/ovf/processed/ovf_plots/superpixel_plots/superpixel_plots_Tilename.gpkg"  # Path to polygon file with specs_perc per polygon

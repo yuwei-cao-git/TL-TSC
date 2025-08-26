@@ -57,8 +57,8 @@ fri_comps_prom = list(fri_comps.OSPCOMP)
 species: ['AB', 'PO', 'MR', 'BF', 'CE', 'PW', 'MH', 'BW', 'SW', 'OR', 'PR']
 
 compare training data:
-![alt text](../vis/data_balancing.png)
+![alt text](../../vis/data_balancing.png)
 
 selected: 60
 compare train/val/test:
-![alt text](../vis/dataset.png)
+![alt text](../../vis/dataset.png)

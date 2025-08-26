@@ -116,7 +116,7 @@ if __name__ == "__main__":
     size_threshold = 25
 
     all_pids = set()
-    seasons = ["spring", "summer", "fall", "winter"]
+    seasons = ["summer", "fall"]
     for season in seasons:
         tile_dir = f"/mnt/d/Sync/research/tree_species_estimation/tree_dataset/ovf/processed/ovf_s2/{season}/tiles_128"
         output_dir = f"/mnt/d/Sync/research/tree_species_estimation/tree_dataset/ovf/processed/ovf_s2/{season}/superpixel"

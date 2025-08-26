@@ -4,6 +4,23 @@ import numpy as np
 import torch
 import torchvision.transforms.v2 as transforms
 
+def normalize_point_cloud(xyz):
+    # Center and scale spatial coordinates
+    centroid = np.mean(xyz, axis=0)
+    xyz_centered = xyz - centroid
+    max_distance = np.max(np.linalg.norm(xyz_centered, axis=1))
+    xyz_normalized = xyz_centered / (max_distance + 1e-8)
+
+    return xyz_normalized
+
+
+def center_point_cloud(xyz):
+    xyz_min = np.amin(xyz, axis=0, keepdims=True)
+    xyz_max = np.amax(xyz, axis=0, keepdims=True)
+    xyz_center = (xyz_min + xyz_max) / 2
+    xyz_center[0][-1] = xyz_min[0][-1]
+    xyz = xyz - xyz_center
+    return xyz
 
 def angle_axis(angle, axis):
     # type: (float, np.ndarray) -> float

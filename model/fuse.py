@@ -30,12 +30,10 @@ class FusionModel(pl.LightningModule):
         self.ms_fusion = self.cfg["use_ms"]
         if self.ms_fusion:  # mid fusion
             from .seasonal_fusion import FusionBlock
-            self.mf_module = FusionBlock(n_inputs=4, in_ch=self.cfg["n_bands"], n_filters=64)
+            self.mf_module = FusionBlock(n_inputs=len(self.cfg[f"{self.cfg['dataset']}_season_map"]), in_ch=self.cfg["n_bands"], n_filters=64)
             total_input_channels = 64
-        else:  # early-fusion
-            total_input_channels = (
-                self.cfg["n_bands"] * 4
-            )  # Concatenating all seasonal data directly
+        else:
+            total_input_channels = self.cfg["n_bands"] * len(self.cfg[f"{self.cfg['dataset']}_season_map"])
 
         # Image stream backbone
         if self.cfg["network"] == "Unet":
@@ -55,7 +53,7 @@ class FusionModel(pl.LightningModule):
                 decoder=(self.cfg["head"] == "no_pc_head" or self.cfg["head"] == "all_head")
             )
         elif self.cfg["network"] == "ResNet":
-            from .resnet import FCNResNet50
+            from .resnet_fcn import FCNResNet50
 
             self.s2_model = FCNResNet50(
                 n_channels=total_input_channels,

@@ -1,5 +1,6 @@
 from timm.models.vision_transformer import VisionTransformer
 import torch.nn as nn
+import torch.nn.functional as F
 
 class HeadlessVIT(VisionTransformer):
     """Vision transformer without the classification head module. Just acts as
@@ -49,19 +50,24 @@ class S2Transformer(nn.Module):
                                 qkv_bias=qkv_bias)
         if usehead:
             self.head = nn.Sequential(
-                                        nn.Linear(512+embed_dim, 2048),
+                                        nn.Linear(embed_dim, 2048),
                                         nn.ReLU(),
                                         nn.Dropout(p = p_dropout),
                                         nn.Linear(2048, num_classes)
                                     )
             
     def forward(self, x):
-        x1 = self.vit(x) # [batch, embed_dim]
+        x1 = self.vit(x)
         
-        x1 = x1.squeeze() # [batch, embed_dim]
+        # Always take CLS token for classification
+        if x1.ndim == 3:
+            cls_token = x1[:, 0]  # (bs, embed_dim)
+        else:
+            cls_token = x1
         
         if self.usehead:
-            x = self.head(x1) # [batch, n_class]
-            return x, x1
+            x = self.head(cls_token) # [batch, n_class]
+            probs = F.softmax(x, dim=1)
+            return probs, x1
         else:
             return x1

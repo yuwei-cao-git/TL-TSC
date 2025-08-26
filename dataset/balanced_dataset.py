@@ -9,6 +9,7 @@ from .augment import (
     pointCloudTransform,
     image_augment,
 )
+import open3d as o3d
 
 class BalancedDataset(Dataset):
     def __init__(
@@ -60,6 +61,13 @@ class BalancedDataset(Dataset):
         # point cloud + plot label
         point_cloud = data["point_cloud"]  # Shape: (7168, 6)
         plot_label = data["plot_label"]  # Shape: (num_classes,)
+        pcd = o3d.geometry.PointCloud()
+        pcd.points = o3d.utility.Vector3dVector(point_cloud[:, :3])
+
+        # Estimate normals (change radius/knn depending on density)
+        #pcd.estimate_normals(search_param=o3d.geometry.KDTreeSearchParamKNN(knn=16))
+        #feats = np.asarray(pcd.normals)  # Shape: (N, 3)
+        #feats = np.hstack((point_cloud[:, 3:],feats))
 
         # Apply point cloud augment
         xyz, pc_feat, label = pointCloudTransform(
@@ -85,11 +93,11 @@ class BalancedDataModule(LightningDataModule):
     def __init__(self, config):
         super().__init__()
         self.cfg = config
-        self.img_mean = config["img_mean"]
-        self.img_std  = config["img_std"]
+        self.img_mean = config[f"{self.cfg['dataset']}_img_mean"]
+        self.img_std  = config[f"{self.cfg['dataset']}_img_std"]
         self.batch_size = config["batch_size"]
 
-    def load_dataset(self, split, dataset_name):
+    def load_dataset(self, split, dataset_name, apply_pc_aug=False, apply_img_aug=False):
         files = sorted(
             os.path.join(self.cfg["data_dir"], f"{dataset_name}_tl_dataset", f"tile_{self.cfg['tile_size']}", split, f)
             for f in os.listdir(os.path.join(self.cfg["data_dir"], f"{dataset_name}_tl_dataset", f"tile_{self.cfg['tile_size']}", split))
@@ -99,15 +107,15 @@ class BalancedDataModule(LightningDataModule):
             dataset_files=files,
             data2use=self.cfg["season_map"],
             tile_size=self.cfg["tile_size"],
-            image_transform=(self.cfg.get("image_transform") if split=="train" else None),
-            point_cloud_transform=(self.cfg.get("point_cloud_transform") if split=="train" else None),
+            image_transform=(self.cfg.get("image_transform") if (split=="train" and apply_img_aug) else None),
+            point_cloud_transform=(self.cfg.get("point_cloud_transform") if (split=="train" and apply_pc_aug) else None),
             img_mean=self.img_mean,
             img_std=self.img_std,
         )
         
     def setup(self, stage=None):
         if stage == "fit":
-            self.train_datasets = self.load_dataset("train", self.cfg['dataset'])
+            self.train_datasets = torch.utils.data.ConcatDataset([self.load_dataset("train", self.cfg['dataset']), self.load_dataset("train", self.cfg['dataset'], apply_img_aug=True), self.load_dataset("train", self.cfg['dataset'], apply_pc_aug=True)])
             self.val_datasets = self.load_dataset("val", self.cfg['dataset'])
         if stage == "test":
             self.test_datasets = self.load_dataset("test", self.cfg['dataset'])

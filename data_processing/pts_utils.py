@@ -1,11 +1,9 @@
 import geopandas as gpd
 import fiona
 import rasterio
-import tqdm
 import numpy as np
 import laspy
 import os
-from osgeo import gdal
 
 
 def print_color(text, color):
@@ -246,20 +244,3 @@ def write_las(outpoints, outfilepath, attribute_dict={}):
     las.write(outfilepath)
 
 
-def normalize_point_cloud(xyz):
-    # Center and scale spatial coordinates
-    centroid = np.mean(xyz, axis=0)
-    xyz_centered = xyz - centroid
-    max_distance = np.max(np.linalg.norm(xyz_centered, axis=1))
-    xyz_normalized = xyz_centered / (max_distance + 1e-8)
-
-    return xyz_normalized
-
-
-def center_point_cloud(xyz):
-    xyz_min = np.amin(xyz, axis=0, keepdims=True)
-    xyz_max = np.amax(xyz, axis=0, keepdims=True)
-    xyz_center = (xyz_min + xyz_max) / 2
-    xyz_center[0][-1] = xyz_min[0][-1]
-    xyz = xyz - xyz_center
-    return xyz

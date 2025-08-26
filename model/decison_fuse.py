@@ -26,10 +26,10 @@ class FusionModel(pl.LightningModule):
 
         if self.ms_fusion:
             from .seasonal_fusion import FusionBlock
-            self.mf_module = FusionBlock(n_inputs=4, in_ch=self.cfg["n_bands"], n_filters=64)
+            self.mf_module = FusionBlock(n_inputs=len(self.cfg[f"{self.cfg['dataset']}_season_map"]), in_ch=self.cfg["n_bands"], n_filters=64)
             total_input_channels = 64
         else:
-            total_input_channels = self.cfg["n_bands"] * 4
+            total_input_channels = self.cfg["n_bands"] * len(self.cfg[f"{self.cfg['dataset']}_season_map"])
 
         # Image stream
         if self.cfg["network"] == "Unet":
@@ -38,9 +38,12 @@ class FusionModel(pl.LightningModule):
         elif self.cfg["network"] == "ResUnet":
             from .ResUnet import ResUnet
             self.s2_model = ResUnet(n_channels=total_input_channels, n_classes=n_classes)
-        elif self.cfg["network"] == "ResNet":
-            from .resnet import FCNResNet50
+        elif self.cfg["network"] == "FCNResNet":
+            from .resnet_fcn import FCNResNet50
             self.s2_model = FCNResNet50(n_channels=total_input_channels, n_classes=n_classes)
+        elif self.cfg["network"] == "ResNet":
+            from .ResNet import Resnet
+            self.s2_model = Resnet(n_channels=total_input_channels, num_classes=n_classes)
         elif self.cfg["network"] == "vit":
             from .VitCls import S2Transformer
             self.s2_model = S2Transformer(num_classes=n_classes, usehead=True)
@@ -52,8 +55,8 @@ class FusionModel(pl.LightningModule):
         self.fuse_head = DecisionLevelFusion(
             n_classes=n_classes,
             method=self.cfg["decision_fuse_type"],
-            weight_img=self.cfg.get("decision_weight_img", 0.7),
-            weight_pc=self.cfg.get("decision_weight_pc", 0.3)
+            weight_img=self.cfg.get("decision_weight_img", 0.8),
+            weight_pc=self.cfg.get("decision_weight_pc", 0.2)
         )
 
         self.loss_func = self.cfg["loss_func"]
@@ -93,9 +96,9 @@ class FusionModel(pl.LightningModule):
         point_clouds = point_clouds.permute(0, 2, 1) if point_clouds is not None else None
 
         image_preds, pc_preds = self.forward(images, pc_feat, point_clouds)
-        if self.cfg["network"] != "vit":
+        if self.cfg["network"] !="ResNet":
             img_logits_list, _ = apply_mask_per_batch(image_preds, pixel_labels, img_masks, multi_class=True)
-            # valid_pixel_preds, _ = apply_mask(image_preds, pixel_labels, img_masks, multi_class=True)
+            #valid_pixel_preds, _ = apply_mask(image_preds, pixel_labels, img_masks, multi_class=True)
             image_preds = torch.stack([p.mean(dim=0) if p.numel() > 0 else torch.zeros(image_preds.shape[1], device=image_preds.device) for p in img_logits_list], dim=0)
         fuse_preds = self.fuse_head(image_preds, pc_preds)
 
@@ -107,7 +110,7 @@ class FusionModel(pl.LightningModule):
         # consistency_loss
         # avg_preds = valid_pixel_preds.mean(dim=0, keepdim=True)
         # consistency_loss = nn.KLDivLoss(reduction='batchmean')(valid_pixel_preds.log_softmax(dim=1), avg_preds.softmax(dim=1).expand_as(valid_pixel_preds))
-        # loss += 0.1 * consistency_loss
+        # loss += 0.2 * consistency_loss
         
         r2 = r2_metric(torch.round(fuse_preds, decimals=2).view(-1), labels.view(-1))
 
