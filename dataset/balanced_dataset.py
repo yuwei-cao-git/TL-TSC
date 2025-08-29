@@ -105,7 +105,7 @@ class BalancedDataModule(LightningDataModule):
         )
         return BalancedDataset(
             dataset_files=files,
-            data2use=self.cfg["season_map"],
+            data2use=self.cfg[f"{dataset_name}_season_map"],
             tile_size=self.cfg["tile_size"],
             image_transform=(self.cfg.get("image_transform") if (split=="train" and apply_img_aug) else None),
             point_cloud_transform=(self.cfg.get("point_cloud_transform") if (split=="train" and apply_pc_aug) else None),

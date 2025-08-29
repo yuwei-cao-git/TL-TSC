@@ -35,6 +35,7 @@ class ConvBNReLU(nn.Sequential):
             norm_layer(out_channels),
             nn.ReLU6(),
         )
+        
 
 class MambaFusion(nn.Module):
     def __init__(
@@ -348,10 +349,6 @@ class SimpleUpDecoder(nn.Module):
             nn.init.constant_(m.bias, 0)
             nn.init.constant_(m.weight, 1.0)
             
-            
-import torch
-import torch.nn as nn
-import torch.nn.functional as F
 
 
 class DecisionLevelFusion(nn.Module):
@@ -390,3 +387,111 @@ class DecisionLevelFusion(nn.Module):
 
         else:
             raise ValueError(f"Unknown fusion method: {self.method}")
+        
+class DisAlignFCNHead(nn.Module):
+    """Fully Convolution Networks for Semantic Segmentation.
+
+    This head is implemented of `FCNNet <https://arxiv.org/abs/1411.4038>`_.
+
+    Args:
+        num_convs (int): Number of convs in the head. Default: 2.
+        kernel_size (int): The kernel size for convs in the head. Default: 3.
+        concat_input (bool): Whether concat the input and output of convs
+            before classification layer.
+        dilation (int): The dilation rate for convs in the head. Default: 1.
+    """
+
+    def __init__(self,
+                in_channels,
+                channels,
+                n_classes,
+                num_convs=2,
+                kernel_size=3,
+                concat_input=False,
+                dilation=1,
+                 **kwargs):
+        assert num_convs >= 0 and dilation > 0 and isinstance(dilation, int)
+        self.in_channels=in_channels
+        self.out_channels=n_classes
+        self.num_convs = num_convs
+        self.concat_input = concat_input
+        self.kernel_size = kernel_size
+        self.channels = channels
+        super(DisAlignFCNHead, self).__init__(**kwargs)
+        if num_convs == 0:
+            assert self.in_channels == self.channels
+
+        conv_padding = (kernel_size // 2) * dilation
+        convs = []
+        convs.append(
+            ConvBNReLU(
+                self.in_channels,
+                self.channels,
+                kernel_size=kernel_size,
+                padding=conv_padding,
+                dilation=dilation))
+        for i in range(num_convs - 1):
+            convs.append(
+                ConvBNReLU(
+                    self.channels,
+                    self.channels,
+                    kernel_size=kernel_size,
+                    padding=conv_padding,
+                    dilation=dilation))
+        if num_convs == 0:
+            self.convs = nn.Identity()
+        else:
+            self.convs = nn.Sequential(*convs)
+        if self.concat_input:
+            self.conv_cat = ConvBNReLU(
+                self.in_channels + self.channels,
+                self.channels,
+                kernel_size=kernel_size,
+                padding=kernel_size // 2)
+
+        # Magnitude and Margin of DisAlign
+        self.logit_scale = nn.Parameter(torch.ones(1,self.num_classes, 1, 1))
+        self.logit_bias = nn.Parameter(torch.zeros(1,self.num_classes, 1, 1))
+        # Confidence function
+        self.confidence_layer = ConvBNReLU(
+            self.channels,
+            1,
+            kernel_size=1
+        )
+        self.dropout = nn.Dropout2d(0.1)
+        self.conv_seg = nn.Conv2d(channels, self.out_channels, kernel_size=1)
+    
+    def forward(self, x):
+        """Forward function."""
+        output = self.convs(x)
+        if self.concat_input:
+            output = self.conv_cat(torch.cat([x, output], dim=1))
+
+        confidence = self.confidence_layer(output).sigmoid()
+        output = self.dropout(output)
+        output = self.conv_seg(output)
+
+        # only adjust the foreground classification scores
+        scores_tmp = confidence * (output * self.logit_scale + self.logit_bias)
+        output = scores_tmp + (1 - confidence) * output
+    
+        return output
+    
+
+class DisAlignLinear(nn.Linear):
+    """
+    A wrapper for nn.Linear with support of DisAlign method.
+    """
+    def __init__(self, in_features, out_features, bias = True):
+        super().__init__(in_features=in_features, out_features=out_features, bias=bias)
+        self.confidence_layer = nn.Linear(in_features, 1)
+        self.logit_scale = nn.Parameter(torch.ones(1, out_features))
+        self.logit_bias = nn.Parameter(torch.zeros(1, out_features))
+        nn.init.constant_(self.confidence_layer.weight, 0.1)
+
+    def forward(self, input):
+        logit_before = F.linear(input, self.weight, self.bias)
+        confidence = self.confidence_layer(input).sigmoid()
+        logit_after = (1 + confidence * self.logit_scale) * logit_before + \
+            confidence * self.logit_bias
+        return logit_after

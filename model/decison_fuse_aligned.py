@@ -12,7 +12,7 @@ from .decoder import DecisionLevelFusion
 from torchmetrics.regression import R2Score
 from torchmetrics.functional import r2_score
 from torchmetrics.classification import ConfusionMatrix
-from .loss import apply_mask_per_batch, calc_masked_loss, apply_mask
+from .loss import apply_mask_per_batch, calc_masked_loss, get_class_grw_weight
 
 
 class FusionModel(pl.LightningModule):
@@ -37,7 +37,7 @@ class FusionModel(pl.LightningModule):
             self.s2_model = UNet(n_channels=total_input_channels, n_classes=n_classes)
         elif self.cfg["network"] == "ResUnet":
             from .ResUnet import ResUnet
-            self.s2_model = ResUnet(n_channels=total_input_channels, n_classes=n_classes)
+            self.s2_model = ResUnet(n_channels=total_input_channels, n_classes=n_classes, aligned=True)
         elif self.cfg["network"] == "FCNResNet":
             from .resnet_fcn import FCNResNet50
             self.s2_model = FCNResNet50(n_channels=total_input_channels, n_classes=n_classes)
@@ -63,6 +63,7 @@ class FusionModel(pl.LightningModule):
         #self.criterion = nn.MSELoss()
         if self.cfg["loss_func"] in ["wmse", "wrmse", "wkl"]:
             self.weights = self.cfg.get("class_weights", None)
+            self.weights = get_class_grw_weight(self.weights, n_classes, exp_scale=0.2)
         else:
             self.weights = None
 

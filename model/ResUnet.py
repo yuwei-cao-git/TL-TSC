@@ -92,20 +92,28 @@ class ResUnetClassifier(nn.Module):
             return F.softmax(logits, dim=1)
 
 class ResUnet(nn.Module):
-    def __init__(self, n_channels=52, n_classes=9, block_expansion=2, return_type='softmax', decoder=True):
+    def __init__(self, n_channels=52, n_classes=9, block_expansion=2, return_type='softmax', decoder=True, aligned=False):
         super().__init__()
         self.use_decoder = decoder
+        self.align_header = aligned
         self.encoder = ResUnetEncoder(n_channels, block_expansion)
         if self.use_decoder:
             self.decoder = ResUnetDecoder(block_expansion)
-            self.classifier = ResUnetClassifier(32 * block_expansion, n_classes, return_type)
+            if self.align_header:
+                from decoder import DisAlignFCNHead
+                self.classifier = DisAlignFCNHead(32 * block_expansion, 64, n_classes, num_convs=1)
+            else:
+                self.classifier = ResUnetClassifier(32 * block_expansion, n_classes, return_type)
 
     def forward(self, x):
         b1, skip_connections = self.encoder(x)
         if self.use_decoder:
             decoded = self.decoder(b1, skip_connections)
             preds = self.classifier(decoded)
-            return preds, b1
+            if self.align_header:
+                return F.softmax(preds, dim=1), b1
+            else:
+                return preds, b1
         else:
             return b1
 

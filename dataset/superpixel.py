@@ -6,7 +6,7 @@ import os
 from pytorch_lightning import LightningDataModule
 from torch.utils.data import DataLoader
 from os.path import join
-from .augment import pointCloudTransform, image_augment
+from .augment import pointCloudTransform, image_augment, normalize_point_cloud, center_point_cloud
 import torchvision.transforms.v2 as transforms
 import open3d as o3d
 
@@ -55,7 +55,7 @@ class SuperpixelDataset(Dataset):
         self.transforms = transforms.Compose(
             [
                 transforms.ToImage(), 
-                transforms.ToDtype(torch.float32, scale=False),
+                transforms.ToDtype(torch.float32, scale=True),
                 transforms.Normalize(mean=img_mean, std=img_std)
             ]
         )
@@ -68,7 +68,7 @@ class SuperpixelDataset(Dataset):
         # Load data from the .npz file
         superpixel_images = data[
             "superpixel_images"
-        ].astype(np.float32) / 65535.0  # Shape: (num_seasons, num_channels, 128, 128)
+        ].astype(np.float32) # / 65535.0  # Shape: (num_seasons, num_channels, 128, 128)
         coords = data["point_cloud"]  # Shape: (7168, 3)
         label = data["label"]  # Shape: (num_classes,)
         per_pixel_labels = data["per_pixel_labels"]  # Shape: (num_classes, 128, 128)
@@ -87,50 +87,41 @@ class SuperpixelDataset(Dataset):
         # Apply transforms if needed
         if self.image_transform != None:
             superpixel_images = image_augment(superpixel_images, self.image_transform, 128)
+        
+        centred_coords = center_point_cloud(coords)
         if self.normal:
-            min_coords = np.min(coords, axis=0)
-            max_coords = np.max(coords, axis=0)
-
-            center = (min_coords + max_coords) / 2.0
-            coords_centered = coords - center
-
-            z_range = max_coords[2] - min_coords[2] + 1e-8  # avoid divide-by-zero
-            norm_coords = coords_centered / z_range
-            
             if self.sampling:
-                norm_coords = farthest_point_sample(norm_coords, 1024)
+                centred_coords = farthest_point_sample(centred_coords, 1024)
             
             # Convert numpy array to Open3D PointCloud
             pcd = o3d.geometry.PointCloud()
-            pcd.points = o3d.utility.Vector3dVector(norm_coords)
+            pcd.points = o3d.utility.Vector3dVector(centred_coords)
 
             # Estimate normals (change radius/knn depending on density)
             pcd.estimate_normals(search_param=o3d.geometry.KDTreeSearchParamKNN(knn=16))
             feats = np.asarray(pcd.normals)  # Shape: (N, 3)
         else:
-            xyz = coords - np.mean(coords, axis=0)
-            m = np.max(np.linalg.norm(xyz, axis=1, keepdims=True))
-            norm_coords = xyz / m
+            norm_coords = normalize_point_cloud(coords)
             if self.sampling:
-                norm_coords = farthest_point_sample(xyz, 1024)
-            feats = xyz
+                norm_coords = farthest_point_sample(coords, 1024)
+            feats = norm_coords
         
         # Apply point cloud transforms if any
         if self.point_cloud_transform:
-            norm_coords, feats, label = pointCloudTransform(
-                norm_coords, pc_feat=feats, target=label, rot=self.rotate
+            centred_coords, feats, label = pointCloudTransform(
+                centred_coords, pc_feat=feats, target=label, rot=self.rotate
             )
 
         # After applying transforms
         feats = torch.from_numpy(feats).float()  # Shape: (7168, 3)
-        norm_coords = torch.from_numpy(norm_coords).float()  # Shape: (7168, 3)
+        centred_coords = torch.from_numpy(centred_coords).float()  # Shape: (7168, 3)
         label = torch.from_numpy(label).float()  # Shape: (num_classes,)
 
         sample = {
             "images": superpixel_images,  # Padded images of shape [num_seasons, num_channels, 128, 128]
             "mask": nodata_mask,  # Padded masks of shape [num_seasons, 128, 128]
             "per_pixel_labels": per_pixel_labels,  # Tensor: (num_classes, 128, 128)
-            "point_cloud": norm_coords,
+            "point_cloud": centred_coords,
             "pc_feat": feats,
             "label": label,
         }

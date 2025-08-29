@@ -67,6 +67,70 @@ def calc_mae_loss(valid_outputs, valid_targets):
 # margin loss
 # mainfold loss
 
+def smooth_l1_loss(
+    input, target, beta: float, reduction: str = "none", size_average=False
+):
+    """
+    Smooth L1 loss defined in the Fast R-CNN paper as:
+
+                  | 0.5 * x ** 2 / beta   if abs(x) < beta
+    smoothl1(x) = |
+                  | abs(x) - 0.5 * beta   otherwise,
+
+    where x = input - target.
+
+    Smooth L1 loss is related to Huber loss, which is defined as:
+
+                | 0.5 * x ** 2                  if abs(x) < beta
+     huber(x) = |
+                | beta * (abs(x) - 0.5 * beta)  otherwise
+
+    Smooth L1 loss is equal to huber(x) / beta. This leads to the following
+    differences:
+
+     - As beta -> 0, Smooth L1 loss converges to L1 loss, while Huber loss
+       converges to a constant 0 loss.
+     - As beta -> +inf, Smooth L1 converges to a constant 0 loss, while Huber loss
+       converges to L2 loss.
+     - For Smooth L1 loss, as beta varies, the L1 segment of the loss has a constant
+       slope of 1. For Huber loss, the slope of the L1 segment is beta.
+
+    Smooth L1 loss can be seen as exactly L1 loss, but with the abs(x) < beta
+    portion replaced with a quadratic function such that at abs(x) = beta, its
+    slope is 1. The quadratic segment smooths the L1 loss near x = 0.
+
+    Args:
+        input (Tensor): input tensor of any shape
+        target (Tensor): target value tensor with the same shape as input
+        beta (float): L1 to L2 change point.
+            For beta values < 1e-5, L1 loss is computed.
+        reduction: 'none' | 'mean' | 'sum'
+                 'none': No reduction will be applied to the output.
+                 'mean': The output will be averaged.
+                 'sum': The output will be summed.
+
+    Returns:
+        The loss with the reduction option applied.
+
+    """
+    if beta < 1e-5:
+        # if beta == 0, then torch.where will result in nan gradients when
+        # the chain rule is applied due to pytorch implementation details
+        # (the False branch "0.5 * n ** 2 / 0" has an incoming gradient of
+        # zeros, rather than "no gradient"). To avoid this issue, we define
+        # small values of beta to be exactly l1 loss.
+        loss = torch.abs(input - target)
+    else:
+        n = torch.abs(input - target)
+        cond = n < beta
+        loss = torch.where(cond, 0.5 * n**2 / beta, n - 0.5 * beta)
+
+    if reduction == "mean" or size_average:
+        loss = loss.mean()
+    elif reduction == "sum":
+        loss = loss.sum()
+
+    return loss
 
 def calc_pinball_loss(y_true, y_pred):
     pinball_loss = PinballLoss(quantile=0.10, reduction="mean")
@@ -200,6 +264,88 @@ def weighted_kl_divergence(y_true, y_pred, weights):
     )
     return torch.mean(loss)
 
+class KLDivLoss(nn.Module):
+
+    def __init__(self,
+                temperature: float = 1.0,
+                reduction: str = 'mean',
+                loss_name: str = 'loss_kld'):
+        """Kullback-Leibler divergence Loss.
+
+        <https://en.wikipedia.org/wiki/Kullback%E2%80%93Leibler_divergence>
+
+        Args:
+            temperature (float, optional): Temperature param
+            reduction  (str,  optional): The method to reduce the loss into a
+            scalar. Default is "mean". Options are "none", "sum",
+            and "mean"
+        """
+
+        assert isinstance(temperature, (float, int)), \
+            'Expected temperature to be' \
+            f'float or int, but got {temperature.__class__.__name__} instead'
+        assert temperature != 0., 'Temperature must not be zero'
+
+        assert reduction in ['mean', 'none', 'sum'], \
+            'Reduction must be one of the options ("mean", ' \
+            f'"sum", "none"), but got {reduction}'
+
+        super().__init__()
+        self.temperature = temperature
+        self.reduction = reduction
+        self._loss_name = loss_name
+
+    def forward(self, input: torch.Tensor, target: torch.Tensor):
+        """Forward function. Calculate KL divergence Loss.
+
+        Args:
+            input (Tensor): Logit tensor,
+                the data type is float32 or float64.
+                The shape is (N, C) where N is batchsize and C  is number of
+                channels.
+                If there more than 2 dimensions, shape is (N, C, D1, D2, ...
+                Dk), k>= 1
+            target (Tensor): Logit tensor,
+                the data type is float32 or float64.
+                input and target must be with the same shape.
+
+        Returns:
+            (Tensor): Reduced loss.
+        """
+        assert isinstance(input, torch.Tensor), 'Expected input to' \
+            f'be Tensor, but got {input.__class__.__name__} instead'
+        assert isinstance(target, torch.Tensor), 'Expected target to' \
+            f'be Tensor, but got {target.__class__.__name__} instead'
+
+        assert input.shape == target.shape, 'Input and target ' \
+            'must have same shape,' \
+            f'but got shapes {input.shape} and {target.shape}'
+
+        input = F.softmax(input / self.temperature, dim=1)
+        target = F.softmax(target / self.temperature, dim=1)
+
+        loss = F.kl_div(input, target, reduction='none', log_target=False)
+        loss = loss * self.temperature**2
+
+        batch_size = input.shape[0]
+
+        if self.reduction == 'sum':
+            # Change view to calculate instance-wise sum
+            loss = loss.view(batch_size, -1)
+            return torch.sum(loss, dim=1)
+
+        elif self.reduction == 'mean':
+            # Change view to calculate instance-wise mean
+            loss = loss.view(batch_size, -1)
+            return torch.mean(loss, dim=1)
+
+        return loss
+
+def calc_kl_loss(valid_outputs, valid_targets):
+    klloss = KLDivLoss()
+    loss = klloss(valid_outputs, valid_targets)
+    return loss
+
 def calc_mae_loss(valid_outputs, valid_targets):
     loss = torch.sum(torch.abs(valid_outputs - valid_targets), dim=1)
 
@@ -212,6 +358,18 @@ def calc_rwmse_loss(valid_outputs, valid_targets, weights):
 
     return torch.sqrt(loss)
 
+def get_class_grw_weight(class_weight, num_classes=9, exp_scale=0.3):
+    """
+    Caculate the Generalized Re-weight for Loss Computation
+    """
+    
+    ratio = 1 / class_weight
+        
+    class_weight = 1 / (ratio**exp_scale)
+    class_weight = class_weight / torch.sum(class_weight) * num_classes
+    
+    return class_weight
+
 def calc_masked_loss(loss_func_name, valid_outputs, valid_targets, weights=None):
     if loss_func_name == "wmse":
         return calc_wmse_loss(valid_outputs, valid_targets, weights)
@@ -219,12 +377,16 @@ def calc_masked_loss(loss_func_name, valid_outputs, valid_targets, weights=None)
         return calc_rwmse_loss(valid_outputs, valid_targets, weights)
     elif loss_func_name == "mse":
         return calc_mse_loss(valid_outputs, valid_targets)
+    elif loss_func_name == "kl":
+        return calc_kl_loss(valid_targets, valid_outputs, weights)
     elif loss_func_name == "wkl":
         return weighted_kl_divergence(valid_targets, valid_outputs, weights)
     elif loss_func_name == "mae":
         return calc_mae_loss(valid_outputs, valid_targets)
     elif loss_func_name == "pinball":
         return calc_pinball_loss(valid_outputs, valid_targets)
+    elif loss_func_name == "L1Smooth":
+        return smooth_l1_loss(valid_outputs, valid_targets)
     
 class MultiLabelFocalLoss(nn.Module):
     def __init__(self, alpha=1.0, gamma=2.0, reduction='mean'):
