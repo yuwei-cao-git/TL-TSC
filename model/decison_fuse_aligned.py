@@ -5,6 +5,7 @@ import numpy as np
 import torch
 import torch.nn as nn
 import pytorch_lightning as pl
+from timm.scheduler import CosineLRScheduler
 
 from .pointnext import PointNextModel
 from .decoder import DecisionLevelFusion
@@ -225,5 +226,15 @@ class FusionModel(pl.LightningModule):
                 optimizer, max_lr=0.1, epochs=self.cfg["max_epochs"], steps_per_epoch=len(self.train_dataloader()) / self.trainer.accumulate_grad_batches
             )
             return {"optimizer": optimizer, "lr_scheduler": scheduler}
+        elif self.scheduler_type == "CosLR":
+            scheduler = CosineLRScheduler(optimizer,
+                t_initial=self.cfg["max_epochs"],
+                cycle_mul=1.0,
+                lr_min=1e-6,
+                cycle_decay=0.1,
+                warmup_lr_init=1e-6,
+                warmup_t=10,
+                cycle_limit=1,
+                t_in_epochs=True)
         else:
             return optimizer
