@@ -19,6 +19,7 @@ class ConvBNReLU(nn.Sequential):
         kernel_size=3,
         dilation=1,
         stride=1,
+        padding=None,
         norm_layer=nn.BatchNorm2d,
         bias=False,
     ):
@@ -30,7 +31,7 @@ class ConvBNReLU(nn.Sequential):
                 bias=bias,
                 dilation=dilation,
                 stride=stride,
-                padding=((stride - 1) + dilation * (kernel_size - 1)) // 2,
+                padding=((stride - 1) + dilation * (kernel_size - 1)) // 2 if padding is None else padding,
             ),
             norm_layer(out_channels),
             nn.ReLU6(),
@@ -417,6 +418,7 @@ class DisAlignFCNHead(nn.Module):
         self.concat_input = concat_input
         self.kernel_size = kernel_size
         self.channels = channels
+        self.num_classes = n_classes
         super(DisAlignFCNHead, self).__init__(**kwargs)
         if num_convs == 0:
             assert self.in_channels == self.channels

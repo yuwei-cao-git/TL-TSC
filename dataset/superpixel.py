@@ -95,7 +95,7 @@ class SuperpixelDataset(Dataset):
             
             # Convert numpy array to Open3D PointCloud
             pcd = o3d.geometry.PointCloud()
-            pcd.points = o3d.utility.Vector3dVector(centred_coords)
+            pcd.points = o3d.utility.Vector3dVector(coords)
 
             # Estimate normals (change radius/knn depending on density)
             pcd.estimate_normals(search_param=o3d.geometry.KDTreeSearchParamKNN(knn=16))

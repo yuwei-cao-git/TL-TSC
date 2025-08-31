@@ -100,7 +100,7 @@ class ResUnet(nn.Module):
         if self.use_decoder:
             self.decoder = ResUnetDecoder(block_expansion)
             if self.align_header:
-                from decoder import DisAlignFCNHead
+                from .decoder import DisAlignFCNHead
                 self.classifier = DisAlignFCNHead(32 * block_expansion, 64, n_classes, num_convs=1)
             else:
                 self.classifier = ResUnetClassifier(32 * block_expansion, n_classes, return_type)
