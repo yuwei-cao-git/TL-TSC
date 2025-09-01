@@ -63,7 +63,7 @@ class FusionModel(pl.LightningModule):
         self.loss_func = self.cfg["loss_func"]
         #self.criterion = nn.MSELoss()
         if self.cfg["loss_func"] in ["wmse", "wrmse", "wkl"]:
-            self.weights = self.cfg.get("class_weights", None)
+            self.weights = self.cfg.get(f"{self.cfg['dataset']}_class_weights", None)
             self.weights = get_class_grw_weight(self.weights, n_classes, exp_scale=0.2)
         else:
             self.weights = None

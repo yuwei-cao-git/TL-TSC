@@ -10,6 +10,7 @@ ovf_2s_sp_class_weights: [0.130, 0.016, 0.168, 0.192, 0.130, 0.047, 0.08, 0.024,
 class_names: ['AB', 'PO', 'MR', 'BF', 'CE', 'PW', 'MH', 'BW', 'SW', 'OR', 'PR']
 n_classes: 11
 ovf_season_map: ["img_s2_2020_spring", "img_s2_2020_summer", "img_s2_2020_fall", "img_s2_2020_winter"]
+ovf_sp_season_map: ["img_s2_2020_spring", "img_s2_2020_summer", "img_s2_2020_fall", "img_s2_2020_winter"]
 ovf_2s_sp_season_map: ["img_s2_2020_summer", "img_s2_2020_fall"]
 # balanced dataset
 ovf_img_mean: [77.70884877, 87.54467291, 77.68712775, 95.82130423, 115.36178432, 117.97432742, 119.43950191, 118.58491624, 103.22995657]
