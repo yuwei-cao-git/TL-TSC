@@ -21,8 +21,8 @@ pretrained_ckpt: None
 fix_backbone: false
 batch_size: 64
 max_epochs: 100
-optimizer: adamW                 # Options: adam, adamW, sgd
-scheduler: cosine         # Options: plateau, steplr, asha, cosine, cosinewarmup
+optimizer: adam                 # Options: adam, adamW, sgd
+scheduler: steplr         # Options: plateau, steplr, asha, cosine, cosinewarmup
 lr: 0.0001
 patience: 10
 step_size: 10
