@@ -25,8 +25,8 @@ def override_config(cfg, args):
         cfg['dataset'] = args.dataset
     if args.pretrained_ckpt is not None:
         cfg['pretrained_ckpt'] = args.pretrained_ckpt
-    if args.use_ms:
-        cfg['use_ms'] = args.use_ms
+    if args.scheduler:
+        cfg['scheduler'] = args.scheduler
     # hps
     if args.lr is not None:
         cfg['lr'] = args.lr
@@ -64,7 +64,7 @@ def parse_args():
     parser.add_argument('--emb_dims', type=int)
     parser.add_argument('--dp_pc', type=float)
     parser.add_argument('--pretrained_ckpt', default=None)
-    parser.add_argument('--use_ms', action='store_true', help="Enable multispectral input")
+    parser.add_argument('--scheduler', type=str)
     parser.add_argument('--pc_normal', type=bool, default=False)
     parser.add_argument('--fps', type=bool, default=False) 
     return parser.parse_args()

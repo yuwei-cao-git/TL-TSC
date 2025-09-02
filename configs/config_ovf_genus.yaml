@@ -25,8 +25,8 @@ pretrained_ckpt: None #tl_logs/no_img_head_unet_pointnet_rmf_cosine/wandblogs/TL
 fix_backbone: false
 batch_size: 64
 max_epochs: 100
-optimizer: adam                 # Options: adam, adamW, sgd
-scheduler: steplr         # Options: plateau, steplr, asha, cosine, cosinewarmup
+optimizer: adamW                 # Options: adam, adamW, sgd
+scheduler: cosine         # Options: plateau, steplr, asha, cosine, cosinewarmup
 lr: 0.0001
 patience: 10
 step_size: 10
