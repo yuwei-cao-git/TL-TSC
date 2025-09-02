@@ -31,14 +31,13 @@ tar -I pigz -xf $project/TL-TSC/data/ovf_superpixel_dataset.tar.gz -C ./data || 
 # Load python module, and additional required modules
 echo "load modules"
 module load python StdEnv gcc arrow cuda
+# module load python StdEnv gcc arrow cuda/12.2 cudnn nccl/2.18.3
 virtualenv --no-download $SLURM_TMPDIR/env
 source $SLURM_TMPDIR/env/bin/activate
 pip install --no-index --upgrade pip
-pip install --no-index torch==2.5.0
-pip install pointnext==0.0.5
-pip install --no-index timm tensorboardX lightning pytorch_lightning torchaudio==2.5.0 torchdata torcheval torchmetrics torchtext torchvision==0.20.0 rasterio imageio wandb pandas
-pip install --no-index scikit-learn seaborn open3d==0.18.0
-pip install --no-index mamba-ssm
+pip install --no-index torch==2.5.0 pointnext==0.0.5
+pip install --no-index timm tensorboardX lightning pytorch_lightning torchaudio==2.5.0 torchdata torcheval torchmetrics torchvision==0.20.0 rasterio imageio wandb pandas
+pip install --no-index scikit-learn seaborn open3d==0.18.0 mamba-ssm
 echo "Virtual Env created!"
 
 # Set environment variables

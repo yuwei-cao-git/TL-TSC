@@ -136,7 +136,7 @@ def train(config):
         callbacks=[early_stopping, checkpoint_callback],
         devices=config["gpus"],
         num_nodes=1,
-        #strategy='ddp'# DDPStrategy #(find_unused_parameters=True)
+        strategy='ddp'# DDPStrategy #(find_unused_parameters=True)
     )
     
     # Train the model

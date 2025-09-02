@@ -30,12 +30,12 @@ class PointNextEncoder(nn.Module):
         return out
 
 class PointNextClassifier(nn.Module):
-    def __init__(self, config, n_classes, return_type):
+    def __init__(self, config, n_classes, return_type, aligned):
         super(PointNextClassifier, self).__init__()
         self.config = config
         self.n_classes = n_classes
         self.return_type = return_type
-
+        self.aligned = aligned
         
         self.cls_head = nn.Sequential(
             nn.Linear(config["emb_dims"], 512),
@@ -48,9 +48,14 @@ class PointNextClassifier(nn.Module):
             nn.Dropout(config["dp_pc"]),
             nn.Linear(256, self.n_classes),
         )
+        if aligned:
+            from .decoder import DisAlignLinear
+            self.disalign_head = DisAlignLinear(self.n_classes, self.n_classes)
 
     def forward(self, pc_feats):
         logits = self.cls_head(pc_feats)
+        if self.aligned:
+            logits = self.disalign_head(logits)
         if self.return_type == 'logsoftmax':
             return F.log_softmax(logits, dim=1)
         elif self.return_type == 'logits':
@@ -62,11 +67,12 @@ class PointNextClassifier(nn.Module):
             return logits
         
 class PointNextModel(nn.Module):
-    def __init__(self, config, in_dim, n_classes, decoder=True, return_type='softmax'):
+    def __init__(self, config, in_dim, n_classes, decoder=True, return_type='softmax', aligned=False):
         super(PointNextModel, self).__init__()
         self.use_decoder = decoder
+        self.align_header = aligned
         self.encoder = PointNextEncoder(config, in_dim)
-        self.decoder = PointNextClassifier(config, n_classes, return_type=return_type) if decoder else None
+        self.decoder = PointNextClassifier(config, n_classes, return_type=return_type, aligned=aligned)  if decoder else None
 
     def forward(self, pc_feat, xyz):
         pc_feats = self.encoder(pc_feat, xyz)
