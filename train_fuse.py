@@ -32,8 +32,8 @@ def override_config(cfg, args):
         cfg['lr'] = args.lr
     if args.emb_dims is not None:
         cfg['emb_dims'] = args.emb_dims
-    if args.dp_pc is not None:
-        cfg['dp_pc'] = args.dp_pc
+    if args.optimizer is not None:
+        cfg['optimizer'] = args.optimizer
     if args.multitasks_uncertain_loss:
         cfg['multitasks_uncertain_loss'] = args.multitasks_uncertain_loss
     if args.loss_func is not None:
@@ -62,7 +62,7 @@ def parse_args():
     parser.add_argument('--multitasks_uncertain_loss', type=bool, default=False)
     parser.add_argument('--loss_func', type=str)
     parser.add_argument('--emb_dims', type=int)
-    parser.add_argument('--dp_pc', type=float)
+    parser.add_argument('--optimizer', type=str)
     parser.add_argument('--pretrained_ckpt', default=None)
     parser.add_argument('--scheduler', type=str)
     parser.add_argument('--pc_normal', type=bool, default=False)
