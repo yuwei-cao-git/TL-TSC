@@ -40,8 +40,8 @@ def override_config(cfg, args):
         cfg['loss_func'] = args.loss_func
     if args.pc_normal:
         cfg['pc_normal'] = args.pc_normal
-    if args.fps:
-        cfg['fps'] = args.fps
+    if args.dp is not None:
+        cfg['dp_pc'] = args.dp
     return cfg
 
     
@@ -66,7 +66,7 @@ def parse_args():
     parser.add_argument('--pretrained_ckpt', default=None)
     parser.add_argument('--scheduler', type=str)
     parser.add_argument('--pc_normal', type=bool, default=False)
-    parser.add_argument('--fps', type=bool, default=False) 
+    parser.add_argument('--dp', type=float) 
     return parser.parse_args()
     
 def main():

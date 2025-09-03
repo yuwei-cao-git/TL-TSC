@@ -50,7 +50,7 @@ class FusionModel(pl.LightningModule):
             self.s2_model = S2Transformer(num_classes=n_classes, usehead=True)
 
         # Point cloud stream
-        self.pc_model = PointNextModel(self.cfg, in_dim=3, n_classes=n_classes)
+        self.pc_model = PointNextModel(self.cfg, in_dim=3, n_classes=n_classes, aligned=True)
 
         # Decision-level fusion module
         self.fuse_head = DecisionLevelFusion(
