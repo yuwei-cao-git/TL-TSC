@@ -20,7 +20,7 @@ head:  all_head # Options: no_pc_head, fuse_head, all_head, no_img_head
 pretrained_ckpt: None
 fix_backbone: false
 batch_size: 64
-max_epochs: 100
+max_epochs: 300
 optimizer: adamW                 # Options: adam, adamW, sgd
 scheduler: steplr         # Options: plateau, steplr, asha, cosine, cosinewarmup
 lr: 0.0001
