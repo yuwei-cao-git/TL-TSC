@@ -353,7 +353,7 @@ class SimpleUpDecoder(nn.Module):
 
 
 class DecisionLevelFusion(nn.Module):
-    def __init__(self, n_classes, method="average", weight_img=0.5, weight_pc=0.5):
+    def __init__(self, n_classes, method="weighted", weight_img=0.5, weight_pc=0.5):
         super().__init__()
         self.method = method
         self.weight_img = weight_img
@@ -372,9 +372,6 @@ class DecisionLevelFusion(nn.Module):
             return pc_logits
         if pc_logits is None:
             return img_logits
-
-        if self.method == "average":
-            return (img_logits + pc_logits) / 2
 
         elif self.method == "weighted":
             return self.weight_img * img_logits + self.weight_pc * pc_logits
