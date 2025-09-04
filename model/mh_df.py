@@ -3,6 +3,7 @@ import pandas as pd
 import numpy as np
 
 import torch
+import torch.nn as nn
 import pytorch_lightning as pl
 from timm.scheduler import CosineLRScheduler
 
@@ -12,7 +13,7 @@ from .decoder import DecisionLevelFusion
 from torchmetrics.regression import R2Score
 from torchmetrics.functional import r2_score
 from torchmetrics.classification import ConfusionMatrix
-from .loss import apply_mask_per_batch, calc_masked_loss, apply_mask
+from .loss import apply_mask_per_batch, calc_masked_loss, get_class_grw_weight, apply_mask
 
 
 class FusionModel(pl.LightningModule):
@@ -37,19 +38,21 @@ class FusionModel(pl.LightningModule):
             self.s2_model = UNet(n_channels=total_input_channels, n_classes=n_classes)
         elif self.cfg["network"] == "ResUnet":
             from .ResUnet import ResUnet
-            self.s2_model = ResUnet(n_channels=total_input_channels, n_classes=n_classes)
+            self.s2_model = ResUnet(n_channels=total_input_channels, n_classes=n_classes, aligned=True)
         elif self.cfg["network"] == "FCNResNet":
             from .resnet_fcn import FCNResNet50
-            self.s2_model = FCNResNet50(n_channels=total_input_channels, n_classes=n_classes)
+            self.s2_model = FCNResNet50(n_channels=total_input_channels, n_classes=n_classes, aligned=True)
         elif self.cfg["network"] == "ResNet":
             from .ResNet import Resnet
-            self.s2_model = Resnet(n_channels=total_input_channels, num_classes=n_classes)
-        elif self.cfg["network"] == "vit":
+            self.s2_model = Resnet(n_channels=total_input_channels, num_classes=n_classes, aligned=True)
+        elif self.cfg["network"] == "Vit":
             from .VitCls import S2Transformer
-            self.s2_model = S2Transformer(num_classes=n_classes, usehead=True)
+            self.s2_model = S2Transformer(num_classes=n_classes, usehead=True, aligned=True)
+        else:
+            raise ValueError(f"Unsupported network type: {self.cfg['network']}")
 
         # Point cloud stream
-        self.pc_model = PointNextModel(self.cfg, in_dim=3, n_classes=n_classes)
+        self.pc_model = PointNextModel(self.cfg, in_dim=3, n_classes=n_classes, aligned=True)
 
         # Decision-level fusion module
         self.fuse_head = DecisionLevelFusion(
@@ -63,9 +66,25 @@ class FusionModel(pl.LightningModule):
         #self.criterion = nn.MSELoss()
         if self.cfg["loss_func"] in ["wmse", "wrmse", "wkl"]:
             self.weights = self.cfg.get(f"{self.cfg['dataset']}_class_weights", None)
+            self.weights = get_class_grw_weight(self.weights, n_classes, exp_scale=0.2)
         else:
             self.weights = None
 
+        # multi-task loss weight
+        if self.cfg["multitasks_uncertain_loss"]:
+            from .loss import AutomaticWeightedLoss
+            self.awl = AutomaticWeightedLoss(3 if self.cfg["head"]=='all_head' else 2)
+        
+        # use it during test/val/not uncertainty weighted loss - equal loss
+        self.loss_func = self.cfg["loss_func"]
+        if self.cfg["head"] == "no_img_head" or self.cfg["head"] == "all_head":
+            self.pc_loss_weight = self.cfg.get("pc_loss_weight", 1.0) # /0.005
+        if self.cfg["head"] == "no_pc_head" or self.cfg["head"] == "all_head":
+            self.img_loss_weight = self.cfg.get("img_loss_weight", 1.0) # /0.15
+        self.fuse_loss_weight = self.cfg.get("fuse_loss_weight", 1.0) # /0.005
+        
+        self.criterion = nn.MSELoss()
+        
         self.train_r2 = R2Score()
         self.val_r2 = R2Score()
         self.test_r2 = R2Score()
@@ -79,7 +98,7 @@ class FusionModel(pl.LightningModule):
         self.best_test_outputs = None
         self.validation_step_outputs = []
 
-    def forward(self, images, pc_feat, xyz):
+    def forward(self, images, pc_feat, xyz, img_masks):
         if self.ms_fusion:
             stacked_features = self.mf_module(images)
         else:
@@ -88,40 +107,45 @@ class FusionModel(pl.LightningModule):
 
         img_preds, _ = self.s2_model(stacked_features)
         pc_preds, _ = self.pc_model(pc_feat, xyz)
+        
+        if self.cfg["network"] not in ["ResNet", "Vit"]:
+            img_logits_list = apply_mask_per_batch(img_preds, img_masks, multi_class=True)
+            all_image_preds = torch.stack([p.mean(dim=0) if p.numel() > 0 else torch.zeros(img_preds.shape[1], device=img_preds.device) for p in img_logits_list], dim=0)
+        else:
+            all_image_preds = img_preds
+        fuse_preds = self.fuse_head(all_image_preds, pc_preds)
 
-        return img_preds, pc_preds
+        return img_preds, pc_preds, fuse_preds
 
     def forward_and_metrics(self, images, img_masks, pc_feat, point_clouds, labels, pixel_labels, stage):
         pc_feat = pc_feat.permute(0, 2, 1) if pc_feat is not None else None
         point_clouds = point_clouds.permute(0, 2, 1) if point_clouds is not None else None
-
-        image_preds, pc_preds = self.forward(images, pc_feat, point_clouds)
-        if self.cfg["network"] !="ResNet":
-            img_logits_list= apply_mask_per_batch(image_preds, img_masks, multi_class=True)
-            #valid_pixel_preds, _ = apply_mask(image_preds, pixel_labels, img_masks, multi_class=True)
-            image_preds = torch.stack([p.mean(dim=0) if p.numel() > 0 else torch.zeros(image_preds.shape[1], device=image_preds.device) for p in img_logits_list], dim=0)
-        fuse_preds = self.fuse_head(image_preds, pc_preds)
+        image_preds, pc_preds, fuse_preds = self.forward(images, pc_feat, point_clouds, img_masks)
 
         r2_metric = getattr(self, f"{stage}_r2")
         weights = self.weights.to(fuse_preds.device) if self.weights is not None else None
         
         # classification loss
-        loss = calc_masked_loss(self.loss_func, fuse_preds, labels, weights)
-        # consistency_loss
-        # avg_preds = valid_pixel_preds.mean(dim=0, keepdim=True)
-        # consistency_loss = nn.KLDivLoss(reduction='batchmean')(valid_pixel_preds.log_softmax(dim=1), avg_preds.softmax(dim=1).expand_as(valid_pixel_preds))
-        # loss += 0.2 * consistency_loss
+        loss_point = calc_masked_loss(self.loss_func, pc_preds, labels, weights)
+        loss_fuse = calc_masked_loss(self.loss_func, fuse_preds, labels, weights)
+        valid_pixel_preds, valid_pixel_true = apply_mask(image_preds, pixel_labels, img_masks, multi_class=True)
+        loss_pixel = calc_masked_loss(self.loss_func, valid_pixel_preds, valid_pixel_true, weights)
+        
+        if self.cfg["multitasks_uncertain_loss"] and stage == "train":
+            total_loss = self.awl(loss_pixel, loss_point, loss_fuse)
+        else:
+            total_loss = loss_fuse*self.fuse_loss_weight + loss_point*self.pc_loss_weight + loss_pixel*self.img_loss_weight
         
         r2 = r2_metric(torch.round(fuse_preds, decimals=2).view(-1), labels.view(-1))
 
-        self.log(f"{stage}_loss", loss, on_step=True, on_epoch=True, prog_bar=True, sync_dist=True)
+        self.log(f"{stage}_loss", total_loss, on_step=True, on_epoch=True, prog_bar=True, sync_dist=True)
         self.log(f"{stage}_r2", r2, on_step=True, on_epoch=True, prog_bar=True, sync_dist=True)
 
         if stage == "val":
             self.validation_step_outputs.append({"val_target": labels, "val_pred": fuse_preds})
         if stage == "test":
-            return labels, fuse_preds, loss
-        return loss
+            return labels, fuse_preds, total_loss
+        return total_loss
 
     def training_step(self, batch, batch_idx):
         return self.forward_and_metrics(batch["images"], batch.get("mask"), batch["pc_feat"], batch["point_cloud"], batch["label"], batch.get("per_pixel_labels"), "train")
@@ -170,7 +194,28 @@ class FusionModel(pl.LightningModule):
         df.to_csv(os.path.join(output_dir, "test_outputs.csv"), mode="a")
 
     def configure_optimizers(self):
-        params = list(self.s2_model.parameters()) + list(self.pc_model.parameters()) + list(self.fuse_head.parameters())
+        params = []
+        if self.cfg["multitasks_uncertain_loss"]:
+            params.append({"params": [self.awl.params], "lr": 5e-4})
+        # Include parameters from the image model
+        if self.cfg["use_ms"]:
+            mf_params = list(self.mf_module.parameters())
+            params.append({"params": mf_params, "lr": 1e-4})
+        
+        if any(p.requires_grad for p in self.s2_model.parameters()):
+            image_params = list(self.s2_model.parameters())
+            params.append({"params": image_params, "lr": 1e-4})
+
+        # Include parameters from the point cloud model
+        if any(p.requires_grad for p in self.pc_model.parameters()):
+            point_params = list(self.pc_model.parameters()) 
+            params.append({"params": point_params, "lr": 5e-4})
+
+        # Include parameters from the fusion layers
+        if any(p.requires_grad for p in self.fuse_head.parameters()):
+            fusion_params = list(self.fuse_head.parameters())
+            params.append({"params": fusion_params, "lr": 5e-4})
+        
         # Choose the optimizer based on input parameter
         if self.optimizer_type == "adam":
             optimizer = torch.optim.Adam(

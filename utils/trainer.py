@@ -80,7 +80,7 @@ def train(config):
     
     print("start setting dataset")
     # Initialize the DataModule
-    if config["task"] in ["tsc", "lsc", "tsc_mid", "tsc_aligned"]:
+    if config["task"] in ["tsc", "lsc", "tsc_mid", "tsc_aligned", "tsc_mid_decision"]:
         if config["dataset"] in ["ovf", "rmf"]:
             from dataset.balanced_dataset import BalancedDataModule
             data_module = BalancedDataModule(config)
@@ -97,6 +97,9 @@ def train(config):
     # Use the calculated input channels from the DataModule to initialize the model
     if config["task"] == "tsc_mid":
         from model.fuse import FusionModel
+        model = FusionModel(config, n_classes=config["n_classes"])
+    elif config["task"] == "tsc_mid_decision":
+        from model.mh_df import FusionModel
         model = FusionModel(config, n_classes=config["n_classes"])
     elif config["task"] == "tsc":
         from model.decison_fuse import FusionModel

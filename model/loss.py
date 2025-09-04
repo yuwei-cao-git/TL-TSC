@@ -234,7 +234,7 @@ def apply_mask(outputs, targets, mask, multi_class=True, keep_shp=False):
             valid_targets = targets[~expanded_mask]
             return valid_outputs, valid_targets
         
-def apply_mask_per_batch(preds, labels, mask, multi_class=True):
+def apply_mask_per_batch(preds, mask, multi_class=True):
     """
     Apply a mask to predictions and labels. Only valid pixels (mask == 1) are kept.
     Returns outputs grouped by batch for later aggregation.
@@ -242,20 +242,16 @@ def apply_mask_per_batch(preds, labels, mask, multi_class=True):
     if multi_class:
         B, C, H, W = preds.shape
         preds = preds.permute(0, 2, 3, 1)  # (B, H, W, C)
-        labels = labels.permute(0, 2, 3, 1)  # (B, H, W, C)
         mask = mask.squeeze(1)  # (B, H, W)
 
         masked_preds = []
-        masked_labels = []
         for b in range(B):
             valid = mask[b] > 0
             masked_preds.append(preds[b][valid])  # (N_valid, C)
-            masked_labels.append(labels[b][valid])
-        return masked_preds, masked_labels
+        return masked_preds
     else:
         preds = preds[mask > 0]
-        labels = labels[mask > 0]
-        return preds, labels
+        return preds
         
 
 def weighted_kl_divergence(y_true, y_pred, weights):

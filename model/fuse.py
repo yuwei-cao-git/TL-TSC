@@ -95,7 +95,7 @@ class FusionModel(pl.LightningModule):
 
         # Define loss functions
         if self.cfg["loss_func"] in ["wmse", "wrmse", "wkl"]:
-            self.weights = self.cfg["class_weights"]
+            self.weights = self.cfg.get(f"{self.cfg['dataset']}_class_weights", None)
         
         # multi-task loss weight
         if self.cfg["multitasks_uncertain_loss"]:

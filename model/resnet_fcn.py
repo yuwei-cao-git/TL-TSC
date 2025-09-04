@@ -37,13 +37,18 @@ class FCNResNet50Decoder(nn.Module):
     """
     FCN classifier head and upsampling for segmentation output.
     """
-    def __init__(self, return_type, encoder_channels=2048, n_classes=9, upsample='bilinear'):
+    def __init__(self, return_type, encoder_channels=2048, n_classes=9, upsample='bilinear', aligned=False):
         super().__init__()
         self.decoder_upsample = upsample
         self.return_type = return_type
+        self.align_header = aligned
         if self.decoder_upsample == 'bilinear':
-            from torchvision.models.segmentation.fcn import FCNHead
-            self.classifier = FCNHead(encoder_channels, n_classes)
+            if self.align_header:
+                from .decoder import DisAlignFCNHead
+                self.classifier = DisAlignFCNHead(encoder_channels, encoder_channels, n_classes, num_convs=1)
+            else:
+                from torchvision.models.segmentation.fcn import FCNHead
+                self.classifier = FCNHead(encoder_channels, n_classes)
         else:
             from .decoder import SimpleUpDecoder
             self.classifier = SimpleUpDecoder(encoder_channel=2048, decoder_channels=512, num_classes=n_classes)
@@ -61,12 +66,12 @@ class FCNResNet50Decoder(nn.Module):
     
     
 class FCNResNet50(nn.Module):
-    def __init__(self, n_channels, n_classes, return_type='softmax', upsample_method='bilinear', pretrained=False, decoder=True):
+    def __init__(self, n_channels, n_classes, return_type='softmax', upsample_method='bilinear', pretrained=False, decoder=True, aligned=False):
         super().__init__()
         self.use_decoder = decoder
         self.encoder = FCNResNet50Encoder(n_channels, pretrained=pretrained)
         if self.use_decoder:
-            self.decoder = FCNResNet50Decoder(return_type=return_type, encoder_channels=2048, n_classes=n_classes, upsample=upsample_method)
+            self.decoder = FCNResNet50Decoder(return_type=return_type, encoder_channels=2048, n_classes=n_classes, upsample=upsample_method, aligned=aligned)
 
     def forward(self, x):
         features = self.encoder(x)

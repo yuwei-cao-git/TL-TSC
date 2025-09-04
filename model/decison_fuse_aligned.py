@@ -41,13 +41,13 @@ class FusionModel(pl.LightningModule):
             self.s2_model = ResUnet(n_channels=total_input_channels, n_classes=n_classes, aligned=True)
         elif self.cfg["network"] == "FCNResNet":
             from .resnet_fcn import FCNResNet50
-            self.s2_model = FCNResNet50(n_channels=total_input_channels, n_classes=n_classes)
+            self.s2_model = FCNResNet50(n_channels=total_input_channels, n_classes=n_classes, aligned=True)
         elif self.cfg["network"] == "ResNet":
             from .ResNet import Resnet
-            self.s2_model = Resnet(n_channels=total_input_channels, num_classes=n_classes)
-        elif self.cfg["network"] == "vit":
+            self.s2_model = Resnet(n_channels=total_input_channels, num_classes=n_classes, aligned=True)
+        elif self.cfg["network"] == "Vit":
             from .VitCls import S2Transformer
-            self.s2_model = S2Transformer(num_classes=n_classes, usehead=True)
+            self.s2_model = S2Transformer(num_classes=n_classes, usehead=True, aligned=True)
 
         # Point cloud stream
         self.pc_model = PointNextModel(self.cfg, in_dim=3, n_classes=n_classes, aligned=True)
@@ -99,7 +99,7 @@ class FusionModel(pl.LightningModule):
 
         image_preds, pc_preds = self.forward(images, pc_feat, point_clouds)
         if self.cfg["network"] !="ResNet":
-            img_logits_list, _ = apply_mask_per_batch(image_preds, pixel_labels, img_masks, multi_class=True)
+            img_logits_list = apply_mask_per_batch(image_preds, img_masks, multi_class=True)
             #valid_pixel_preds, _ = apply_mask(image_preds, pixel_labels, img_masks, multi_class=True)
             image_preds = torch.stack([p.mean(dim=0) if p.numel() > 0 else torch.zeros(image_preds.shape[1], device=image_preds.device) for p in img_logits_list], dim=0)
         fuse_preds = self.fuse_head(image_preds, pc_preds)
