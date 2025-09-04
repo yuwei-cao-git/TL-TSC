@@ -3,7 +3,7 @@ import pandas as pd
 import numpy as np
 
 import torch
-import torch.nn as nn
+import torch.nn.functional as F
 import pytorch_lightning as pl
 from timm.scheduler import CosineLRScheduler
 
@@ -62,9 +62,9 @@ class FusionModel(pl.LightningModule):
 
         self.loss_func = self.cfg["loss_func"]
         #self.criterion = nn.MSELoss()
-        if self.cfg["loss_func"] in ["wmse", "wrmse", "wkl", "ewmse"]:
-            self.weights = self.cfg.get(f"{self.cfg['dataset']}_class_weights", None)
-            if self.cfg["loss_func"] == "ewmse":
+        if self.loss_func in ["wmse", "wrmse", "wkl", "ewmse"]:
+            self.weights = self.cfg[f"{self.cfg['dataset']}_class_weights"]
+            if self.loss_func == "ewmse":
                 self.weights = get_class_grw_weight(self.weights, n_classes, exp_scale=0.2)
         else:
             self.weights = None
