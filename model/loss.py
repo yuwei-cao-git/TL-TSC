@@ -354,7 +354,7 @@ def calc_rwmse_loss(valid_outputs, valid_targets, weights):
 
     return torch.sqrt(loss)
 
-def get_class_grw_weight(class_weight, num_classes=9, exp_scale=0.3):
+def get_class_grw_weight(class_weight, num_classes=9, exp_scale=0.2):
     """
     Caculate the Generalized Re-weight for Loss Computation
     """
@@ -367,7 +367,7 @@ def get_class_grw_weight(class_weight, num_classes=9, exp_scale=0.3):
     return class_weight
 
 def calc_masked_loss(loss_func_name, valid_outputs, valid_targets, weights=None):
-    if loss_func_name == "wmse":
+    if loss_func_name in ["wmse", "ewmse"]:
         return calc_wmse_loss(valid_outputs, valid_targets, weights)
     elif loss_func_name == "wrmse":
         return calc_rwmse_loss(valid_outputs, valid_targets, weights)
