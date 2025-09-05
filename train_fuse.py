@@ -1,5 +1,4 @@
 import argparse
-from utils.trainer import train
 import os
 import torch
 import yaml
@@ -90,6 +89,10 @@ def main():
     os.makedirs(cfg['save_dir'], exist_ok=True)
     print(cfg)
     # Call the train function with parsed arguments
+    if cfg['task'] == 'tsc_md':
+        from utils.cd_trainer import train
+    else:
+        from utils.trainer import train
     train(cfg)
 
 

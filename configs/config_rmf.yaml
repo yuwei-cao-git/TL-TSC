@@ -2,6 +2,7 @@
 
 # General
 dataset: rmf_sp                        # Options: rmf, rmf_superpixel_dataset
+data_dir: "./data/rmf_superpixel_dataset"
 tile_size: 128
 n_bands: 9
 rmf_class_weights: [0.134, 0.024, 0.055, 0.044, 0.025, 0.032, 0.261, 0.006, 0.420]
@@ -19,7 +20,7 @@ task: tsc
 head:  all_head # Options: no_pc_head, fuse_head, all_head, no_img_head
 pretrained_ckpt: None
 fix_backbone: false
-batch_size: 64
+batch_size: 32
 max_epochs: 300
 optimizer: adamW                 # Options: adam, adamW, sgd
 scheduler: steplr         # Options: plateau, steplr, asha, cosine, cosinewarmup
@@ -28,7 +29,7 @@ patience: 10
 step_size: 10
 momentum: 0.9
 weight_decay: 0.0001
-decision_fuse_type: mlp #average, weighted, mlp
+decision_fuse_type: weighted #average, weighted, mlp
 
 # Loss weights
 weighted_cls_loss: false
@@ -41,7 +42,7 @@ emb_dims: 768
 num_points: 7168
 fps: false
 encoder: b                      # Options: s, b, l, xl
-fusion_dim: 128
+fusion_dim: 256
 dp_fuse: 0.7
 dp_pc: 0.5
 use_ms: true
@@ -54,4 +55,4 @@ rotate: false
 pc_normal: true
 
 # Hardware
-gpus: 4
+gpus: 1

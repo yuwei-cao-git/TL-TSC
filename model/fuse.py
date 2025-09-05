@@ -90,7 +90,7 @@ class FusionModel(pl.LightningModule):
             last_feat_size=(self.cfg["tile_size"]
             // 8) if self.cfg["network"] == "ResNet" else (self.cfg["tile_size"]
             // 16),
-            return_feature=False
+            decoder=True
         )
 
         # Define loss functions

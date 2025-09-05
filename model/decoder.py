@@ -194,7 +194,7 @@ class MambaFusionDecoder(nn.Module):
         expand=2,
         last_feat_size=8,
         return_type='softmax',
-        return_feature=False
+        decoder=True
     ):
         super(MambaFusionDecoder, self).__init__()
         self.mamba = MambaFusion(
@@ -207,25 +207,26 @@ class MambaFusionDecoder(nn.Module):
             last_feat_size=last_feat_size
         )
         # Initialize MLPBlock (now it takes output channels as num_classes)
-        self.mlp_block = MLP(
-            in_ch=dim * self.mamba.pool_len
-            + in_img_chs
-            + in_pc_chs
-            + 2,  # Adjusted input channels after fusion
-            hidden_ch=hidden_ch,
-            num_classes=num_classes,
-            dropout_prob=drop,
-            return_type=return_type,
-        )
-        self.return_feature=return_feature
+        if decoder:
+            self.mlp_block = MLP(
+                in_ch=dim * self.mamba.pool_len
+                + in_img_chs
+                + in_pc_chs
+                + 2,  # Adjusted input channels after fusion
+                hidden_ch=hidden_ch,
+                num_classes=num_classes,
+                dropout_prob=drop,
+                return_type=return_type,
+            )
+        self.decoder = decoder
 
     def forward(self, img_emb, pc_emb):
         x = self.mamba(img_emb, pc_emb) # torch.Size([8, 2306, 8, 8])
-        class_output = self.mlp_block(x)  # Class output of shape (B, num_classes)
-        if self.return_feature:
-            return class_output, x
-        else:
+        if self.decoder:
+            class_output = self.mlp_block(x)  # Class output of shape (B, num_classes)
             return class_output
+        else:
+            return x
     
 # -----------------------------------------------------------------------------------
 # Use mamba & upsamping as decoder: MambaDecoder 

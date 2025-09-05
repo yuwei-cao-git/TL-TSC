@@ -2,6 +2,7 @@
 
 # General
 dataset: ovf_genus
+data_dir: "./data/ovf_superpixel_dataset"
 tile_size: 128
 n_bands: 9
 ovf_genus_class_weights: [0.26008143, 0.01824255, 0.30860924, 0.03829643, 0.14291682, 0.09194174, 0.05414323, 0.02824807, 0.05752048]
@@ -23,7 +24,7 @@ task: tsc
 head:  fuse_head # Options: no_pc_head, fuse_head, all_head, no_img_head
 pretrained_ckpt: None #tl_logs/no_img_head_unet_pointnet_rmf_cosine/wandblogs/TL-TSC/28g98vp3/checkpoints/epoch=0-step=3246.ckpt
 fix_backbone: false
-batch_size: 64
+batch_size: 32
 max_epochs: 100
 optimizer: adamW                 # Options: adam, adamW, sgd
 scheduler: cosine         # Options: plateau, steplr, asha, cosine, cosinewarmup

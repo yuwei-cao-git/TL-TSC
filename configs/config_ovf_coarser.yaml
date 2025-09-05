@@ -2,6 +2,7 @@
 
 # General
 dataset: ovf_coarser
+data_dir: "./data/ovf_superpixel_dataset"
 tile_size: 128
 n_bands: 9
 #ovf_coarser_class_weights: [0.02482688, 0.02986951, 0.51120736, 0.23517747, 0.15256409, 0.04635469]
@@ -23,7 +24,7 @@ task: tsc
 head:  fuse_head # Options: no_pc_head, fuse_head, all_head, no_img_head
 pretrained_ckpt: None #tl_logs/no_img_head_unet_pointnet_rmf_cosine/wandblogs/TL-TSC/28g98vp3/checkpoints/epoch=0-step=3246.ckpt
 fix_backbone: false
-batch_size: 64
+batch_size: 32
 max_epochs: 300
 optimizer: adamW                 # Options: adam, adamW, sgd
 scheduler: steplr         # Options: plateau, steplr, asha, cosine, cosinewarmup
@@ -44,7 +45,7 @@ emb_dims: 768
 num_points: 7168
 fps: false
 encoder: b                      # Options: s, b, l, xl
-fusion_dim: 128
+fusion_dim: 256
 dp_fuse: 0.3
 dp_pc: 0.3
 use_ms: false
@@ -57,4 +58,4 @@ rotate: false
 pc_normal: false
 
 # Hardware
-gpus: 4
+gpus: 1

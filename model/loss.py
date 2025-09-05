@@ -254,11 +254,15 @@ def apply_mask_per_batch(preds, mask, multi_class=True):
         return preds
         
 
-def weighted_kl_divergence(y_true, y_pred, weights):
-    loss = torch.sum(
-        weights * y_true * torch.log((y_true + 1e-8) / (y_pred + 1e-8)), dim=1
-    )
-    return torch.mean(loss)
+def weighted_kl_divergence(y_true, y_pred, weights=None):
+    y_true = y_true.clamp(min=1e-8)
+    y_pred = y_pred.clamp(min=1e-8)
+    log_ratio = torch.log(y_true / y_pred)
+    if weights is not None:
+        log_ratio = weights * log_ratio
+    loss = torch.sum(y_true * log_ratio, dim=1)
+    return loss.mean()
+
 
 class KLDivLoss(nn.Module):
     def __init__(self,

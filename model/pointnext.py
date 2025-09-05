@@ -72,7 +72,8 @@ class PointNextModel(nn.Module):
         self.use_decoder = decoder
         self.align_header = aligned
         self.encoder = PointNextEncoder(config, in_dim)
-        self.decoder = PointNextClassifier(config, n_classes, return_type=return_type, aligned=aligned)  if decoder else None
+        if self.use_decoder:
+            self.decoder = PointNextClassifier(config, n_classes, return_type=return_type, aligned=aligned)  if decoder else None
 
     def forward(self, pc_feat, xyz):
         pc_feats = self.encoder(pc_feat, xyz)

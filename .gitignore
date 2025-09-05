@@ -194,3 +194,4 @@ log_*.txt
 log_genus.txt
 record.txt
 *.txt
+wandb/

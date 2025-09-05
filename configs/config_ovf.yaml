@@ -4,6 +4,7 @@
 dataset: ovf_sp
 tile_size: 128
 n_bands: 9
+data_dir: "./data/ovf_superpixel_dataset"
 ovf_class_weights: [0.121, 0.033, 0.045, 0.090, 0.012, 0.041, 0.020, 0.103, 0.334, 0.010, 0.191]
 ovf_sp_class_weights: [0.130, 0.016, 0.168, 0.192, 0.130, 0.047, 0.08, 0.024, 0.161, 0.021, 0.033]
 ovf_2s_sp_class_weights: [0.130, 0.016, 0.168, 0.192, 0.130, 0.047, 0.08, 0.024, 0.161, 0.021, 0.033]
@@ -36,7 +37,7 @@ patience: 2
 step_size: 5
 momentum: 0.9
 weight_decay: 0.0001
-decision_fuse_type: mlp #average, weighted, mlp
+decision_fuse_type: weighted #average, weighted, mlp
 
 # Loss weights
 multitasks_uncertain_loss: false
@@ -48,7 +49,7 @@ emb_dims: 768
 num_points: 7168
 fps: false
 encoder: b                      # Options: s, b, l, xl
-fusion_dim: 128
+fusion_dim: 256
 dp_fuse: 0.3
 dp_pc: 0.3
 use_ms: false

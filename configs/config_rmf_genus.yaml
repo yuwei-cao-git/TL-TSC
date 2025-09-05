@@ -2,6 +2,7 @@
 
 # General
 dataset: rmf_genus                        # Options: rmf, rmf_superpixel_dataset
+data_dir: "./data/rmf_superpixel_dataset"
 tile_size: 128
 n_bands: 9
 rmf_genus_class_weights: [0.07031139, 0.01921179, 0.07409001, 0.42451091, 0.17147074, 0.10330588, 0.13709928]
@@ -15,7 +16,7 @@ task: tsc
 head:  all_head # Options: no_pc_head, fuse_head, all_head, no_img_head
 pretrained_ckpt: None
 fix_backbone: false
-batch_size: 64
+batch_size: 32
 max_epochs: 300
 optimizer: adamW                 # Options: adam, adamW, sgd
 scheduler: steplr         # Options: plateau, steplr, asha, cosine, cosinewarmup
