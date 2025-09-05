@@ -7,17 +7,31 @@ from lightning.pytorch.loggers import WandbLogger
 from dataset.combined import build_multi_region_dm
 from model.mh_df import MultiHeadFusionModel
 
-def train(config):
+def get_region_class_map(level: str = "species"):
+    if level == "species":
+        return {"A": 9, "B": 6}
+    elif level == "genus":
+        return {"A": 7, "B": 9}
+    else:
+        raise ValueError(f"Unknown taxonomy level: {level}")
+
+def train(config, level: str = "species"):
     seed_everything(config.get("seed", 123), workers=True)
 
     # Build datamodule from two YAML configs
-    dm, cfg_A, cfg_B = build_multi_region_dm(
-        config.get("cfg_path_A", "configs/config_rmf.yaml"),
-        config.get("cfg_path_B", "configs/config_ovf_coarser.yaml"),
-    )
+    if level == "species":
+        dm, cfg_A, cfg_B = build_multi_region_dm(
+            config.get("cfg_path_A", "configs/config_rmf.yaml"),
+            config.get("cfg_path_B", "configs/config_ovf_coarser.yaml"),
+        )
+    else:
+        dm, cfg_A, cfg_B = build_multi_region_dm(
+            config.get("cfg_path_A", "configs/config_rmf_genus.yaml"),
+            config.get("cfg_path_B", "configs/config_ovf_genus.yaml"),
+        )
 
     # Region-specific head sizes
-    region_class_map = {"A": 9, "B": 6}
+    region_class_map = get_region_class_map(level)
 
     # Merge base config (A first, B fills missing keys)
     base_cfg = {**cfg_A, **{k: v for k, v in cfg_B.items() if k not in cfg_A}}
