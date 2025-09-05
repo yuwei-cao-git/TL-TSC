@@ -10,13 +10,26 @@ from torchmetrics.functional import r2_score
 from .MambaFusionV2 import MambaFusionV2
 
 # --- small helpers ---
-def masked_avg(feat_map, mask_aligned, eps=1e-6):
-    # feat_map: [B, C, H, W]
-    # mask_aligned: [B,1,H,W], float ∈ [0,1]
-    mask = mask_aligned.to(feat_map.dtype)
+
+def resize_mask_to_feat(mask, feat_h, feat_w):
+    """
+    mask: [B, H0, W0] or [B,1,H0,W0], bool/float
+    returns: [B,1,feat_h,feat_w], float in [0,1] (area-averaged coverage)
+    """
+    if mask.dim() == 3:
+        mask = mask.unsqueeze(1)                 # [B,1,H0,W0]
+    mask = mask.float()
+    # 'area' gives average over the window when downsampling (best for coverage)
+    return F.interpolate(mask, size=(feat_h, feat_w), mode='area')
+
+def masked_avg(feat_map, mask, eps=1e-6):
+    if mask.dim() == 3:
+        mask = mask.unsqueeze(1)
+    mask = mask.to(feat_map.dtype)
     num = (feat_map * mask).sum(dim=(2,3))
     den = mask.sum(dim=(2,3)).clamp_min(eps).squeeze(1)
-    return num / den  # [B, C]
+    return num / den
+
 
 def ensure_simplex(x, dim=1, eps=1e-8):
     # Clamp, then renormalize so rows sum to 1
@@ -148,10 +161,11 @@ class MultiHeadFusionModel(pl.LightningModule):
 
     def forward(self, images, img_masks, pc_feat, point_clouds, region_key):
         fused_map = self.forward_backbones(images, pc_feat, point_clouds)
-        fused_feat = fused_map.mean(dim=(2,3))                  # GAP -> [B, C_out]
-        #fused_feat = masked_avg(fused_map, img_masks)            # [B, C_out]
+        #fused_feat = fused_map.mean(dim=(2,3))                  # GAP -> [B, C_out]
+        mask8 = resize_mask_to_feat(img_masks, 8, 8)   # [B,1,8,8], float in [0,1]
+        fused_feat = masked_avg(fused_map, mask8)        # [B,C]
         logits = self.region_heads[region_key](fused_feat)       # [B, C_region]
-        return logits
+        return logits, mask8
 
     def on_fit_start(self):
         for d in [self.train_r2, self.val_r2, self.test_r2]:
@@ -167,10 +181,22 @@ class MultiHeadFusionModel(pl.LightningModule):
         point_clouds = batch["point_cloud"]
         labels = batch["label"]       # [B, C_region] proportions for this region
 
-        logits = self.forward(images, img_masks, pc_feat, point_clouds, region_key)
-
+        logits, mask8 = self.forward(images, img_masks, pc_feat, point_clouds, region_key)
+        pred_props = F.softmax(logits, dim=1)
+        
         # KLDiv on distributions
-        loss = kl_loss_from_logits(logits, labels)
+        loss_core = kl_loss_from_logits(logits, labels)
+        
+        # after computing mask8
+        with torch.no_grad():
+            cov = mask8.mean(dim=(2,3)).mean()  # [B,1,H,W] -> scalar
+            self.log(f"{stage}_mask_cov/{region_key}", cov, on_step=True, prog_bar=False, batch_size=labels.size(0))
+            if cov < 0.2:
+                loss_core = (loss * mask8.mean(dim=(2,3)).squeeze(1)).mean()
+        
+        # entropy regularizer (prevent overconfident wrong preds)
+        entropy = -(pred_props * pred_props.clamp_min(1e-8).log()).sum(dim=1).mean()
+        loss = loss_core - self.cfg.get("entropy_w", 0.01) * entropy
 
         # For R2 we can compare softmaxed preds vs labels per region
         with torch.no_grad():

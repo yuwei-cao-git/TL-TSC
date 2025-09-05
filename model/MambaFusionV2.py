@@ -8,7 +8,7 @@ class ConvBNAct(nn.Module):
     def __init__(self, in_ch, out_ch, k=1, s=1, p=0, act='silu', bn=True, bias=False, groups=1):
         super().__init__()
         self.conv = nn.Conv2d(in_ch, out_ch, k, s, p, bias=bias, groups=groups)
-        self.bn = nn.BatchNorm2d(out_ch) if bn else nn.Identity()
+        self.bn = nn.GroupNorm(num_groups=16, num_channels=out_ch) if bn else nn.Identity()
         self.act = nn.SiLU(inplace=True) if act == 'silu' else nn.GELU()
     def forward(self, x): return self.act(self.bn(self.conv(x)))
 
@@ -17,7 +17,7 @@ class DepthwiseSeparableConv(nn.Module):
         super().__init__()
         self.dw = nn.Conv2d(in_ch, in_ch, k, s, p, groups=in_ch, bias=False)
         self.pw = nn.Conv2d(in_ch, out_ch, 1, 1, 0, bias=False)
-        self.bn = nn.BatchNorm2d(out_ch)
+        self.bn = nn.GroupNorm(num_groups=16, num_channels=out_ch)
         self.act = nn.SiLU(inplace=True)
     def forward(self, x):
         return self.act(self.bn(self.pw(self.dw(x))))

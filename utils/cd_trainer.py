@@ -9,9 +9,11 @@ from model.mh_df import MultiHeadFusionModel
 
 def get_region_class_map(level: str = "species"):
     if level == "species":
-        return {"A": 9, "B": 6}
+        return {"A": 9, "B": 11}
     elif level == "genus":
         return {"A": 7, "B": 9}
+    elif level == "species-coarser":
+        return {"A": 9, "B": 6}
     else:
         raise ValueError(f"Unknown taxonomy level: {level}")
 
@@ -20,6 +22,11 @@ def train(config, level: str = "species"):
 
     # Build datamodule from two YAML configs
     if level == "species":
+        dm, cfg_A, cfg_B = build_multi_region_dm(
+            config.get("cfg_path_A", "configs/config_rmf.yaml"),
+            config.get("cfg_path_B", "configs/config_ovf.yaml"),
+        )
+    elif level == "species-coarser":
         dm, cfg_A, cfg_B = build_multi_region_dm(
             config.get("cfg_path_A", "configs/config_rmf.yaml"),
             config.get("cfg_path_B", "configs/config_ovf_coarser.yaml"),

@@ -66,6 +66,7 @@ def parse_args():
     parser.add_argument('--scheduler', type=str)
     parser.add_argument('--pc_normal', type=bool, default=False)
     parser.add_argument('--dp', type=float) 
+    parser.add_argument('--level', type=str)
     return parser.parse_args()
     
 def main():
@@ -91,9 +92,10 @@ def main():
     # Call the train function with parsed arguments
     if cfg['task'] == 'tsc_md':
         from utils.cd_trainer import train
+        train(cfg, args.level)
     else:
         from utils.trainer import train
-    train(cfg)
+        train(cfg)
 
 
 if __name__ == "__main__":
