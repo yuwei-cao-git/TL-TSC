@@ -64,9 +64,10 @@ class FusionModel(pl.LightningModule):
 
         self.loss_func = self.cfg["loss_func"]
         #self.criterion = nn.MSELoss()
-        if self.cfg["loss_func"] in ["wmse", "wrmse", "wkl"]:
+        if self.cfg["loss_func"] in ["wmse", "wrmse", "wkl", "ewmse"]:
             self.weights = self.cfg.get(f"{self.cfg['dataset']}_class_weights", None)
-            self.weights = get_class_grw_weight(self.weights, n_classes, exp_scale=0.2)
+            if self.cfg["loss_func"] == "ewmse":
+                self.weights = get_class_grw_weight(self.weights, n_classes, exp_scale=0.2)
         else:
             self.weights = None
 
@@ -76,7 +77,6 @@ class FusionModel(pl.LightningModule):
             self.awl = AutomaticWeightedLoss(3 if self.cfg["head"]=='all_head' else 2)
         
         # use it during test/val/not uncertainty weighted loss - equal loss
-        self.loss_func = self.cfg["loss_func"]
         if self.cfg["head"] == "no_img_head" or self.cfg["head"] == "all_head":
             self.pc_loss_weight = self.cfg.get("pc_loss_weight", 1.0) # /0.005
         if self.cfg["head"] == "no_pc_head" or self.cfg["head"] == "all_head":

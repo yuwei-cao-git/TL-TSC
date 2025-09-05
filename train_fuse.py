@@ -81,7 +81,7 @@ def main():
         if args.data_dir is not None
         else os.path.join(os.getcwd(), "data")
     )
-    if cfg["loss_func"] in ["wmse", "wrmse", "wkl"]:
+    if cfg["loss_func"] in ["wmse", "wrmse", "wkl", "ewmse"]:
         class_weights = cfg.get(f'{args.dataset}_class_weights', None)
         cfg[f'{args.dataset}_class_weights'] = torch.tensor(class_weights).float()
     else:

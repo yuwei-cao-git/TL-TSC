@@ -373,16 +373,14 @@ class DecisionLevelFusion(nn.Module):
         if pc_logits is None:
             return img_logits
 
-        elif self.method == "weighted":
+        if self.method == "weighted":
             return self.weight_img * img_logits + self.weight_pc * pc_logits
-
         elif self.method == "mlp":
             # Ensure both logits have the same shape
             if img_logits.shape != pc_logits.shape:
                 raise ValueError("Shape mismatch between img_logits and pc_logits")
             fused_input = torch.cat([img_logits, pc_logits], dim=1)
             return self.fuse_mlp(fused_input)
-
         else:
             raise ValueError(f"Unknown fusion method: {self.method}")
         
