@@ -90,7 +90,7 @@ def main():
     os.makedirs(cfg['save_dir'], exist_ok=True)
     print(cfg)
     # Call the train function with parsed arguments
-    if cfg['task'] == 'tsc_md':
+    if cfg['task'] == 'tsc_cd':
         from utils.cd_trainer import train
         train(cfg, args.level)
     else:

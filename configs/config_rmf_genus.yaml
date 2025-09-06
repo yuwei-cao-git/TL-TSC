@@ -11,6 +11,9 @@ n_classes: 7
 rmf_genus_img_mean: [0.004822857583753649, 0.007047905637215315, 0.005892141591621212, 0.010819556944127189, 0.023745498150013228, 0.027247440585650647, 0.011765756306711905, 0.006245175966976923, 0.029544049234855548]
 rmf_genus_img_std: [0.009788130895193833, 0.009465678241968112, 0.009729859205615024, 0.009675598174706408, 0.010284967545505303, 0.010874876809787881, 0.005248977757169651, 0.0023418301231748627, 0.011048436198000514]
 
+rmf_genus_season_map: ["img_s2_spring", "img_s2_summer", "img_s2_fall", "img_s2_winter"]
+rmf_2s_genus_season_map: ["img_s2_summer", "img_s2_fall"]
+
 # Training parameters
 task: tsc
 head:  all_head # Options: no_pc_head, fuse_head, all_head, no_img_head
@@ -51,4 +54,4 @@ rotate: false
 pc_normal: false
 
 # Hardware
-gpus: 4
+gpus: 1

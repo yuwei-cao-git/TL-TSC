@@ -89,7 +89,7 @@ class FusionModel(pl.LightningModule):
             // 8) if self.cfg["network"] == "ResNet" else (self.cfg["tile_size"]
             // 16),
             return_type='logits',
-            return_feature=False
+            decoder=True
         )
         
         # Metrics

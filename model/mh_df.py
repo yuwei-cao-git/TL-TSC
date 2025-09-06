@@ -12,23 +12,25 @@ from .MambaFusionV2 import MambaFusionV2
 # --- small helpers ---
 
 def resize_mask_to_feat(mask, feat_h, feat_w):
-    """
-    mask: [B, H0, W0] or [B,1,H0,W0], bool/float
-    returns: [B,1,feat_h,feat_w], float in [0,1] (area-averaged coverage)
-    """
-    if mask.dim() == 3:
-        mask = mask.unsqueeze(1)                 # [B,1,H0,W0]
-    mask = mask.float()
-    # 'area' gives average over the window when downsampling (best for coverage)
-    return F.interpolate(mask, size=(feat_h, feat_w), mode='area')
-
-def masked_avg(feat_map, mask, eps=1e-6):
+    # mask: [B,H,W] or [B,1,H,W] -> [B,1,feat_h,feat_w] in [0,1]
     if mask.dim() == 3:
         mask = mask.unsqueeze(1)
-    mask = mask.to(feat_map.dtype)
-    num = (feat_map * mask).sum(dim=(2,3))
-    den = mask.sum(dim=(2,3)).clamp_min(eps).squeeze(1)
-    return num / den
+    mask = mask.float()
+    return F.interpolate(mask, size=(feat_h, feat_w), mode="area")
+
+def masked_avg(feat_map, mask_aligned, eps=1e-6):
+    """
+    feat_map:     [B, C, H, W]
+    mask_aligned: [B, 1, H, W] (float in [0,1])  -- already resized to feat_map size
+    returns:      [B, C]
+    """
+    if mask_aligned.dim() == 3:
+        mask_aligned = mask_aligned.unsqueeze(1)  # [B,1,H,W]
+    mask = mask_aligned.to(feat_map.dtype)
+
+    num = (feat_map * mask).sum(dim=(2, 3))             # [B, C]
+    den = mask.sum(dim=(2, 3)).clamp_min(eps)           # [B, 1]  <-- keep channel dim!
+    return num / den                                    # [B, C] (broadcast on channel)
 
 
 def ensure_simplex(x, dim=1, eps=1e-8):
