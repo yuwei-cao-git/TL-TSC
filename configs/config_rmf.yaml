@@ -43,8 +43,8 @@ num_points: 7168
 fps: false
 encoder: b                      # Options: s, b, l, xl
 fusion_dim: 256
-dp_fuse: 0.7
-dp_pc: 0.5
+dp_fuse: 0.3
+dp_pc: 0.3
 use_ms: true
 linear_layers_dims: [512, 256]
 
