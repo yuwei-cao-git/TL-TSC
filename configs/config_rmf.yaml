@@ -55,4 +55,4 @@ rotate: false
 pc_normal: true
 
 # Hardware
-gpus: 1
+gpus: 2
