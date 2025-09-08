@@ -88,10 +88,10 @@ class SuperpixelDataset(Dataset):
         if self.image_transform != None:
             superpixel_images = image_augment(superpixel_images, self.image_transform, 128)
         
-        centred_coords = center_point_cloud(coords)
+        norm_coords = normalize_point_cloud(coords)
         if self.normal:
             if self.sampling:
-                centred_coords = farthest_point_sample(centred_coords, 1024)
+                norm_coords = farthest_point_sample(norm_coords, 1024)
             
             # Convert numpy array to Open3D PointCloud
             pcd = o3d.geometry.PointCloud()
@@ -101,27 +101,26 @@ class SuperpixelDataset(Dataset):
             pcd.estimate_normals(search_param=o3d.geometry.KDTreeSearchParamKNN(knn=16))
             feats = np.asarray(pcd.normals)  # Shape: (N, 3)
         else:
-            norm_coords = normalize_point_cloud(coords)
             if self.sampling:
-                norm_coords = farthest_point_sample(coords, 1024)
-            feats = norm_coords
+                norm_coords = farthest_point_sample(norm_coords, 1024)
+            feats = center_point_cloud(coords)
         
         # Apply point cloud transforms if any
         if self.point_cloud_transform:
-            centred_coords, feats, label = pointCloudTransform(
-                centred_coords, pc_feat=feats, target=label, rot=self.rotate
+            norm_coords, feats, label = pointCloudTransform(
+                norm_coords, pc_feat=feats, target=label, rot=self.rotate
             )
 
         # After applying transforms
         feats = torch.from_numpy(feats).float()  # Shape: (7168, 3)
-        centred_coords = torch.from_numpy(centred_coords).float()  # Shape: (7168, 3)
+        norm_coords = torch.from_numpy(norm_coords).float()  # Shape: (7168, 3)
         label = torch.from_numpy(label).float()  # Shape: (num_classes,)
 
         sample = {
             "images": superpixel_images,  # Padded images of shape [num_seasons, num_channels, 128, 128]
             "mask": nodata_mask,  # Padded masks of shape [num_seasons, 128, 128]
             "per_pixel_labels": per_pixel_labels,  # Tensor: (num_classes, 128, 128)
-            "point_cloud": centred_coords,
+            "point_cloud": norm_coords,
             "pc_feat": feats,
             "label": label,
         }
