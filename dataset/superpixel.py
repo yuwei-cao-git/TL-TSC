@@ -55,7 +55,7 @@ class SuperpixelDataset(Dataset):
         self.transforms = transforms.Compose(
             [
                 transforms.ToImage(), 
-                transforms.ToDtype(torch.float32, scale=True),
+                transforms.ToDtype(torch.float32, scale=False),
                 transforms.Normalize(mean=img_mean, std=img_std)
             ]
         )
@@ -68,7 +68,7 @@ class SuperpixelDataset(Dataset):
         # Load data from the .npz file
         superpixel_images = data[
             "superpixel_images"
-        ].astype(np.float32) # / 65535.0  # Shape: (num_seasons, num_channels, 128, 128)
+        ].astype(np.float32) / 10000.0  # Shape: (num_seasons, num_channels, 128, 128)
         coords = data["point_cloud"]  # Shape: (7168, 3)
         label = data["label"]  # Shape: (num_classes,)
         per_pixel_labels = data["per_pixel_labels"]  # Shape: (num_classes, 128, 128)
