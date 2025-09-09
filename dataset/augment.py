@@ -195,7 +195,6 @@ def pointCloudTransform(xyz, pc_feat, target, rot=False):
     aug_xyz, aug_feats = point_translate(aug_xyz, x=aug_feats)
     # aug_xyz, aug_feats = point_jitter(aug_xyz, x=aug_feats)
     if rot:
-        aug_xyz, aug_feats = point_rotate_perturbation(aug_xyz, x=aug_feats)
         aug_xyz, aug_feats = rotate_points(aug_xyz, x=aug_feats)
 
     target = target

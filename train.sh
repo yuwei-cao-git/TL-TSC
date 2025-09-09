@@ -1,19 +1,19 @@
 #!/bin/bash
 
-LOG_FILE="log_5.txt"
+LOG_FILE="log_6.txt"
 SLEEP_DURATION=10  # seconds
 
 echo "Starting training..." | tee -a "$LOG_FILE"
 
 # List of commands to run
 commands=(
-    "python train_fuse.py --data_dir '/mnt/g/rmf/rmf_superpixel_dataset' --config 'configs/config_rmf.yaml' --task 'tsc_aligned' --log_name 'tsc_ResUnet_aligned_noms_pointnext_b_rmf_sp_mse_weighted' --gpus 1 --batch_size 32 --head 'fuse_head' --dataset 'rmf_sp' --encoder 'b' --network 'ResUnet' --lr 1e-3 --emb_dims 768 --loss_func 'mse' --scheduler 'steplr' --dp 0.3"
-
-    "python train_fuse.py --data_dir '/mnt/g/ovf/ovf_superpixel_dataset' --config 'configs/config_ovf_coarser.yaml' --task 'tsc_aligned' --log_name 'ovf_coarser_tsc_ResUnet_aligned_noms_pointnext_b_rmf_sp_mse_tuned' --gpus 1 --batch_size 32 --head 'fuse_head' --dataset 'ovf_coarser' --encoder 'b' --network 'ResUnet' --lr 5e-4 --emb_dims 768 --loss_func 'mse' --scheduler 'steplr' --dp 0.3 --pretrained_ckpt 'tl_logs/tsc_ResUnet_aligned_noms_pointnext_b_rmf_sp_mse_weighted/checkpoints/final_model.ckpt'"
-
     "python train_fuse.py --data_dir '/mnt/g/rmf/rmf_superpixel_dataset' --config 'configs/config_rmf_genus.yaml' --task 'tsc_aligned' --log_name 'tsc_ResUnet_aligned_noms_pointnext_b_rmf_genus_mse_weighted' --gpus 1 --batch_size 32 --head 'fuse_head' --dataset 'rmf_genus' --encoder 'b' --network 'ResUnet' --lr 5e-4 --emb_dims 768 --loss_func 'mse' --scheduler 'steplr' --dp 0.3"
 
     "python train_fuse.py --data_dir '/mnt/g/ovf/ovf_superpixel_dataset' --config 'configs/config_ovf_coarser.yaml' --task 'tsc_aligned' --log_name 'ovf_coarser_tsc_ResUnet_aligned_noms_pointnext_b_rmf_genus_mse_tuned' --gpus 1 --batch_size 32 --head 'fuse_head' --dataset 'ovf_coarser' --encoder 'b' --network 'ResUnet' --lr 1e-3 --emb_dims 768 --loss_func 'mse' --scheduler 'steplr' --dp 0.3 --pretrained_ckpt 'tl_logs/tsc_ResUnet_aligned_noms_pointnext_b_rmf_genus_mse_weighted/checkpoints/final_model.ckpt'"
+
+    "python train_fuse.py --data_dir '/mnt/g/rmf/rmf_superpixel_dataset' --config 'configs/config_rmf.yaml' --task 'tsc_aligned' --log_name 'tsc_ResUnet_aligned_noms_pointnext_b_rmf_sp_ewmse_weighted' --gpus 1 --batch_size 32 --head 'fuse_head' --dataset 'rmf_sp' --encoder 'b' --network 'ResUnet' --lr 1e-3 --emb_dims 768 --loss_func 'ewmse' --scheduler 'steplr' --dp 0.3"
+
+    "python train_fuse.py --data_dir '/mnt/g/ovf/ovf_superpixel_dataset' --config 'configs/config_ovf_coarser.yaml' --task 'tsc_aligned' --log_name 'ovf_coarser_tsc_ResUnet_aligned_noms_pointnext_b_rmf_sp_mse_tuned' --gpus 1 --batch_size 32 --head 'fuse_head' --dataset 'ovf_coarser' --encoder 'b' --network 'ResUnet' --lr 5e-4 --emb_dims 768 --loss_func 'ewmse' --scheduler 'steplr' --dp 0.3 --pretrained_ckpt 'tl_logs/tsc_ResUnet_aligned_noms_pointnext_b_rmf_sp_ewmse_weighted/checkpoints/final_model.ckpt'"
 
     "python train_fuse.py --data_dir '/mnt/g/ovf/ovf_superpixel_dataset' --config 'configs/config_ovf_coarser.yaml' --task 'tsc_aligned' --log_name 'test' --gpus 1 --batch_size 32 --head 'fuse_head' --dataset 'ovf_coarser' --encoder 'b' --network 'ResUnet' --lr 5e-4 --emb_dims 768 --loss_func 'mse' --scheduler 'steplr' --dp 0.3"
 

@@ -11,28 +11,6 @@ import torchvision.transforms.v2 as transforms
 import open3d as o3d
 
 
-def farthest_point_sample(point, npoint):
-    """
-    Input:
-        xyz: pointcloud data, [N, D]
-        npoint: number of samples
-    Return:
-        centroids: sampled pointcloud index, [npoint, D]
-    """
-    N, D = point.shape
-    xyz = point[:,:3]
-    centroids = np.zeros((npoint,))
-    distance = np.ones((N,)) * 1e10
-    farthest = np.random.randint(0, N)
-    for i in range(npoint):
-        centroids[i] = farthest
-        centroid = xyz[farthest, :]
-        dist = np.sum((xyz - centroid) ** 2, -1)
-        mask = dist < distance
-        distance[mask] = dist[mask]
-        farthest = np.argmax(distance, -1)
-    point = point[centroids.astype(np.int32)]
-    return point
 class SuperpixelDataset(Dataset):
     def __init__(
         self,
@@ -42,15 +20,13 @@ class SuperpixelDataset(Dataset):
         image_transform=None,
         point_cloud_transform=None,
         img_mean=None,
-        img_std=None,
-        sampling=False
+        img_std=None
     ):
         self.superpixel_files = superpixel_files
         self.image_transform = image_transform
         self.point_cloud_transform = point_cloud_transform
         self.rotate = rotate
         self.normal = pc_normal
-        self.sampling = sampling
 
         self.transforms = transforms.Compose(
             [
@@ -90,9 +66,6 @@ class SuperpixelDataset(Dataset):
         
         norm_coords = normalize_point_cloud(coords)
         if self.normal:
-            if self.sampling:
-                norm_coords = farthest_point_sample(norm_coords, 1024)
-            
             # Convert numpy array to Open3D PointCloud
             pcd = o3d.geometry.PointCloud()
             pcd.points = o3d.utility.Vector3dVector(coords)
@@ -101,8 +74,6 @@ class SuperpixelDataset(Dataset):
             pcd.estimate_normals(search_param=o3d.geometry.KDTreeSearchParamKNN(knn=16))
             feats = np.asarray(pcd.normals)  # Shape: (N, 3)
         else:
-            if self.sampling:
-                norm_coords = farthest_point_sample(norm_coords, 1024)
             feats = center_point_cloud(coords)
         
         # Apply point cloud transforms if any
@@ -139,7 +110,6 @@ class SuperpixelDataModule(LightningDataModule):
         self.point_cloud_transform = config["point_cloud_transform"]
         self.aug_rotate = config["rotate"]
         self.aug_pc_norm = config["pc_normal"]
-        self.fps = config["fps"]
         self.data_dirs = {
             "train": join(
                 config["data_dir"],
@@ -180,8 +150,7 @@ class SuperpixelDataModule(LightningDataModule):
                 image_transform=None,
                 point_cloud_transform=None,
                 img_mean=img_mean,
-                img_std=img_std,
-                sampling=self.fps
+                img_std=img_std
             )
             if split == "train":
                 if not (
@@ -194,8 +163,7 @@ class SuperpixelDataModule(LightningDataModule):
                         image_transform=None,
                         point_cloud_transform=self.point_cloud_transform,
                         img_mean=img_mean,
-                        img_std=img_std,
-                        sampling=self.fps
+                        img_std=img_std
                     )
                     aug_img_dataset = SuperpixelDataset(
                         superpixel_files,
@@ -204,8 +172,7 @@ class SuperpixelDataModule(LightningDataModule):
                         image_transform=self.image_transform,
                         point_cloud_transform=None,
                         img_mean=img_mean,
-                        img_std=img_std,
-                        sampling=self.fps
+                        img_std=img_std
                     )
                     self.datasets["train"] = torch.utils.data.ConcatDataset(
                         [self.datasets["train"], aug_pc_dataset, aug_img_dataset]

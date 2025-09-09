@@ -5,10 +5,10 @@ dataset: ovf_coarser
 data_dir: "./data/ovf_superpixel_dataset"
 tile_size: 128
 n_bands: 9
-
-ovf_coarser_class_weights: [0.02548991, 0.03066413, 0.49941828, 0.24404823, 0.15366716, 0.0467123]
-class_names: ['hardwood', 'poplar', 'spruce', 'fir', 'cedar', 'pine']
 n_classes: 6
+class_names: ['hardwood', 'poplar', 'spruce', 'fir', 'cedar', 'pine']
+ovf_coarser_class_weights: [0.02548991, 0.03066413, 0.49941828, 0.24404823, 0.15366716, 0.0467123]
+
 ovf_coarser_season_map: ["img_s2_2020_spring", "img_s2_2020_summer", "img_s2_2020_fall", "img_s2_2020_winter"]
 # /65535
 # ovf_coarser_img_mean: [0.02213441859462131, 0.0249776732983333, 0.02367478859328472, 0.030501271121244334, 0.04633530771896778, 0.05062321949775266, 0.034551559187663575, 0.025500956886395993, 0.05372880201825224]
@@ -41,10 +41,9 @@ loss_func: mae
 network: ResUnet
 emb_dims: 768
 num_points: 7168
-fps: false
 encoder: b                      # Options: s, b, l, xl
 fusion_dim: 256
-dp_fuse: 0.3
+dp_fuse: 0.6
 dp_pc: 0.3
 use_ms: false
 linear_layers_dims: [512, 256]

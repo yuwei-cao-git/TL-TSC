@@ -5,13 +5,13 @@ dataset: rmf_5class                        # Options: rmf, rmf_superpixel_datase
 data_dir: "./data/rmf_superpixel_dataset"
 tile_size: 128
 n_bands: 9
-rmf_5class_class_weights: [0.07031139, 0.01921179, 0.07409001, 0.42451091, 0.17147074, 0.10330588, 0.13709928]
-class_names: ['hardwood', 'poplar', 'conifer', 'pine', 'spruce']
 n_classes: 5
-rmf_5class_img_mean: [0.03113160111949798, 0.04570165312025373, 0.03814957367611627, 0.0704173590520683, 0.15522961248066763, 0.17824566022178792, 0.07717735310604858, 0.040914789230619086, 0.19332537144389295]
-rmf_5class_img_std: [0.06268486995275345, 0.060662411656368175, 0.06239235504469363, 0.06210598535399562, 0.06650005726224775, 0.0705637638907298, 0.03412534076149441, 0.015194860917968872, 0.07175192967306185]
+class_names: ['hardwood', 'poplar', 'conifer', 'pine', 'spruce']
+rmf_5class_class_weights: [0.07031139, 0.01921179, 0.07409001, 0.42451091, 0.17147074, 0.10330588, 0.13709928]
 
 rmf_5class_season_map: ["img_s2_spring", "img_s2_summer", "img_s2_fall", "img_s2_winter"]
+rmf_5class_img_mean: [0.03113160111949798, 0.04570165312025373, 0.03814957367611627, 0.0704173590520683, 0.15522961248066763, 0.17824566022178792, 0.07717735310604858, 0.040914789230619086, 0.19332537144389295]
+rmf_5class_img_std: [0.06268486995275345, 0.060662411656368175, 0.06239235504469363, 0.06210598535399562, 0.06650005726224775, 0.0705637638907298, 0.03412534076149441, 0.015194860917968872, 0.07175192967306185]
 
 # Training parameters
 task: tsc
@@ -30,20 +30,18 @@ weight_decay: 0.0001
 decision_fuse_type: weighted #average, weighted, mlp
 
 # Loss weights
-weighted_cls_loss: false
 multitasks_uncertain_loss: false
-loss_func: mae
+loss_func: mse
 
 # Model architecture
 network: ResUnet
 emb_dims: 768
 num_points: 7168
-fps: false
 encoder: b                      # Options: s, b, l, xl
-fusion_dim: 128
-dp_fuse: 0.3
+fusion_dim: 256
+dp_fuse: 0.6
 dp_pc: 0.3
-use_ms: true
+use_ms: false
 linear_layers_dims: [512, 256]
 
 # Data transforms

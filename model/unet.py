@@ -56,21 +56,28 @@ class UNetClassifier(nn.Module):
 
 
 class UNet(nn.Module):
-    def __init__(self, n_channels, n_classes, return_type='softmax', bilinear=True, decoder=True):
+    def __init__(self, n_channels, n_classes, return_type='softmax', bilinear=True, decoder=True, aligned=False):
         super().__init__()
         self.encoder = UNetEncoder(n_channels, bilinear)
         self.use_decoder = decoder
-
+        self.align_header = aligned
         if decoder:
             self.decoder = UNetDecoder(bilinear)
-            self.classifier = UNetClassifier(64, n_classes, return_type)
+            if self.align_header:
+                from .decoder import DisAlignFCNHead
+                self.classifier = DisAlignFCNHead(64, 64, n_classes, num_convs=1)
+            else:
+                self.classifier = UNetClassifier(64, n_classes, return_type)
 
     def forward(self, x):
         bottleneck, skips = self.encoder(x)
         if self.use_decoder:
             x = self.decoder(bottleneck, skips)
             probs = self.classifier(x)
-            return probs, bottleneck
+            if self.align_header:
+                return F.softmax(probs, dim=1), bottleneck
+            else:
+                return probs, bottleneck
         else:
             return bottleneck
 

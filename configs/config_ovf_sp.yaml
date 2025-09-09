@@ -1,18 +1,17 @@
 # config_ovf.yaml
 
 # General
-dataset: ovf_5class
-data_dir: "./data/ovf_superpixel_dataset"
+dataset: ovf_sp
 tile_size: 128
 n_bands: 9
+data_dir: "./data/ovf_superpixel_dataset"
+n_classes: 11
+class_names: ['AB', 'PO', 'MR', 'BF', 'CE', 'PW', 'MH', 'BW', 'SW', 'OR', 'PR']
+ovf_sp_class_weights: [0.21605368, 0.01386011, 0.12620734, 0.11190644, 0.07048709, 0.05551495, 0.06225591, 0.02889582, 0.23440844, 0.04299998, 0.03741025]
 
-n_classes: 5
-class_names: ['hardwood', 'poplar', 'conifer', 'pine', 'spruce']
-ovf_5class_class_weights: [0.02548991, 0.03066413, 0.49941828, 0.24404823, 0.15366716, 0.0467123]
-
-ovf_5class_season_map: ["img_s2_2020_spring", "img_s2_2020_summer", "img_s2_2020_fall", "img_s2_2020_winter"]
-ovf_5class_img_mean: [0.14427671225328217, 0.1628849602448409, 0.1543923423314959, 0.19895783554490315, 0.3028586677545466, 0.3310166877204161, 0.22607028757199024, 0.1668939707556629, 0.35139109099171184]
-ovf_5class_img_std: [0.08323343812815086, 0.07860536991927206, 0.0816505159138659, 0.0794171465899783, 0.08188441364315936, 0.08765779322281311, 0.060037999964880406, 0.03623768761771068, 0.08675829977997589]
+ovf_sp_season_map: ["img_s2_2020_spring", "img_s2_2020_summer", "img_s2_2020_fall", "img_s2_2020_winter"]
+ovf_sp_img_mean: [0.14366872682785584, 0.16227739800134783, 0.15371719705416229, 0.19805185897528374, 0.3012073794842414, 0.3291381533797583, 0.2240626069087252, 0.1659078347608439, 0.3492772454954073]
+ovf_sp_img_std: [0.08519529158179422, 0.08043415989117479, 0.08311970181268426, 0.08073875253830895, 0.08322284243622471, 0.08861307039889355, 0.05882818315968565, 0.035264078496187956, 0.08760362316128795]
 
 # Training parameters
 task: tsc
@@ -24,11 +23,11 @@ max_epochs: 300
 optimizer: adamW                 # Options: adam, adamW, sgd
 scheduler: steplr         # Options: plateau, steplr, asha, cosine, cosinewarmup
 lr: 0.0001
-patience: 10
-step_size: 10
+patience: 2
+step_size: 5
 momentum: 0.9
 weight_decay: 0.0001
-decision_fuse_type: weighted #weighted, mlp
+decision_fuse_type: weighted #average, weighted, mlp
 
 # Loss weights
 multitasks_uncertain_loss: false
@@ -38,7 +37,6 @@ loss_func: mse
 network: ResUnet
 emb_dims: 768
 num_points: 7168
-fps: false
 encoder: b                      # Options: s, b, l, xl
 fusion_dim: 256
 dp_fuse: 0.6
