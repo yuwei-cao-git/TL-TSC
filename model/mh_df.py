@@ -33,19 +33,13 @@ def masked_avg(feat_map, mask_aligned, eps=1e-6):
     return num / den                                    # [B, C] (broadcast on channel)
 
 
-def ensure_simplex(x, dim=1, eps=1e-8):
-    # Clamp, then renormalize so rows sum to 1
-    x = torch.clamp(x, min=0.0)
-    s = x.sum(dim=dim, keepdim=True).clamp_min(eps)
-    return x / s
-
 def kl_loss_from_logits(logits, target_props, reduction='batchmean', eps=1e-8):
     """
     logits: [B, C]
     target_props: [B, C], assumed >=0 and summing to 1 per row
     """
     log_pred = F.log_softmax(logits, dim=1)                 # distribution over classes
-    target = ensure_simplex(target_props, dim=1, eps=eps)   # be safe
+    target = target_props  # be safe
     return F.kl_div(log_pred, target, reduction=reduction)
 
 class RegionHead(nn.Module):
@@ -182,6 +176,14 @@ class MultiHeadFusionModel(pl.LightningModule):
         pc_feat = batch["pc_feat"]
         point_clouds = batch["point_cloud"]
         labels = batch["label"]       # [B, C_region] proportions for this region
+        
+        if region_key == 'B':
+            with torch.no_grad():
+                sums = labels.sum(dim=1)
+                self.log(f"{stage}_B/label_sum_mean", sums.mean(), prog_bar=False, batch_size=labels.size(0))
+                self.log(f"{stage}_B/label_sum_abs_err", (sums-1).abs().mean(), prog_bar=False, batch_size=labels.size(0))
+                self.log(f"{stage}_B/label_nan_frac", torch.isnan(labels).float().mean(), prog_bar=False, batch_size=labels.size(0))
+                self.log(f"{stage}_B/label_var_mean", labels.var(dim=0).mean(), prog_bar=False, batch_size=labels.size(0))
 
         logits, mask8 = self.forward(images, img_masks, pc_feat, point_clouds, region_key)
         pred_props = F.softmax(logits, dim=1)
@@ -202,9 +204,10 @@ class MultiHeadFusionModel(pl.LightningModule):
 
         # For R2 we can compare softmaxed preds vs labels per region
         with torch.no_grad():
-            pred_props = F.softmax(logits, dim=1)
             r2_metric = getattr(self, f"{stage}_r2")[region_key]
-            r2_val = r2_metric(pred_props.view(-1), ensure_simplex(labels).view(-1))
+            r2_val = r2_metric(pred_props.view(-1), labels.view(-1))
+            self.log(f"{stage}_B/pred_sum", pred_props.sum(dim=1).mean(), prog_bar=False, batch_size=labels.size(0))
+            self.log(f"{stage}_B/label_sum", labels.sum(dim=1).mean(), prog_bar=False, batch_size=labels.size(0))
 
         bs = labels.shape[0]
 

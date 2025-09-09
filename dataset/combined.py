@@ -15,8 +15,7 @@ class SuperpixelDataset(Dataset):
     def __init__(self, superpixel_files, rotate=None, pc_normal=None,
                 image_transform=None, point_cloud_transform=None,
                 img_mean=None, img_std=None, sampling=False,
-                region_key: str = "A",
-                label_map: np.ndarray | None = None):
+                region_key: str = "A"):
         
         self.superpixel_files = superpixel_files
         self.image_transform = image_transform
@@ -25,7 +24,6 @@ class SuperpixelDataset(Dataset):
         self.normal = pc_normal
         self.sampling = sampling
         self.region_key = region_key
-        self.label_map = label_map
 
         self.transforms = transforms.Compose(
             [
@@ -96,13 +94,11 @@ class SuperpixelDataset(Dataset):
 
 class RegionSpec:
     def __init__(self, name, root_dir, img_mean, img_std,
-                 label_map: np.ndarray | None,  # e.g., None for A, 11→6 for B
-                 dataset_tag: str):             # e.g., "RMF" or "OVF"
+                dataset_tag: str):             # e.g., "RMF" or "OVF"
         self.name = name              # 'A' or 'B'
         self.root_dir = root_dir      # base path for this region
         self.img_mean = img_mean
         self.img_std = img_std
-        self.label_map = label_map
         self.dataset_tag = dataset_tag  # used in path building
 
 class RegionDataModule(LightningDataModule):
@@ -141,7 +137,6 @@ class RegionDataModule(LightningDataModule):
                 img_std=self.spec.img_std,
                 sampling=self.fps,
                 region_key=self.spec.name,           # <<< important
-                label_map=self.spec.label_map,       # None for A; (11,6) for B if needed
             )
 
             if split == "train" and (self.image_transform or self.point_cloud_transform):
@@ -155,7 +150,6 @@ class RegionDataModule(LightningDataModule):
                     img_std=self.spec.img_std,
                     sampling=self.fps,
                     region_key=self.spec.name,
-                    label_map=self.spec.label_map,
                 )
                 ds_img = SuperpixelDataset(
                     files,
@@ -167,7 +161,6 @@ class RegionDataModule(LightningDataModule):
                     img_std=self.spec.img_std,
                     sampling=self.fps,
                     region_key=self.spec.name,
-                    label_map=self.spec.label_map,
                 )
                 self.datasets[split] = ConcatDataset([base, ds_pc, ds_img])
             else:
@@ -186,18 +179,18 @@ class RegionDataModule(LightningDataModule):
 
     def train_dataloader(self):
         return DataLoader(self.datasets["train"], batch_size=self.batch_size,
-                          shuffle=True, num_workers=self.num_workers,
-                          drop_last=True, collate_fn=self._collate)
+                        shuffle=True, num_workers=self.num_workers,
+                        drop_last=True, collate_fn=self._collate)
 
     def val_dataloader(self):
         return DataLoader(self.datasets["val"], batch_size=self.batch_size,
-                          shuffle=False, num_workers=self.num_workers,
-                          drop_last=True, collate_fn=self._collate)
+                        shuffle=False, num_workers=self.num_workers,
+                        drop_last=True, collate_fn=self._collate)
 
     def test_dataloader(self):
         return DataLoader(self.datasets["test"], batch_size=self.batch_size,
-                          shuffle=False, num_workers=self.num_workers,
-                          drop_last=False, collate_fn=self._collate)
+                        shuffle=False, num_workers=self.num_workers,
+                        drop_last=False, collate_fn=self._collate)
         
         
 
@@ -243,18 +236,15 @@ def build_multi_region_dm(cfg_path_A: str, cfg_path_B: str):
         root_dir=cfg_A["data_dir"],
         dataset_tag=cfg_A["dataset"],    # 'RMF' (for example)
         img_mean=cfg_A[f"{cfg_A['dataset']}_img_mean"],
-        img_std=cfg_A[f"{cfg_A['dataset']}_img_std"],
-        label_map=None
+        img_std=cfg_A[f"{cfg_A['dataset']}_img_std"]
     )
     # Region B (aggregate 11->6 if NPZ labels are 11-class)
-    # If `.npz` labels are already 6-class, set label_map=None here.
     spec_B = RegionSpec(
         name='B',
         root_dir=cfg_B["data_dir"],
         dataset_tag=cfg_B["dataset"],    # 'OVF' (for example)
         img_mean=cfg_B[f"{cfg_B['dataset']}_img_mean"],
-        img_std=cfg_B[f"{cfg_B['dataset']}_img_std"],
-        label_map=None
+        img_std=cfg_B[f"{cfg_B['dataset']}_img_std"]
     )
 
     dm_A = RegionDataModule(cfg_A, spec_A)

@@ -1,0 +1,55 @@
+# config_ovf.yaml
+
+# General
+dataset: ovf_5class
+data_dir: "./data/ovf_superpixel_dataset"
+tile_size: 128
+n_bands: 9
+ovf_5class_class_weights: [0.02548991, 0.03066413, 0.49941828, 0.24404823, 0.15366716, 0.0467123]
+class_names: ['hardwood', 'poplar', 'conifer', 'pine', 'spruce']
+n_classes: 5
+
+ovf_5class_season_map: ["img_s2_2020_spring", "img_s2_2020_summer", "img_s2_2020_fall", "img_s2_2020_winter"]
+ovf_5class_img_mean: [0.14427671225328217, 0.1628849602448409, 0.1543923423314959, 0.19895783554490315, 0.3028586677545466, 0.3310166877204161, 0.22607028757199024, 0.1668939707556629, 0.35139109099171184]
+ovf_5class_img_std: [0.08323343812815086, 0.07860536991927206, 0.0816505159138659, 0.0794171465899783, 0.08188441364315936, 0.08765779322281311, 0.060037999964880406, 0.03623768761771068, 0.08675829977997589]
+
+# Training parameters
+task: tsc
+head:  fuse_head # Options: no_pc_head, fuse_head, all_head, no_img_head
+pretrained_ckpt: None #tl_logs/no_img_head_unet_pointnet_rmf_cosine/wandblogs/TL-TSC/28g98vp3/checkpoints/epoch=0-step=3246.ckpt
+fix_backbone: false
+batch_size: 64
+max_epochs: 300
+optimizer: adamW                 # Options: adam, adamW, sgd
+scheduler: steplr         # Options: plateau, steplr, asha, cosine, cosinewarmup
+lr: 0.0001
+patience: 10
+step_size: 10
+momentum: 0.9
+weight_decay: 0.0001
+decision_fuse_type: weighted #weighted, mlp
+
+# Loss weights
+multitasks_uncertain_loss: false
+loss_func: mae
+
+# Model architecture
+network: ResUnet
+emb_dims: 768
+num_points: 7168
+fps: false
+encoder: b                      # Options: s, b, l, xl
+fusion_dim: 256
+dp_fuse: 0.3
+dp_pc: 0.3
+use_ms: false
+linear_layers_dims: [512, 256]
+
+# Data transforms
+image_transform: compose
+point_cloud_transform: true
+rotate: false
+pc_normal: false
+
+# Hardware
+gpus: 2

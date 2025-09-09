@@ -3,33 +3,60 @@ import torch.nn as nn
 import torch.nn.functional as F
 import numpy as np
 from einops import rearrange
+from math import gcd
+
+def gn(num_channels: int) -> nn.GroupNorm:
+    # choose a divisor of num_channels for GroupNorm
+    # prefer 32, otherwise fallback to a gcd
+    g = 32 if num_channels % 32 == 0 else gcd(num_channels, 32)
+    g = max(1, min(g, num_channels))
+    return nn.GroupNorm(g, num_channels)
+
+def get_norm(norm_type: str, num_channels: int) -> nn.Module:
+    if norm_type == "bn":
+        return nn.BatchNorm2d(num_channels)
+    elif norm_type == "gn":
+        return gn(num_channels)
+    else:
+        raise ValueError(f"Unknown norm_type: {norm_type}")
+
+class DualBN2d(nn.Module):
+    def __init__(self, num_feats):
+        super().__init__()
+        self.bnA = nn.BatchNorm2d(num_feats)
+        self.bnB = nn.BatchNorm2d(num_feats)
+    def forward(self, x, region: str):
+        return self.bnA(x) if region == 'A' else self.bnB(x)
 
 class ConvBNAct(nn.Module):
-    def __init__(self, in_ch, out_ch, k=1, s=1, p=0, act='silu', bn=True, bias=False, groups=1):
+    def __init__(self, in_ch, out_ch, k=1, s=1, p=0, act='silu', norm_type='gn', bias=False, groups=1):
         super().__init__()
         self.conv = nn.Conv2d(in_ch, out_ch, k, s, p, bias=bias, groups=groups)
-        self.bn = nn.GroupNorm(num_groups=16, num_channels=out_ch) if bn else nn.Identity()
-        self.act = nn.SiLU(inplace=True) if act == 'silu' else nn.GELU()
-    def forward(self, x): return self.act(self.bn(self.conv(x)))
+        self.norm = get_norm(norm_type, out_ch)
+        self.act  = nn.SiLU(inplace=True) if act == 'silu' else nn.GELU()
+    def forward(self, x):
+        return self.act(self.norm(self.conv(x)))
 
 class DepthwiseSeparableConv(nn.Module):
-    def __init__(self, in_ch, out_ch, k=3, s=1, p=1):
+    def __init__(self, in_ch, out_ch, k=3, s=1, p=1, norm_type='gn'):
         super().__init__()
         self.dw = nn.Conv2d(in_ch, in_ch, k, s, p, groups=in_ch, bias=False)
         self.pw = nn.Conv2d(in_ch, out_ch, 1, 1, 0, bias=False)
-        self.bn = nn.GroupNorm(num_groups=16, num_channels=out_ch)
+        self.norm = get_norm(norm_type, out_ch)
         self.act = nn.SiLU(inplace=True)
     def forward(self, x):
-        return self.act(self.bn(self.pw(self.dw(x))))
+        x = self.dw(x)
+        x = self.pw(x)
+        return self.act(self.norm(x))
 
 class MambaFusionV2(nn.Module):
     """
     Plug-and-play fusion before/around Mamba.
     Inputs:
-      - x:      [B, C_img, H, W]  (image feature map)
-      - pc_emb: [B, C_pc]         (stand-level point cloud embedding)
+        - x:      [B, C_img, H, W]  (image feature map)
+        pc_emb: [B, C_pc]         (stand-level point cloud embedding)
     Returns:
-      - fused feature map [B, out_ch, H, W]
+        - fused feature map [B, out_ch, H, W]
     """
     def __init__(
         self,
@@ -52,9 +79,9 @@ class MambaFusionV2(nn.Module):
         nn.init.zeros_(self.pos_proj.weight)  # start as identity-ish
 
         # --- align channels
-        self.img_align = ConvBNAct(in_img_chs, width, k=1)
+        self.img_align = ConvBNAct(in_img_chs, width, k=1, norm_type='gn')
         self.pc_align  = nn.Sequential(nn.Linear(in_pc_chs, width, bias=False),
-                                       nn.LayerNorm(width))
+                                        nn.LayerNorm(width))
 
         # --- optional FiLM conditioning of image by pc
         self.use_film = use_film
@@ -70,10 +97,9 @@ class MambaFusionV2(nn.Module):
 
         # --- fused building: img + pos + pc_map -> bottleneck
         # concat design, but with aligned widths
-        fused_in = width * 3
         self.bottleneck = nn.Sequential(
-            DepthwiseSeparableConv(fused_in, width),
-            DepthwiseSeparableConv(width, width)
+            DepthwiseSeparableConv(width*3, width, norm_type='gn'),
+            DepthwiseSeparableConv(width,   width, norm_type='gn'),
         )
 
         # --- PPM
@@ -83,12 +109,13 @@ class MambaFusionV2(nn.Module):
             if i == 0:
                 # match your "pool to 1 then 1x1"
                 self.pool_layers.append(nn.Sequential(
-                    ConvBNAct(width*3, width, k=1), nn.AdaptiveAvgPool2d(1)
+                    ConvBNAct(width*3, width, k=1, norm_type='gn'),
+                    nn.AdaptiveAvgPool2d(1)
                 ))
             else:
                 self.pool_layers.append(nn.Sequential(
                     nn.AdaptiveAvgPool2d(psize),
-                    ConvBNAct(width*3, width, k=1)
+                    ConvBNAct(width*3, width, k=1, norm_type='gn')
                 ))
         self.pool_len = len(self.pool_layers)
 
@@ -104,7 +131,7 @@ class MambaFusionV2(nn.Module):
         self.post_norm = nn.LayerNorm(width * (self.pool_len + 1))
 
         # --- project back to desired out_ch
-        self.out_proj = ConvBNAct(width * (self.pool_len + 1), out_ch, k=1)
+        self.out_proj = ConvBNAct(width * (self.pool_len + 1), out_ch, k=1, norm_type='gn')
 
     @torch.no_grad()
     def _grid(self, B, device):
