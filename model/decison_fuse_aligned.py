@@ -35,7 +35,7 @@ class FusionModel(pl.LightningModule):
         # Image stream
         if self.cfg["network"] == "Unet":
             from .unet import UNet
-            self.s2_model = UNet(n_channels=total_input_channels, n_classes=n_classes)
+            self.s2_model = UNet(n_channels=total_input_channels, n_classes=n_classes, aligned=True)
         elif self.cfg["network"] == "ResUnet":
             from .ResUnet import ResUnet
             self.s2_model = ResUnet(n_channels=total_input_channels, n_classes=n_classes, aligned=True)
