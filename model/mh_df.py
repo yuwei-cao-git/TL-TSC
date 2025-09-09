@@ -180,10 +180,10 @@ class MultiHeadFusionModel(pl.LightningModule):
         if region_key == 'B':
             with torch.no_grad():
                 sums = labels.sum(dim=1)
-                self.log(f"{stage}_B/label_sum_mean", sums.mean(), prog_bar=False, batch_size=labels.size(0))
-                self.log(f"{stage}_B/label_sum_abs_err", (sums-1).abs().mean(), prog_bar=False, batch_size=labels.size(0))
-                self.log(f"{stage}_B/label_nan_frac", torch.isnan(labels).float().mean(), prog_bar=False, batch_size=labels.size(0))
-                self.log(f"{stage}_B/label_var_mean", labels.var(dim=0).mean(), prog_bar=False, batch_size=labels.size(0))
+                self.log(f"{stage}_B/label_sum_mean", sums.mean(), prog_bar=False, batch_size=labels.size(0), sync_dist=True)
+                self.log(f"{stage}_B/label_sum_abs_err", (sums-1).abs().mean(), prog_bar=False, batch_size=labels.size(0), sync_dist=True)
+                self.log(f"{stage}_B/label_nan_frac", torch.isnan(labels).float().mean(), prog_bar=False, batch_size=labels.size(0), sync_dist=True)
+                self.log(f"{stage}_B/label_var_mean", labels.var(dim=0).mean(), prog_bar=False, batch_size=labels.size(0), sync_dist=True)
 
         logits, mask8 = self.forward(images, img_masks, pc_feat, point_clouds, region_key)
         pred_props = F.softmax(logits, dim=1)
@@ -194,7 +194,7 @@ class MultiHeadFusionModel(pl.LightningModule):
         # after computing mask8
         with torch.no_grad():
             cov = mask8.mean(dim=(2,3)).mean()  # [B,1,H,W] -> scalar
-            self.log(f"{stage}_mask_cov/{region_key}", cov, on_step=True, prog_bar=False, batch_size=labels.size(0))
+            self.log(f"{stage}_mask_cov/{region_key}", cov, on_step=True, prog_bar=False, batch_size=labels.size(0), sync_dist=True)
             if cov < 0.2:
                 loss_core = (loss * mask8.mean(dim=(2,3)).squeeze(1)).mean()
         
@@ -206,8 +206,8 @@ class MultiHeadFusionModel(pl.LightningModule):
         with torch.no_grad():
             r2_metric = getattr(self, f"{stage}_r2")[region_key]
             r2_val = r2_metric(pred_props.view(-1), labels.view(-1))
-            self.log(f"{stage}_B/pred_sum", pred_props.sum(dim=1).mean(), prog_bar=False, batch_size=labels.size(0))
-            self.log(f"{stage}_B/label_sum", labels.sum(dim=1).mean(), prog_bar=False, batch_size=labels.size(0))
+            self.log(f"{stage}_B/pred_sum", pred_props.sum(dim=1).mean(), prog_bar=False, batch_size=labels.size(0), sync_dist=True)
+            self.log(f"{stage}_B/label_sum", labels.sum(dim=1).mean(), prog_bar=False, batch_size=labels.size(0), sync_dist=True)
 
         bs = labels.shape[0]
 
