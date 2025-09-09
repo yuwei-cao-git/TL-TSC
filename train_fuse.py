@@ -39,8 +39,8 @@ def override_config(cfg, args):
         cfg['loss_func'] = args.loss_func
     if args.pc_normal:
         cfg['pc_normal'] = args.pc_normal
-    if args.dp is not None:
-        cfg['dp_pc'] = args.dp
+    if args.use_ms:
+        cfg['use_ms'] = args.use_ms
     return cfg
 
     
@@ -65,7 +65,7 @@ def parse_args():
     parser.add_argument('--pretrained_ckpt', default=None)
     parser.add_argument('--scheduler', type=str)
     parser.add_argument('--pc_normal', type=bool, default=False)
-    parser.add_argument('--dp', type=float) 
+    parser.add_argument('--use_ms', type=bool, default=False) 
     parser.add_argument('--level', type=str)
     return parser.parse_args()
     
