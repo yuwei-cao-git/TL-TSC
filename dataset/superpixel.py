@@ -59,39 +59,42 @@ class SuperpixelDataset(Dataset):
         nodata_mask = torch.from_numpy(nodata_mask).bool()
         
         superpixel_images = self.transforms(superpixel_images)
-
         # Apply transforms if needed
         if self.image_transform != None:
             superpixel_images = image_augment(superpixel_images, self.image_transform, 128)
         
-        norm_coords = normalize_point_cloud(coords)
+        normalized_coords = normalize_point_cloud(coords)
+        
+        # Apply point cloud transforms if any
         if self.normal:
+            if self.point_cloud_transform:
+                normalized_coords, _, label = pointCloudTransform(
+                    normalized_coords, pc_feat=None, target=label, rot=self.rotate
+                )
             # Convert numpy array to Open3D PointCloud
             pcd = o3d.geometry.PointCloud()
-            pcd.points = o3d.utility.Vector3dVector(coords)
+            pcd.points = o3d.utility.Vector3dVector(normalized_coords)
 
             # Estimate normals (change radius/knn depending on density)
             pcd.estimate_normals(search_param=o3d.geometry.KDTreeSearchParamKNN(knn=16))
             feats = np.asarray(pcd.normals)  # Shape: (N, 3)
         else:
             feats = center_point_cloud(coords)
-        
-        # Apply point cloud transforms if any
-        if self.point_cloud_transform:
-            norm_coords, feats, label = pointCloudTransform(
-                norm_coords, pc_feat=feats, target=label, rot=self.rotate
-            )
+            if self.point_cloud_transform:
+                normalized_coords, feats, label = pointCloudTransform(
+                    normalized_coords, pc_feat=feats, target=label, rot=self.rotate
+                )
 
         # After applying transforms
         feats = torch.from_numpy(feats).float()  # Shape: (7168, 3)
-        norm_coords = torch.from_numpy(norm_coords).float()  # Shape: (7168, 3)
+        normalized_coords = torch.from_numpy(normalized_coords).float()  # Shape: (7168, 3)
         label = torch.from_numpy(label).float()  # Shape: (num_classes,)
 
         sample = {
             "images": superpixel_images,  # Padded images of shape [num_seasons, num_channels, 128, 128]
             "mask": nodata_mask,  # Padded masks of shape [num_seasons, 128, 128]
             "per_pixel_labels": per_pixel_labels,  # Tensor: (num_classes, 128, 128)
-            "point_cloud": norm_coords,
+            "point_cloud": normalized_coords,
             "pc_feat": feats,
             "label": label,
         }

@@ -30,7 +30,10 @@ lr: 0.0001
 patience: 10
 step_size: 10
 momentum: 0.9
-weight_decay: 0.0001
+weight_decay: 0.0005
+l2sp_alpha: 5e-5
+unfreeze_e1: 3           # heads-only epochs
+unfreeze_e2: 8           # add late blocks until this epoch, then add some mid blocks
 decision_fuse_type: weighted #weighted, mlp
 
 # Loss weights
