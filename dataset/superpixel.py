@@ -63,7 +63,7 @@ class SuperpixelDataset(Dataset):
         if self.image_transform != None:
             superpixel_images = image_augment(superpixel_images, self.image_transform, 128)
         
-        normalized_coords = normalize_point_cloud(coords)
+        normalized_coords = center_point_cloud(coords)
         
         # Apply point cloud transforms if any
         if self.normal:
@@ -79,7 +79,7 @@ class SuperpixelDataset(Dataset):
             pcd.estimate_normals(search_param=o3d.geometry.KDTreeSearchParamKNN(knn=16))
             feats = np.asarray(pcd.normals)  # Shape: (N, 3)
         else:
-            feats = center_point_cloud(coords)
+            feats = normalize_point_cloud(coords)
             if self.point_cloud_transform:
                 normalized_coords, feats, label = pointCloudTransform(
                     normalized_coords, pc_feat=feats, target=label, rot=self.rotate
