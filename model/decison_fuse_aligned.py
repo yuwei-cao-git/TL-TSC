@@ -101,8 +101,8 @@ class FusionModel(pl.LightningModule):
         image_preds, pc_preds = self.forward(images, pc_feat, point_clouds)
         if self.cfg["network"] !="ResNet":
             img_logits_list = apply_mask_per_batch(image_preds, img_masks, multi_class=True)
-            #valid_pixel_preds, _ = apply_mask(image_preds, pixel_labels, img_masks, multi_class=True)
-            image_preds = torch.stack([F.normalize(p.mean(dim=0), p=1, dim=0) if p.numel() > 0 else torch.zeros(image_preds.shape[1], device=image_preds.device) for p in img_logits_list], dim=0)
+            image_preds = torch.stack([p.mean(dim=0) if p.numel() > 0 else torch.zeros(image_preds.shape[1], device=image_preds.device) for p in img_logits_list], dim=0)
+            # image_preds = torch.stack([F.normalize(p.mean(dim=0), p=1, dim=0) if p.numel() > 0 else torch.zeros(image_preds.shape[1], device=image_preds.device) for p in img_logits_list], dim=0)
         fuse_preds = self.fuse_head(image_preds, pc_preds)
 
         r2_metric = getattr(self, f"{stage}_r2")
