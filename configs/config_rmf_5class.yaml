@@ -2,7 +2,7 @@
 
 # General
 dataset: rmf_5class                        # Options: rmf, rmf_superpixel_dataset
-data_dir: "./data/rmf_superpixel_dataset"
+data_dir: "/mnt/g/rmf/rmf_superpixel_dataset"
 tile_size: 128
 n_bands: 9
 n_classes: 5
@@ -48,7 +48,7 @@ linear_layers_dims: [512, 256]
 image_transform: compose
 point_cloud_transform: true
 rotate: false
-pc_normal: false
+pc_normal: true
 
 # Hardware
 gpus: 2

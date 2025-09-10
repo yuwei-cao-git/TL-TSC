@@ -2,7 +2,7 @@
 
 # General
 dataset: ovf_5class
-data_dir: "./data/ovf_superpixel_dataset"
+data_dir: "/mnt/g/ovf/ovf_superpixel_dataset"
 tile_size: 128
 n_bands: 9
 
@@ -11,6 +11,7 @@ class_names: ['hardwood', 'poplar', 'conifer', 'pine', 'spruce']
 ovf_5class_class_weights: [0.03613264, 0.04351026, 0.13363187, 0.06719596, 0.71952927]
 
 ovf_5class_season_map: ["img_s2_2020_spring", "img_s2_2020_summer", "img_s2_2020_fall", "img_s2_2020_winter"]
+multi_season_map: ["img_s2_2020_spring", "img_s2_2020_summer", "img_s2_2020_fall", "img_s2_2020_winter"]
 ovf_5class_img_mean: [0.14427671225328217, 0.1628849602448409, 0.1543923423314959, 0.19895783554490315, 0.3028586677545466, 0.3310166877204161, 0.22607028757199024, 0.1668939707556629, 0.35139109099171184]
 ovf_5class_img_std: [0.08323343812815086, 0.07860536991927206, 0.0816505159138659, 0.0794171465899783, 0.08188441364315936, 0.08765779322281311, 0.060037999964880406, 0.03623768761771068, 0.08675829977997589]
 
@@ -50,7 +51,7 @@ linear_layers_dims: [512, 256]
 image_transform: compose
 point_cloud_transform: true
 rotate: false
-pc_normal: false
+pc_normal: true
 
 # Hardware
 gpus: 2

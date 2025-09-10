@@ -1,10 +1,12 @@
 import os
 import torch
 from pytorch_lightning import Trainer, seed_everything
+from pytorch_lightning.strategies.ddp import DDPStrategy
 from pytorch_lightning.callbacks import EarlyStopping, ModelCheckpoint
 from lightning.pytorch.loggers import WandbLogger
-# from pytorch_lightning.utilities.model_summary import ModelSummary
+from pytorch_lightning.utilities.model_summary import ModelSummary
 import yaml
+from model.finetune import reinit_classifier_heads, GradualUnfreeze
 
 def load_backbone_weights(model, checkpoint_path):
     checkpoint = torch.load(checkpoint_path, map_location="cpu", weights_only=True)
@@ -78,12 +80,20 @@ def train(config):
         mode="max",  # We want to minimize the validation loss
     )
     
+    callbacks = [early_stopping, checkpoint_callback]
+    
     print("start setting dataset")
     # Initialize the DataModule
     if config["task"] in ["tsc", "lsc", "tsc_mid", "tsc_aligned", "tsc_mid_decision"]:
         if config["dataset"] in ["ovf", "rmf"]:
             from dataset.balanced_dataset import BalancedDataModule
             data_module = BalancedDataModule(config)
+        elif config["dataset"] == 'multi':
+            from dataset.multidataset import MultiSourceDataModule
+            data_module = MultiSourceDataModule(train_sources=("ovf","rmf"),  # train on both
+                                                val_sources=("ovf",),         # validate on OVF only
+                                                test_sources=("ovf",),        # test on OVF only
+                                            )
         else:
             from dataset.superpixel import SuperpixelDataModule
             data_module = SuperpixelDataModule(config)
@@ -105,7 +115,10 @@ def train(config):
         from model.decison_fuse import FusionModel
         model = FusionModel(config, n_classes=config["n_classes"])
     elif config["task"] == "tsc_aligned":
-        from model.decison_fuse_aligned import FusionModel
+        if config["pretrained_ckpt"] != "None":
+            from model.finetune import FusionModel
+        else:    
+            from model.decison_fuse_aligned import FusionModel
         model = FusionModel(config, n_classes=config["n_classes"])
     elif config["task"] == "lsc":
         from model.lsc import FusionModel
@@ -122,24 +135,24 @@ def train(config):
     else:
         from model.top2 import FusionModel
         model = FusionModel(config, n_classes=config["n_classes"])
+    
+    #print(ModelSummary(model, max_depth=3))
+    reinit_classifier_heads(model)
         
     if config["pretrained_ckpt"] != "None":
         # load backbone weights only, ignore head mismatch
         model = load_backbone_weights(model, config["pretrained_ckpt"])
-        
-        if config.get("fix_backbone", True):  # optional flag in config
-            model.freeze_backbone()
-        trainable_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
-        print(f"Trainable parameters: {trainable_params}")
+        gradual = GradualUnfreeze(e1=config.get("unfreeze_e1", 3), e2=config.get("unfreeze_e2", 8))
+        callbacks.append(gradual)
 
     # Create a PyTorch Lightning Trainer
     trainer = Trainer(
         max_epochs=config["max_epochs"],
         logger=[wandb_logger],
-        callbacks=[early_stopping, checkpoint_callback],
+        callbacks=callbacks,
         devices=config["gpus"],
         num_nodes=1,
-        strategy='ddp'# DDPStrategy #(find_unused_parameters=True)
+        strategy=DDPStrategy(find_unused_parameters=True)
     )
     
     # Train the model
