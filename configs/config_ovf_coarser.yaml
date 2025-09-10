@@ -8,7 +8,6 @@ n_bands: 9
 n_classes: 6
 class_names: ['hardwood', 'poplar', 'spruce', 'fir', 'cedar', 'pine']
 ovf_coarser_class_weights: [0.02548991, 0.03066413, 0.49941828, 0.24404823, 0.15366716, 0.0467123]
-
 ovf_coarser_season_map: ["img_s2_2020_spring", "img_s2_2020_summer", "img_s2_2020_fall", "img_s2_2020_winter"]
 # /65535
 # ovf_coarser_img_mean: [0.02213441859462131, 0.0249776732983333, 0.02367478859328472, 0.030501271121244334, 0.04633530771896778, 0.05062321949775266, 0.034551559187663575, 0.025500956886395993, 0.05372880201825224]
@@ -30,7 +29,7 @@ lr: 0.0001
 patience: 10
 step_size: 10
 momentum: 0.9
-weight_decay: 0.0005
+weight_decay: 0.0001
 l2sp_alpha: 5e-5
 unfreeze_e1: 3           # heads-only epochs
 unfreeze_e2: 8           # add late blocks until this epoch, then add some mid blocks
@@ -38,7 +37,7 @@ decision_fuse_type: weighted #weighted, mlp
 
 # Loss weights
 multitasks_uncertain_loss: false
-loss_func: mae
+loss_func: mse
 
 # Model architecture
 network: ResUnet
