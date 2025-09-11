@@ -157,14 +157,19 @@ def make_optimizer_and_scheduler(model, cfg):
         optimizer = torch.optim.Adam(params, lr=lr, betas=(0.9, 0.999), eps=1e-8, weight_decay=wd)
     else:
         optimizer = torch.optim.SGD(params, lr=lr, momentum=float(cfg.get("momentum", 0.9)), weight_decay=wd)
-
+    """
     from torch.optim.lr_scheduler import LinearLR, CosineAnnealingLR, SequentialLR
     max_epochs = int(cfg["max_epochs"])
     warmup_epochs = max(1, int(0.1 * max_epochs))
     warmup = LinearLR(optimizer, start_factor=0.1, end_factor=1.0, total_iters=warmup_epochs)
     cosine = CosineAnnealingLR(optimizer, T_max=max_epochs - warmup_epochs, eta_min=1e-6)
     scheduler = SequentialLR(optimizer, [warmup, cosine], milestones=[warmup_epochs])
+    
     return optimizer, {"scheduler": scheduler, "interval": "epoch"}
+    """
+    from torch.optim.lr_scheduler import StepLR
+    scheduler = StepLR(optimizer, 10)
+    return optimizer, scheduler
 
 # --------------------------
 # Main train
@@ -250,8 +255,8 @@ def train(cfg, ft_mode_cli=None):
     monkeypatch_l2sp(model, cfg.get("l2sp_alpha", None))
 
     # --- optimizer & scheduler (single LR on trainables) ---
-    optimizer, scheduler_cfg = make_optimizer_and_scheduler(model, cfg)
-    model.configure_optimizers = lambda: {"optimizer": optimizer, "lr_scheduler": scheduler_cfg}
+    optimizer, scheduler = make_optimizer_and_scheduler(model, cfg)
+    model.configure_optimizers = lambda: {"optimizer": optimizer, "lr_scheduler": scheduler}
 
     # --- trainer ---
     trainer = Trainer(
@@ -276,6 +281,7 @@ if __name__ == "__main__":
     ap.add_argument("--ft_mode", default=None, help="Override: linear_probe | freeze_last_k | full_ft | adapters")
     ap.add_argument("--task", default=None, help="Override: tsc | tsc_align")
     ap.add_argument("--pretrained_ckpt", default=None, help="Override: linear_probe | freeze_last_k | full_ft | adapters")
+    ap.add_argument("--log_name", default=None)
     args = ap.parse_args()
     with open(args.cfg, "r") as f:
         cfg = json.load(f) if args.cfg.endswith(".json") else yaml.safe_load(f)
@@ -284,7 +290,6 @@ if __name__ == "__main__":
     cfg.setdefault("log_name", "finetune")
     cfg.setdefault("optimizer", "adamW")
     cfg.setdefault("lr", 1e-3)
-    cfg.setdefault("weight_decay", 1e-4)
     cfg.setdefault("max_epochs", 20)
     cfg.setdefault("patience", 15)
     cfg.setdefault("s2_head_in_ch", 1024)
@@ -298,6 +303,9 @@ if __name__ == "__main__":
 
     if args.pretrained_ckpt is not None:
         cfg["pretrained_ckpt"] = args.pretrained_ckpt
+    
+    if args.log_name is not None:
+        cfg["log_name"] = args.log_name
 
     if args.ft_mode is not None:
         cfg["ft_mode"] = args.ft_mode

@@ -14,6 +14,7 @@ import open3d as o3d
 class SuperpixelDataset(Dataset):
     def __init__(
         self,
+        dataset_tag,
         superpixel_files,
         rotate=None,
         pc_normal=None,
@@ -22,6 +23,7 @@ class SuperpixelDataset(Dataset):
         img_mean=None,
         img_std=None
     ):
+        self.dataset_tag = dataset_tag
         self.superpixel_files = superpixel_files
         self.image_transform = image_transform
         self.point_cloud_transform = point_cloud_transform
@@ -44,7 +46,7 @@ class SuperpixelDataset(Dataset):
         # Load data from the .npz file
         superpixel_images = data[
             "superpixel_images"
-        ].astype(np.float32) / 65535.0  # Shape: (num_seasons, num_channels, 128, 128)
+        ].astype(np.float32) / (65535.0 if self.dataset_tag.startswith('ovf') else 10000.0)  # Shape: (num_seasons, num_channels, 128, 128)
         coords = data["point_cloud"]  # Shape: (7168, 3)
         label = data["label"]  # Shape: (num_classes,)
         per_pixel_labels = data["per_pixel_labels"]  # Shape: (num_classes, 128, 128)
@@ -105,6 +107,7 @@ class SuperpixelDataModule(LightningDataModule):
     def __init__(self, config):
         super().__init__()
         self.config = config
+        self.dataset = config["dataset"]
         self.batch_size = config["batch_size"]
         self.num_workers = config["gpus"]*2
         self.image_transform = (
@@ -147,6 +150,7 @@ class SuperpixelDataModule(LightningDataModule):
             img_mean=self.config[f"{self.config['dataset']}_img_mean"]
             img_std=self.config[f"{self.config['dataset']}_img_std"]
             self.datasets[split] = SuperpixelDataset(
+                self.dataset,
                 superpixel_files,
                 rotate=None,
                 pc_normal=self.aug_pc_norm,
@@ -160,6 +164,7 @@ class SuperpixelDataModule(LightningDataModule):
                     self.image_transform is None or self.point_cloud_transform is False
                 ):
                     aug_pc_dataset = SuperpixelDataset(
+                        self.dataset,
                         superpixel_files,
                         rotate=self.aug_rotate,
                         pc_normal=self.aug_pc_norm,
@@ -169,6 +174,7 @@ class SuperpixelDataModule(LightningDataModule):
                         img_std=img_std
                     )
                     aug_img_dataset = SuperpixelDataset(
+                        self.dataset,
                         superpixel_files,
                         rotate=self.aug_rotate,
                         pc_normal=self.aug_pc_norm,
