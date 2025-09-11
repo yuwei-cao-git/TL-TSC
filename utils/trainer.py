@@ -6,7 +6,6 @@ from pytorch_lightning.callbacks import EarlyStopping, ModelCheckpoint
 from lightning.pytorch.loggers import WandbLogger
 from pytorch_lightning.utilities.model_summary import ModelSummary
 import yaml
-from model.finetune import reinit_classifier_heads, GradualUnfreeze
 
 def load_backbone_weights(model, checkpoint_path):
     checkpoint = torch.load(checkpoint_path, map_location="cpu", weights_only=True)
@@ -115,10 +114,7 @@ def train(config):
         from model.decison_fuse import FusionModel
         model = FusionModel(config, n_classes=config["n_classes"])
     elif config["task"] == "tsc_aligned":
-        if config["pretrained_ckpt"] != "None":
-            from model.finetune import FusionModel
-        else:    
-            from model.decison_fuse_aligned import FusionModel
+        from model.decison_fuse_aligned import FusionModel
         model = FusionModel(config, n_classes=config["n_classes"])
     elif config["task"] == "lsc":
         from model.lsc import FusionModel
@@ -135,15 +131,10 @@ def train(config):
     else:
         from model.top2 import FusionModel
         model = FusionModel(config, n_classes=config["n_classes"])
-    
-    #print(ModelSummary(model, max_depth=3))
-    reinit_classifier_heads(model)
         
     if config["pretrained_ckpt"] != "None":
         # load backbone weights only, ignore head mismatch
         model = load_backbone_weights(model, config["pretrained_ckpt"])
-        gradual = GradualUnfreeze(e1=config.get("unfreeze_e1", 3), e2=config.get("unfreeze_e2", 8))
-        callbacks.append(gradual)
 
     # Create a PyTorch Lightning Trainer
     trainer = Trainer(

@@ -1,8 +1,20 @@
+ft_mode: full_ft
+optimizer: adamW
+lr: 1e-4
+weight_decay: 5e-4
+max_epochs: 20
+patience: 15
+pretrained_ckpt: tl_logs/tsc_ResUnet_aligned_noms_pointnext_b_rmf_genus_mse_weighted/checkpoints/final_model.ckpt
+l2sp_alpha: 0            # off for linear probe
+s2_head_in_ch: 1024
+pc_head_in_ch: 768
+freeze_last_k: 1
+
 # config_ovf.yaml
 
 # General
 dataset: ovf_coarser
-data_dir: "./data/ovf_superpixel_dataset"
+data_dir: "/mnt/g/ovf/ovf_superpixel_dataset"
 tile_size: 128
 n_bands: 9
 n_classes: 6
@@ -17,22 +29,16 @@ ovf_coarser_img_mean: [0.14569483999036548, 0.1642811348716173, 0.15584584249684
 ovf_coarser_img_std: [0.08632466386209953, 0.08161959376768174, 0.08477277257181819, 0.08218470236534788, 0.08344650212568164, 0.0886688905866315, 0.059485454246911616, 0.03590568279071751, 0.08754291674956742]
 
 # Training parameters
-task: tsc
+task: tsc_aligned
 head:  fuse_head # Options: no_pc_head, fuse_head, all_head, no_img_head
 pretrained_ckpt: None #tl_logs/no_img_head_unet_pointnet_rmf_cosine/wandblogs/TL-TSC/28g98vp3/checkpoints/epoch=0-step=3246.ckpt
 fix_backbone: false
-batch_size: 64
+batch_size: 32
 max_epochs: 300
 optimizer: adamW                 # Options: adam, adamW, sgd
-scheduler: steplr         # Options: plateau, steplr, asha, cosine, cosinewarmup
-lr: 0.0001
-patience: 10
+scheduler: steplr
 step_size: 10
 momentum: 0.9
-weight_decay: 0.0001
-l2sp_alpha: 5e-5
-unfreeze_e1: 8           # heads-only epochs
-unfreeze_e2: 16           # add late blocks until this epoch, then add some mid blocks
 decision_fuse_type: weighted #weighted, mlp
 
 # Loss weights
@@ -47,7 +53,7 @@ encoder: b                      # Options: s, b, l, xl
 fusion_dim: 256
 dp_fuse: 0.6
 dp_pc: 0.3
-use_ms: false
+use_ms: true
 linear_layers_dims: [512, 256]
 
 # Data transforms
@@ -57,4 +63,4 @@ rotate: false
 pc_normal: false
 
 # Hardware
-gpus: 2
+gpus: 1

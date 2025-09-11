@@ -228,14 +228,18 @@ class FusionModel(pl.LightningModule):
             )
             return {"optimizer": optimizer, "lr_scheduler": scheduler}
         elif self.scheduler_type == "CosLR":
-            scheduler = CosineLRScheduler(optimizer,
-                t_initial=self.cfg["max_epochs"],
-                cycle_mul=1.0,
-                lr_min=1e-6,
-                cycle_decay=0.1,
-                warmup_lr_init=1e-6,
-                warmup_t=10,
-                cycle_limit=1,
-                t_in_epochs=True)
+            warmup_epochs = max(1, int(0.05 * self.cfg["max_epochs"]))  # ~5% warmup
+            total_epochs = self.cfg["max_epochs"]
+
+            warmup = torch.optim.lr_scheduler.LinearLR(optimizer, start_factor=0.1, end_factor=1.0, total_iters=warmup_epochs)
+            cosine = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=total_epochs - warmup_epochs, eta_min=1e-6)
+
+            scheduler = torch.optim.lr_scheduler.SequentialLR(optimizer, schedulers=[warmup, cosine], milestones=[warmup_epochs])
+            return {
+                "optimizer": optimizer,
+                "lr_scheduler": {
+                    "scheduler": scheduler,
+                    "interval": "epoch",
+                }}
         else:
             return optimizer
