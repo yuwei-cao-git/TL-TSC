@@ -227,13 +227,12 @@ def train(cfg, ft_mode_cli=None):
 
     # --- choose finetune mode ---
     ft_mode = (ft_mode_cli or cfg.get("ft_mode", "linear_probe")).lower()
-    k_last  = int(cfg.get("freeze_last_k", 1))
+    
     use_ms  = bool(cfg.get("use_ms", False))  # MF block in front of S2
 
     if ft_mode == "linear_probe":
         mode_linear_probe(model, use_ms_fusion=use_ms)
-    elif ft_mode == "freeze_last_k":
-        mode_freeze_last_k(model, k=k_last, use_ms_fusion=use_ms)
+        
     elif ft_mode == "full_ft":
         mode_full_ft(model, use_ms_fusion=use_ms)
     elif ft_mode == "adapters":
@@ -244,7 +243,8 @@ def train(cfg, ft_mode_cli=None):
                       s2_bottleneck=int(cfg.get("s2_adapter_bottleneck", 16)),
                       pc_bottleneck=int(cfg.get("pc_adapter_bottleneck", 16)))
     else:
-        raise ValueError(f"[finetune] unknown ft_mode: {ft_mode}")
+        k_last=int(ft_mode.split('_')[-1])
+        mode_freeze_last_k(model, k=k_last, use_ms_fusion=use_ms)
 
     # --- optional L2-SP (set l2sp_alpha in YAML; works with any mode) ---
     monkeypatch_l2sp(model, cfg.get("l2sp_alpha", None))
