@@ -274,6 +274,8 @@ if __name__ == "__main__":
     ap = argparse.ArgumentParser()
     ap.add_argument("--cfg", required=True, help="Path to YAML or JSON config")
     ap.add_argument("--ft_mode", default=None, help="Override: linear_probe | freeze_last_k | full_ft | adapters")
+    ap.add_argument("--task", default=None, help="Override: tsc | tsc_align")
+    ap.add_argument("--pretrained_ckpt", default=None, help="Override: linear_probe | freeze_last_k | full_ft | adapters")
     args = ap.parse_args()
     with open(args.cfg, "r") as f:
         cfg = json.load(f) if args.cfg.endswith(".json") else yaml.safe_load(f)
@@ -287,4 +289,16 @@ if __name__ == "__main__":
     cfg.setdefault("patience", 15)
     cfg.setdefault("s2_head_in_ch", 1024)
     cfg.setdefault("pc_head_in_ch", 768)
+    cfg.setdefault("task", args.task)
+    cfg.setdefault("pretrained_ckpt", args.pretrained_ckpt)
+    
+    # Explicit overrides from CLI if provided
+    if args.task is not None:
+        cfg["task"] = args.task
+
+    if args.pretrained_ckpt is not None:
+        cfg["pretrained_ckpt"] = args.pretrained_ckpt
+
+    if args.ft_mode is not None:
+        cfg["ft_mode"] = args.ft_mode
     train(cfg, ft_mode_cli=args.ft_mode)
