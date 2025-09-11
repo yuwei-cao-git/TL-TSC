@@ -191,11 +191,11 @@ def train(cfg, ft_mode_cli=None):
 
     # --- datamodule (your original routing) ---
     print("[finetune] init dataset")
-    task = cfg["task"]
     from dataset.superpixel import SuperpixelDataModule
     data_module = SuperpixelDataModule(cfg)
 
     # --- model (same mapping as your trainer) ---
+    task = cfg["task"]
     if task == "tsc_aligned":
         from model.decison_fuse_aligned import FusionModel
     elif task == "tsc":
@@ -240,8 +240,8 @@ def train(cfg, ft_mode_cli=None):
         s2_ch = int(cfg.get("s2_head_in_ch", 1024))
         pc_ch = int(cfg.get("pc_head_in_ch", 768))
         mode_adapters(model, s2_channels=s2_ch, pc_channels=pc_ch, use_ms_fusion=use_ms,
-                      s2_bottleneck=int(cfg.get("s2_adapter_bottleneck", 16)),
-                      pc_bottleneck=int(cfg.get("pc_adapter_bottleneck", 16)))
+                        s2_bottleneck=int(cfg.get("s2_adapter_bottleneck", 16)),
+                        pc_bottleneck=int(cfg.get("pc_adapter_bottleneck", 16)))
     else:
         k_last=int(ft_mode.split('_')[-1])
         mode_freeze_last_k(model, k=k_last, use_ms_fusion=use_ms)
@@ -260,7 +260,7 @@ def train(cfg, ft_mode_cli=None):
         callbacks=callbacks,
         devices=int(cfg.get("gpus", 1)),
         num_nodes=1,
-        strategy='ddp' #DDPStrategy(find_unused_parameters=True),
+        strategy=DDPStrategy(find_unused_parameters=False),
     )
 
     # --- go ---
