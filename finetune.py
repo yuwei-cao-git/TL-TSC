@@ -4,7 +4,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from pytorch_lightning import Trainer, seed_everything
-from pytorch_lightning.strategies import DDPStrategy
+from pytorch_lightning.strategies.ddp import DDPStrategy
 from pytorch_lightning.callbacks import EarlyStopping, ModelCheckpoint
 from lightning.pytorch.loggers import WandbLogger
 
