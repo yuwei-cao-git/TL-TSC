@@ -14,7 +14,7 @@ import yaml
 class SuperpixelDataset(Dataset):
     def __init__(self, superpixel_files, rotate=None, pc_normal=None,
                 image_transform=None, point_cloud_transform=None,
-                img_mean=None, img_std=None, sampling=False,
+                img_mean=None, img_std=None, 
                 region_key: str = "A"):
         
         self.superpixel_files = superpixel_files
@@ -22,7 +22,6 @@ class SuperpixelDataset(Dataset):
         self.point_cloud_transform = point_cloud_transform
         self.rotate = rotate
         self.normal = pc_normal
-        self.sampling = sampling
         self.region_key = region_key
 
         self.transforms = transforms.Compose(
@@ -113,7 +112,6 @@ class RegionDataModule(LightningDataModule):
         self.point_cloud_transform = config["point_cloud_transform"]
         self.aug_rotate = config["rotate"]
         self.aug_pc_norm = config["pc_normal"]
-        self.fps = config["fps"]
 
         self.data_dirs = {
             "train": join(spec.root_dir, "tile_128", "train", spec.dataset_tag),
@@ -135,7 +133,6 @@ class RegionDataModule(LightningDataModule):
                 point_cloud_transform=None,
                 img_mean=self.spec.img_mean,
                 img_std=self.spec.img_std,
-                sampling=self.fps,
                 region_key=self.spec.name,           # <<< important
             )
 
@@ -148,7 +145,6 @@ class RegionDataModule(LightningDataModule):
                     point_cloud_transform=self.point_cloud_transform,
                     img_mean=self.spec.img_mean,
                     img_std=self.spec.img_std,
-                    sampling=self.fps,
                     region_key=self.spec.name,
                 )
                 ds_img = SuperpixelDataset(
@@ -159,7 +155,6 @@ class RegionDataModule(LightningDataModule):
                     point_cloud_transform=None,
                     img_mean=self.spec.img_mean,
                     img_std=self.spec.img_std,
-                    sampling=self.fps,
                     region_key=self.spec.name,
                 )
                 self.datasets[split] = ConcatDataset([base, ds_pc, ds_img])
