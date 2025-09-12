@@ -143,7 +143,7 @@ def train(config):
         callbacks=callbacks,
         devices=config["gpus"],
         num_nodes=1,
-        strategy=DDPStrategy(find_unused_parameters=True)
+        strategy=DDPStrategy(find_unused_parameters=False)
     )
     
     # Train the model
