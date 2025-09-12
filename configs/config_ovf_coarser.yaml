@@ -54,7 +54,7 @@ linear_layers_dims: [512, 256]
 image_transform: compose
 point_cloud_transform: true
 rotate: false
-pc_normal: false
+pc_normal: true
 
 # Hardware
 gpus: 2
