@@ -1,20 +1,20 @@
 ft_mode: full_ft
 optimizer: adamW
-lr: 1e-4
-weight_decay: 5e-4
+lr: 1e-3
+weight_decay: 1e-4
 max_epochs: 100
 patience: 15
-pretrained_ckpt: "./rmf_cktp/final_model.ckpt"
+pretrained_ckpt: ./rmf_cktp/final_model.ckpt
 l2sp_alpha: 0            # off for linear probe
-s2_head_in_ch: 1024
-pc_head_in_ch: 768
+s2_head_in_ch: 64
+pc_head_in_ch: 32
 freeze_last_k: 1
 
 # config_ovf.yaml
 
 # General
 dataset: ovf_coarser
-data_dir: "./data/ovf_superpixel_dataset"
+data_dir: /mnt/g/ovf/ovf_superpixel_dataset
 tile_size: 128
 n_bands: 9
 n_classes: 6

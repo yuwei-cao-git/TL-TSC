@@ -100,8 +100,8 @@ def attach_adapters(model, s2_channels: int, pc_channels: int,
         model.pc_model.decoder.cls_head = nn.Sequential(Conv1dAdapter(pc_channels, pc_bottleneck),
                                                         model.pc_model.decoder.cls_head)
 
-def mode_adapters(model, s2_channels=1024, pc_channels=768, use_ms_fusion=True,
-                  s2_bottleneck=16, pc_bottleneck=16):
+def mode_adapters(model, s2_channels=64, pc_channels=768, use_ms_fusion=True,
+                    s2_bottleneck=16, pc_bottleneck=16):
     attach_adapters(model, s2_channels, pc_channels, s2_bottleneck, pc_bottleneck)
     for _, p in model.named_parameters(): p.requires_grad = False
     train = S2_HEAD + PC_HEAD + FUSE_HEAD
@@ -187,8 +187,8 @@ def train(cfg, ft_mode_cli=None):
 
     # --- logger & callbacks ---
     wandb_logger = WandbLogger(project=cfg.get("wandb_project", "TL-TSC"),
-                               group=cfg.get("wandb_group", "finetune"),
-                               save_dir=log_dir)
+                                group=cfg.get("wandb_group", "finetune"),
+                                save_dir=log_dir)
     metric = cfg.get("monitor_metric", "val_r2")
     early = EarlyStopping(monitor=metric, patience=int(cfg.get("patience", 15)), mode="max", verbose=True)
     ckpt  = ModelCheckpoint(monitor=metric, filename="best", dirpath=chk_dir, save_top_k=1, mode="max")
