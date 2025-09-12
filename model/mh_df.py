@@ -157,11 +157,9 @@ class MultiHeadFusionModel(pl.LightningModule):
 
     def forward(self, images, img_masks, pc_feat, point_clouds, region_key):
         fused_map = self.forward_backbones(images, pc_feat, point_clouds)
-        #fused_feat = fused_map.mean(dim=(2,3))                  # GAP -> [B, C_out]
-        mask8 = resize_mask_to_feat(img_masks, 8, 8)   # [B,1,8,8], float in [0,1]
-        fused_feat = masked_avg(fused_map, mask8)        # [B,C]
+        fused_feat = fused_map.mean(dim=(2,3))                  # GAP -> [B, C_out]
         logits = self.region_heads[region_key](fused_feat)       # [B, C_region]
-        return logits, mask8
+        return logits
 
     def on_fit_start(self):
         for d in [self.train_r2, self.val_r2, self.test_r2]:
@@ -189,14 +187,7 @@ class MultiHeadFusionModel(pl.LightningModule):
         pred_props = F.softmax(logits, dim=1)
         
         # KLDiv on distributions
-        loss_core = kl_loss_from_logits(logits, labels)
-        
-        # after computing mask8
-        with torch.no_grad():
-            cov = mask8.mean(dim=(2,3)).mean()  # [B,1,H,W] -> scalar
-            self.log(f"{stage}_mask_cov/{region_key}", cov, on_step=True, prog_bar=False, batch_size=labels.size(0), sync_dist=True)
-            if cov < 0.2:
-                loss_core = (loss * mask8.mean(dim=(2,3)).squeeze(1)).mean()
+        loss_core = F.mse_loss(torch.round(pred_props, decimals=2), labels)
         
         # entropy regularizer (prevent overconfident wrong preds)
         entropy = -(pred_props * pred_props.clamp_min(1e-8).log()).sum(dim=1).mean()
