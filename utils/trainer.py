@@ -1,7 +1,7 @@
 import os
 import torch
 from pytorch_lightning import Trainer, seed_everything
-from pytorch_lightning.strategies.ddp import DDPStrategy
+#from pytorch_lightning.strategies.ddp import DDPStrategy
 from pytorch_lightning.callbacks import EarlyStopping, ModelCheckpoint
 from lightning.pytorch.loggers import WandbLogger
 from pytorch_lightning.utilities.model_summary import ModelSummary
@@ -143,7 +143,7 @@ def train(config):
         callbacks=callbacks,
         devices=config["gpus"],
         num_nodes=1,
-        strategy=DDPStrategy(find_unused_parameters=False)
+        strategy='ddp' # DDPStrategy(find_unused_parameters=False)
     )
     
     # Train the model

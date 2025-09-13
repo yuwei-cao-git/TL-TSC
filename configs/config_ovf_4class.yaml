@@ -46,8 +46,8 @@ emb_dims: 768
 num_points: 7168
 fps: false
 encoder: b                      # Options: s, b, l, xl
-fusion_dim: 256
-dp_fuse: 0.6
+fusion_dim: 128
+dp_fuse: 0.3
 dp_pc: 0.3
 use_ms: false
 linear_layers_dims: [512, 256]
@@ -56,7 +56,7 @@ linear_layers_dims: [512, 256]
 image_transform: compose
 point_cloud_transform: true
 rotate: false
-pc_normal: true
+pc_normal: false
 
 # Hardware
 gpus: 2
