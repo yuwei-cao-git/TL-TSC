@@ -14,7 +14,7 @@ freeze_last_k: 1
 
 # General
 dataset: ovf_coarser
-data_dir: ./data/ovf_superpixel_dataset
+data_dir: /mnt/g/ovf/ovf_superpixel_dataset
 tile_size: 128
 n_bands: 9
 n_classes: 6
@@ -60,7 +60,7 @@ linear_layers_dims: [512, 256]
 image_transform: compose
 point_cloud_transform: true
 rotate: false
-pc_normal: true
+pc_normal: false
 
 # Hardware
 gpus: 1
