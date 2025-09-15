@@ -26,7 +26,7 @@ head:  fuse_head # Options: no_pc_head, fuse_head, all_head, no_img_head
 pretrained_ckpt: None #tl_logs/no_img_head_unet_pointnet_rmf_cosine/wandblogs/TL-TSC/28g98vp3/checkpoints/epoch=0-step=3246.ckpt
 fix_backbone: false
 batch_size: 64
-max_epochs: 300
+max_epochs: 100
 optimizer: adamW                 # Options: adam, adamW, sgd
 scheduler: steplr         # Options: plateau, steplr, asha, cosine, cosinewarmup
 lr: 0.0001
