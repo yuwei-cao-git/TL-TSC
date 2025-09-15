@@ -1,0 +1,66 @@
+ft_mode: full_ft
+optimizer: adamW
+lr: 1e-3
+weight_decay: 1e-4
+max_epochs: 100
+patience: 15
+pretrained_ckpt: ./rmf_cktp/final_model.ckpt
+l2sp_alpha: 0            # off for linear probe
+s2_head_in_ch: 64
+pc_head_in_ch: 32
+freeze_last_k: 1
+
+# config_ovf.yaml
+
+# General
+dataset: ovf_coarser
+data_dir: /mnt/g/ovf/ovf_superpixel_dataset
+tile_size: 128
+n_bands: 9
+n_classes: 6
+class_names: ['hardwood', 'poplar', 'spruce', 'fir', 'cedar', 'pine']
+ovf_coarser_class_weights: [0.02548991, 0.03066413, 0.49941828, 0.24404823, 0.15366716, 0.0467123]
+ovf_coarser_season_map: ["img_s2_2020_spring", "img_s2_2020_summer", "img_s2_2020_fall", "img_s2_2020_winter"]
+# /65535
+ovf_coarser_img_mean: [0.02213441859462131, 0.0249776732983333, 0.02367478859328472, 0.030501271121244334, 0.04633530771896778, 0.05062321949775266, 0.034551559187663575, 0.025500956886395993, 0.05372880201825224]
+ovf_coarser_img_std: [0.013001235936613913, 0.012274226049356364, 0.01273533207550198, 0.01237395656705834, 0.012679518136039392, 0.01351515920459563, 0.00920672357509653, 0.005540002537517937, 0.0133596841676312]
+# /10000
+# ovf_coarser_img_mean: [0.14569483999036548, 0.1642811348716173, 0.15584584249684552, 0.20028106806978457, 0.30370653518651824, 0.3316556393747964, 0.22601559741537636, 0.16714131820800704, 0.35188397847424274]
+# ovf_coarser_img_std: [0.08632466386209953, 0.08161959376768174, 0.08477277257181819, 0.08218470236534788, 0.08344650212568164, 0.0886688905866315, 0.059485454246911616, 0.03590568279071751, 0.08754291674956742]
+
+# Training parameters
+task: tsc_aligned
+head:  fuse_head # Options: no_pc_head, fuse_head, all_head, no_img_head
+pretrained_ckpt: None #tl_logs/no_img_head_unet_pointnet_rmf_cosine/wandblogs/TL-TSC/28g98vp3/checkpoints/epoch=0-step=3246.ckpt
+fix_backbone: false
+batch_size: 32
+max_epochs: 300
+optimizer: adamW                 # Options: adam, adamW, sgd
+scheduler: steplr
+step_size: 10
+momentum: 0.9
+decision_fuse_type: weighted #weighted, mlp
+
+# Loss weights
+multitasks_uncertain_loss: false
+loss_func: mse
+
+# Model architecture
+network: ResUnet
+emb_dims: 768
+num_points: 7168
+encoder: b                      # Options: s, b, l, xl
+fusion_dim: 256
+dp_fuse: 0.6
+dp_pc: 0.3
+use_ms: false
+linear_layers_dims: [512, 256]
+
+# Data transforms
+image_transform: compose
+point_cloud_transform: true
+rotate: false
+pc_normal: false
+
+# Hardware
+gpus: 1
