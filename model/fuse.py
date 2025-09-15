@@ -90,12 +90,12 @@ class FusionModel(pl.LightningModule):
             last_feat_size=(self.cfg["tile_size"]
             // 8) if self.cfg["network"] == "ResNet" else (self.cfg["tile_size"]
             // 16),
-            return_feature=False
+            decoder=True
         )
 
         # Define loss functions
         if self.cfg["loss_func"] in ["wmse", "wrmse", "wkl"]:
-            self.weights = self.cfg["class_weights"]
+            self.weights = self.cfg.get(f"{self.cfg['dataset']}_class_weights", None)
         
         # multi-task loss weight
         if self.cfg["multitasks_uncertain_loss"]:
@@ -506,7 +506,7 @@ class FusionModel(pl.LightningModule):
         elif self.scheduler_type == "cosine":
             scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(
                 optimizer,
-                T_max=10
+                T_max=self.cfg["max_epochs"]
             )
             return {"optimizer": optimizer, "lr_scheduler": scheduler}
         elif self.scheduler_type == "cosinewarmup":

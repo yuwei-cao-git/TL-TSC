@@ -3,8 +3,8 @@ import pandas as pd
 import numpy as np
 
 import torch
-import torch.nn as nn
 import pytorch_lightning as pl
+from timm.scheduler import CosineLRScheduler
 
 from .pointnext import PointNextModel
 from .decoder import DecisionLevelFusion
@@ -12,7 +12,7 @@ from .decoder import DecisionLevelFusion
 from torchmetrics.regression import R2Score
 from torchmetrics.functional import r2_score
 from torchmetrics.classification import ConfusionMatrix
-from .loss import apply_mask_per_batch, calc_masked_loss, apply_mask
+from .loss import apply_mask_per_batch, calc_masked_loss, get_class_grw_weight
 
 
 class FusionModel(pl.LightningModule):
@@ -61,8 +61,10 @@ class FusionModel(pl.LightningModule):
 
         self.loss_func = self.cfg["loss_func"]
         #self.criterion = nn.MSELoss()
-        if self.cfg["loss_func"] in ["wmse", "wrmse", "wkl"]:
-            self.weights = self.cfg.get("class_weights", None)
+        if self.loss_func in ["wmse", "wrmse", "wkl", "ewmse"]:
+            self.weights = self.cfg[f"{self.cfg['dataset']}_class_weights"]
+            if self.loss_func == "ewmse":
+                self.weights = get_class_grw_weight(self.weights, n_classes, exp_scale=0.2)
         else:
             self.weights = None
 
@@ -97,7 +99,7 @@ class FusionModel(pl.LightningModule):
 
         image_preds, pc_preds = self.forward(images, pc_feat, point_clouds)
         if self.cfg["network"] !="ResNet":
-            img_logits_list, _ = apply_mask_per_batch(image_preds, pixel_labels, img_masks, multi_class=True)
+            img_logits_list= apply_mask_per_batch(image_preds, img_masks, multi_class=True)
             #valid_pixel_preds, _ = apply_mask(image_preds, pixel_labels, img_masks, multi_class=True)
             image_preds = torch.stack([p.mean(dim=0) if p.numel() > 0 else torch.zeros(image_preds.shape[1], device=image_preds.device) for p in img_logits_list], dim=0)
         fuse_preds = self.fuse_head(image_preds, pc_preds)
@@ -211,7 +213,7 @@ class FusionModel(pl.LightningModule):
         elif self.scheduler_type == "cosine":
             scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(
                 optimizer,
-                T_max=10
+                T_max=self.cfg["max_epochs"]
             )
             return {"optimizer": optimizer, "lr_scheduler": scheduler}
         elif self.scheduler_type == "cosinewarmup":
@@ -224,5 +226,15 @@ class FusionModel(pl.LightningModule):
                 optimizer, max_lr=0.1, epochs=self.cfg["max_epochs"], steps_per_epoch=len(self.train_dataloader()) / self.trainer.accumulate_grad_batches
             )
             return {"optimizer": optimizer, "lr_scheduler": scheduler}
+        elif self.scheduler_type == "CosLR":
+            scheduler = CosineLRScheduler(optimizer,
+                t_initial=self.cfg["max_epochs"],
+                cycle_mul=1.0,
+                lr_min=1e-6,
+                cycle_decay=0.1,
+                warmup_lr_init=1e-6,
+                warmup_t=10,
+                cycle_limit=1,
+                t_in_epochs=True)
         else:
             return optimizer

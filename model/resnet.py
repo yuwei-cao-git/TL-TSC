@@ -7,8 +7,9 @@ class Resnet(nn.Module):
     """
     ResNet for S2. 
     """
-    def __init__(self, n_channels, embed_dim=2048, num_classes=9):
+    def __init__(self, n_channels, num_classes=9, aligned=False):
         super().__init__()
+        self.aligned = aligned
         weights = ResNet50_Weights.SENTINEL2_MI_MS_SATLAS
         res = resnet50(weights)
         
@@ -29,12 +30,16 @@ class Resnet(nn.Module):
         fc = nn.Linear(res.fc.in_features, num_classes)
         res.fc = fc
         self.backbone = res
-
+        if self.aligned:
+            from .decoder import DisAlignLinear
+            self.disalign_head = DisAlignLinear(num_classes, num_classes)
         
             
     def forward(self, x):
         out = self.backbone(x)
-        
+        if self.aligned:
+            out = self.disalign_head(out)
+            
         probs = F.softmax(out, dim=1)
         
         return probs, out

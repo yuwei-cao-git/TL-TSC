@@ -1,0 +1,59 @@
+# config_ovf.yaml
+
+# General
+dataset: ovf_sp
+tile_size: 128
+n_bands: 9
+data_dir: "./data/ovf_superpixel_dataset"
+n_classes: 11
+class_names: ['AB', 'PO', 'MR', 'BF', 'CE', 'PW', 'MH', 'BW', 'SW', 'OR', 'PR']
+ovf_sp_class_weights: [0.21605368, 0.01386011, 0.12620734, 0.11190644, 0.07048709, 0.05551495, 0.06225591, 0.02889582, 0.23440844, 0.04299998, 0.03741025]
+
+ovf_sp_season_map: ["img_s2_2020_spring", "img_s2_2020_summer", "img_s2_2020_fall", "img_s2_2020_winter"]
+# /10000
+# ovf_sp_img_mean: [0.14366872682785584, 0.16227739800134783, 0.15371719705416229, 0.19805185897528374, 0.3012073794842414, 0.3291381533797583, 0.2240626069087252, 0.1659078347608439, 0.3492772454954073]
+# ovf_sp_img_std: [0.08519529158179422, 0.08043415989117479, 0.08311970181268426, 0.08073875253830895, 0.08322284243622471, 0.08861307039889355, 0.05882818315968565, 0.035264078496187956, 0.08760362316128795]
+
+# /65535
+ovf_sp_img_mean: [0.021922453224856614, 0.024761928437617858, 0.0234557038670818, 0.030220806286284565, 0.04596128461524194, 0.05022329191414534, 0.03418973635664339, 0.025315935811357364, 0.05329624958395761]
+ovf_sp_img_std: [0.012999939906770551, 0.012273454212343831, 0.012683355527274622, 0.012319929577624764, 0.012699107859087976, 0.013521327229761, 0.008976736859379312, 0.005380799005000871, 0.01336772623669939]
+
+# Training parameters
+task: tsc
+head:  fuse_head # Options: no_pc_head, fuse_head, all_head, no_img_head
+pretrained_ckpt: None #tl_logs/no_img_head_unet_pointnet_rmf_cosine/wandblogs/TL-TSC/28g98vp3/checkpoints/epoch=0-step=3246.ckpt
+fix_backbone: false
+batch_size: 64
+max_epochs: 300
+optimizer: adamW                 # Options: adam, adamW, sgd
+scheduler: steplr         # Options: plateau, steplr, asha, cosine, cosinewarmup
+lr: 0.0001
+patience: 2
+step_size: 5
+momentum: 0.9
+weight_decay: 0.0001
+decision_fuse_type: weighted #average, weighted, mlp
+
+# Loss weights
+multitasks_uncertain_loss: false
+loss_func: mse
+
+# Model architecture
+network: ResUnet
+emb_dims: 768
+num_points: 7168
+encoder: b                      # Options: s, b, l, xl
+fusion_dim: 128
+dp_fuse: 0.3
+dp_pc: 0.3
+use_ms: false
+linear_layers_dims: [512, 256]
+
+# Data transforms
+image_transform: compose
+point_cloud_transform: true
+rotate: false
+pc_normal: false
+
+# Hardware
+gpus: 2

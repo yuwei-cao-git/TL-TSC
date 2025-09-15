@@ -234,7 +234,7 @@ def apply_mask(outputs, targets, mask, multi_class=True, keep_shp=False):
             valid_targets = targets[~expanded_mask]
             return valid_outputs, valid_targets
         
-def apply_mask_per_batch(preds, labels, mask, multi_class=True):
+def apply_mask_per_batch(preds, mask, multi_class=True):
     """
     Apply a mask to predictions and labels. Only valid pixels (mask == 1) are kept.
     Returns outputs grouped by batch for later aggregation.
@@ -242,104 +242,58 @@ def apply_mask_per_batch(preds, labels, mask, multi_class=True):
     if multi_class:
         B, C, H, W = preds.shape
         preds = preds.permute(0, 2, 3, 1)  # (B, H, W, C)
-        labels = labels.permute(0, 2, 3, 1)  # (B, H, W, C)
         mask = mask.squeeze(1)  # (B, H, W)
 
         masked_preds = []
-        masked_labels = []
         for b in range(B):
             valid = mask[b] > 0
             masked_preds.append(preds[b][valid])  # (N_valid, C)
-            masked_labels.append(labels[b][valid])
-        return masked_preds, masked_labels
+        return masked_preds
     else:
         preds = preds[mask > 0]
-        labels = labels[mask > 0]
-        return preds, labels
+        return preds
         
 
-def weighted_kl_divergence(y_true, y_pred, weights):
-    loss = torch.sum(
-        weights * y_true * torch.log((y_true + 1e-8) / (y_pred + 1e-8)), dim=1
-    )
-    return torch.mean(loss)
+def weighted_kl_divergence(y_true, y_pred, weights=None):
+    y_true = y_true.clamp(min=1e-8)
+    y_pred = y_pred.clamp(min=1e-8)
+    log_ratio = torch.log(y_true / y_pred)
+    if weights is not None:
+        log_ratio = weights * log_ratio
+    loss = torch.sum(y_true * log_ratio, dim=1)
+    return loss.mean()
+
 
 class KLDivLoss(nn.Module):
-
     def __init__(self,
                 temperature: float = 1.0,
-                reduction: str = 'mean',
+                reduction: str = 'batchmean',
                 loss_name: str = 'loss_kld'):
-        """Kullback-Leibler divergence Loss.
-
-        <https://en.wikipedia.org/wiki/Kullback%E2%80%93Leibler_divergence>
-
-        Args:
-            temperature (float, optional): Temperature param
-            reduction  (str,  optional): The method to reduce the loss into a
-            scalar. Default is "mean". Options are "none", "sum",
-            and "mean"
-        """
-
-        assert isinstance(temperature, (float, int)), \
-            'Expected temperature to be' \
-            f'float or int, but got {temperature.__class__.__name__} instead'
-        assert temperature != 0., 'Temperature must not be zero'
-
-        assert reduction in ['mean', 'none', 'sum'], \
-            'Reduction must be one of the options ("mean", ' \
-            f'"sum", "none"), but got {reduction}'
-
         super().__init__()
+        assert reduction in ['none', 'batchmean', 'sum', 'mean']
         self.temperature = temperature
         self.reduction = reduction
         self._loss_name = loss_name
 
     def forward(self, input: torch.Tensor, target: torch.Tensor):
-        """Forward function. Calculate KL divergence Loss.
-
-        Args:
-            input (Tensor): Logit tensor,
-                the data type is float32 or float64.
-                The shape is (N, C) where N is batchsize and C  is number of
-                channels.
-                If there more than 2 dimensions, shape is (N, C, D1, D2, ...
-                Dk), k>= 1
-            target (Tensor): Logit tensor,
-                the data type is float32 or float64.
-                input and target must be with the same shape.
-
-        Returns:
-            (Tensor): Reduced loss.
         """
-        assert isinstance(input, torch.Tensor), 'Expected input to' \
-            f'be Tensor, but got {input.__class__.__name__} instead'
-        assert isinstance(target, torch.Tensor), 'Expected target to' \
-            f'be Tensor, but got {target.__class__.__name__} instead'
+        Args:
+            input: raw logits from the model (before softmax), shape (N, C)
+            target: ground truth logits or already softmaxed probs, shape (N, C)
+        """
+        assert input.shape == target.shape
 
-        assert input.shape == target.shape, 'Input and target ' \
-            'must have same shape,' \
-            f'but got shapes {input.shape} and {target.shape}'
+        # Apply temperature-scaled softmax
+        log_probs = F.log_softmax(input / self.temperature, dim=1)
+        probs_target = F.softmax(target / self.temperature, dim=1)
 
-        input = F.softmax(input / self.temperature, dim=1)
-        target = F.softmax(target / self.temperature, dim=1)
+        # Apply KL divergence: log_probs vs. probs_target
+        loss = F.kl_div(log_probs, probs_target, reduction=self.reduction, log_target=False)
 
-        loss = F.kl_div(input, target, reduction='none', log_target=False)
-        loss = loss * self.temperature**2
-
-        batch_size = input.shape[0]
-
-        if self.reduction == 'sum':
-            # Change view to calculate instance-wise sum
-            loss = loss.view(batch_size, -1)
-            return torch.sum(loss, dim=1)
-
-        elif self.reduction == 'mean':
-            # Change view to calculate instance-wise mean
-            loss = loss.view(batch_size, -1)
-            return torch.mean(loss, dim=1)
-
+        # Apply temperature scaling to loss
+        loss = loss * (self.temperature ** 2)
         return loss
+
 
 def calc_kl_loss(valid_outputs, valid_targets):
     klloss = KLDivLoss()
@@ -358,7 +312,7 @@ def calc_rwmse_loss(valid_outputs, valid_targets, weights):
 
     return torch.sqrt(loss)
 
-def get_class_grw_weight(class_weight, num_classes=9, exp_scale=0.3):
+def get_class_grw_weight(class_weight, num_classes=9, exp_scale=0.2):
     """
     Caculate the Generalized Re-weight for Loss Computation
     """
@@ -371,7 +325,7 @@ def get_class_grw_weight(class_weight, num_classes=9, exp_scale=0.3):
     return class_weight
 
 def calc_masked_loss(loss_func_name, valid_outputs, valid_targets, weights=None):
-    if loss_func_name == "wmse":
+    if loss_func_name in ["wmse", "ewmse"]:
         return calc_wmse_loss(valid_outputs, valid_targets, weights)
     elif loss_func_name == "wrmse":
         return calc_rwmse_loss(valid_outputs, valid_targets, weights)

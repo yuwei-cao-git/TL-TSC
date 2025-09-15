@@ -11,46 +11,24 @@ import torchvision.transforms.v2 as transforms
 import open3d as o3d
 
 
-def farthest_point_sample(point, npoint):
-    """
-    Input:
-        xyz: pointcloud data, [N, D]
-        npoint: number of samples
-    Return:
-        centroids: sampled pointcloud index, [npoint, D]
-    """
-    N, D = point.shape
-    xyz = point[:,:3]
-    centroids = np.zeros((npoint,))
-    distance = np.ones((N,)) * 1e10
-    farthest = np.random.randint(0, N)
-    for i in range(npoint):
-        centroids[i] = farthest
-        centroid = xyz[farthest, :]
-        dist = np.sum((xyz - centroid) ** 2, -1)
-        mask = dist < distance
-        distance[mask] = dist[mask]
-        farthest = np.argmax(distance, -1)
-    point = point[centroids.astype(np.int32)]
-    return point
 class SuperpixelDataset(Dataset):
     def __init__(
         self,
+        dataset_tag,
         superpixel_files,
         rotate=None,
         pc_normal=None,
         image_transform=None,
         point_cloud_transform=None,
         img_mean=None,
-        img_std=None,
-        sampling=False
+        img_std=None
     ):
+        self.dataset_tag = dataset_tag
         self.superpixel_files = superpixel_files
         self.image_transform = image_transform
         self.point_cloud_transform = point_cloud_transform
         self.rotate = rotate
         self.normal = pc_normal
-        self.sampling = sampling
 
         self.transforms = transforms.Compose(
             [
@@ -68,7 +46,7 @@ class SuperpixelDataset(Dataset):
         # Load data from the .npz file
         superpixel_images = data[
             "superpixel_images"
-        ].astype(np.float32) # / 65535.0  # Shape: (num_seasons, num_channels, 128, 128)
+        ].astype(np.float32) #/ (65535.0 if self.dataset_tag.startswith('ovf') else 10000.0)  # Shape: (num_seasons, num_channels, 128, 128)
         coords = data["point_cloud"]  # Shape: (7168, 3)
         label = data["label"]  # Shape: (num_classes,)
         per_pixel_labels = data["per_pixel_labels"]  # Shape: (num_classes, 128, 128)
@@ -83,45 +61,42 @@ class SuperpixelDataset(Dataset):
         nodata_mask = torch.from_numpy(nodata_mask).bool()
         
         superpixel_images = self.transforms(superpixel_images)
-
         # Apply transforms if needed
         if self.image_transform != None:
             superpixel_images = image_augment(superpixel_images, self.image_transform, 128)
         
-        centred_coords = center_point_cloud(coords)
+        normalized_coords = center_point_cloud(coords)
+        
+        # Apply point cloud transforms if any
         if self.normal:
-            if self.sampling:
-                centred_coords = farthest_point_sample(centred_coords, 1024)
-            
+            if self.point_cloud_transform:
+                normalized_coords, _, label = pointCloudTransform(
+                    normalized_coords, pc_feat=None, target=label, rot=self.rotate
+                )
             # Convert numpy array to Open3D PointCloud
             pcd = o3d.geometry.PointCloud()
-            pcd.points = o3d.utility.Vector3dVector(coords)
+            pcd.points = o3d.utility.Vector3dVector(normalized_coords)
 
             # Estimate normals (change radius/knn depending on density)
             pcd.estimate_normals(search_param=o3d.geometry.KDTreeSearchParamKNN(knn=16))
             feats = np.asarray(pcd.normals)  # Shape: (N, 3)
         else:
-            norm_coords = normalize_point_cloud(coords)
-            if self.sampling:
-                norm_coords = farthest_point_sample(coords, 1024)
-            feats = norm_coords
-        
-        # Apply point cloud transforms if any
-        if self.point_cloud_transform:
-            centred_coords, feats, label = pointCloudTransform(
-                centred_coords, pc_feat=feats, target=label, rot=self.rotate
-            )
+            feats = normalize_point_cloud(coords)
+            if self.point_cloud_transform:
+                normalized_coords, feats, label = pointCloudTransform(
+                    normalized_coords, pc_feat=feats, target=label, rot=self.rotate
+                )
 
         # After applying transforms
         feats = torch.from_numpy(feats).float()  # Shape: (7168, 3)
-        centred_coords = torch.from_numpy(centred_coords).float()  # Shape: (7168, 3)
+        normalized_coords = torch.from_numpy(normalized_coords).float()  # Shape: (7168, 3)
         label = torch.from_numpy(label).float()  # Shape: (num_classes,)
 
         sample = {
             "images": superpixel_images,  # Padded images of shape [num_seasons, num_channels, 128, 128]
             "mask": nodata_mask,  # Padded masks of shape [num_seasons, 128, 128]
             "per_pixel_labels": per_pixel_labels,  # Tensor: (num_classes, 128, 128)
-            "point_cloud": centred_coords,
+            "point_cloud": normalized_coords,
             "pc_feat": feats,
             "label": label,
         }
@@ -132,6 +107,7 @@ class SuperpixelDataModule(LightningDataModule):
     def __init__(self, config):
         super().__init__()
         self.config = config
+        self.dataset = config["dataset"]
         self.batch_size = config["batch_size"]
         self.num_workers = config["gpus"]*2
         self.image_transform = (
@@ -140,7 +116,6 @@ class SuperpixelDataModule(LightningDataModule):
         self.point_cloud_transform = config["point_cloud_transform"]
         self.aug_rotate = config["rotate"]
         self.aug_pc_norm = config["pc_normal"]
-        self.fps = config["fps"]
         self.data_dirs = {
             "train": join(
                 config["data_dir"],
@@ -175,38 +150,38 @@ class SuperpixelDataModule(LightningDataModule):
             img_mean=self.config[f"{self.config['dataset']}_img_mean"]
             img_std=self.config[f"{self.config['dataset']}_img_std"]
             self.datasets[split] = SuperpixelDataset(
+                self.dataset,
                 superpixel_files,
                 rotate=None,
                 pc_normal=self.aug_pc_norm,
                 image_transform=None,
                 point_cloud_transform=None,
                 img_mean=img_mean,
-                img_std=img_std,
-                sampling=self.fps
+                img_std=img_std
             )
             if split == "train":
                 if not (
                     self.image_transform is None or self.point_cloud_transform is False
                 ):
                     aug_pc_dataset = SuperpixelDataset(
+                        self.dataset,
                         superpixel_files,
                         rotate=self.aug_rotate,
                         pc_normal=self.aug_pc_norm,
                         image_transform=None,
                         point_cloud_transform=self.point_cloud_transform,
                         img_mean=img_mean,
-                        img_std=img_std,
-                        sampling=self.fps
+                        img_std=img_std
                     )
                     aug_img_dataset = SuperpixelDataset(
+                        self.dataset,
                         superpixel_files,
                         rotate=self.aug_rotate,
                         pc_normal=self.aug_pc_norm,
                         image_transform=self.image_transform,
                         point_cloud_transform=None,
                         img_mean=img_mean,
-                        img_std=img_std,
-                        sampling=self.fps
+                        img_std=img_std
                     )
                     self.datasets["train"] = torch.utils.data.ConcatDataset(
                         [self.datasets["train"], aug_pc_dataset, aug_img_dataset]

@@ -2,21 +2,17 @@
 
 # General
 dataset: ovf_genus
+data_dir: "./data/ovf_superpixel_dataset"
 tile_size: 128
 n_bands: 9
-ovf_genus_class_weights: [0.26008143, 0.01824255, 0.30860924, 0.03829643, 0.14291682, 0.09194174, 0.05414323, 0.02824807, 0.05752048]
-ovf_2s_genus_class_weights: [0.26008143, 0.01824255, 0.30860924, 0.03829643, 0.14291682, 0.09194174, 0.05414323, 0.02824807, 0.05752048]
-class_names: ['ash', 'poplar', 'spruce', 'birch', 'fir', 'cedar', 'maple', 'pine', 'oak']
 n_classes: 9
-ovf_genus_season_map: ["img_s2_2020_spring", "img_s2_2020_summer", "img_s2_2020_fall", "img_s2_2020_winter"]
-ovf_2s_genus_season_map: ["img_s2_2020_summer", "img_s2_2020_fall"]
+class_names: ['ash', 'poplar', 'spruce', 'birch', 'fir', 'cedar', 'maple', 'pine', 'oak']
+ovf_genus_class_weights: [0.26008143, 0.01824255, 0.30860924, 0.03829643, 0.14291682, 0.09194174, 0.05414323, 0.02824807, 0.05752048]
 
-# v1
+ovf_genus_season_map: ["img_s2_2020_spring", "img_s2_2020_summer", "img_s2_2020_fall", "img_s2_2020_winter"]
+# /65535
 ovf_genus_img_mean: [0.022147550403000482, 0.02499438361077816, 0.023689923734978725, 0.030525195475665602, 0.0463606190749604, 0.0506449330521166, 0.034527426686147875, 0.0254951683118125, 0.05374771524500641]
 ovf_genus_img_std: [0.012999625893269426, 0.012271758163250874, 0.01276091068905686, 0.01238779664766976, 0.012663241727718, 0.013506290784859074, 0.009199217187739049, 0.005517428473610487, 0.013364242383911356]
-# 2s
-ovf_2s_genus_img_mean: [0.018424840533443287, 0.021747095424458775, 0.020711720749110974, 0.028169207321249515, 0.04162793299973151, 0.04530119025440678, 0.037414748832895896, 0.02730544369476118, 0.048962401474222345]
-ovf_2s_genus_img_std: [0.006342961796234865, 0.006336717252897056, 0.006532729786502572, 0.00708844146200045, 0.009211154846449531, 0.009980176898799159, 0.009409518298104996, 0.006137252545750623, 0.010124047291599776]
 
 # Training parameters
 task: tsc
@@ -26,7 +22,7 @@ fix_backbone: false
 batch_size: 64
 max_epochs: 100
 optimizer: adamW                 # Options: adam, adamW, sgd
-scheduler: cosine         # Options: plateau, steplr, asha, cosine, cosinewarmup
+scheduler: steplr         # Options: plateau, steplr, asha, cosine, cosinewarmup
 lr: 0.0001
 patience: 10
 step_size: 10
@@ -36,13 +32,12 @@ decision_fuse_type: weighted #average, weighted, mlp
 
 # Loss weights
 multitasks_uncertain_loss: false
-loss_func: mae
+loss_func: mse
 
 # Model architecture
 network: ResUnet
 emb_dims: 768
 num_points: 7168
-fps: false
 encoder: b                      # Options: s, b, l, xl
 fusion_dim: 128
 dp_fuse: 0.3
@@ -57,4 +52,4 @@ rotate: false
 pc_normal: false
 
 # Hardware
-gpus: 4
+gpus: 2

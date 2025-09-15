@@ -1,18 +1,16 @@
 # config_rmf.yaml
 
 # General
-dataset: rmf_genus                        # Options: rmf, rmf_superpixel_dataset
+dataset: rmf_sp                        # Options: rmf, rmf_superpixel_dataset
 data_dir: "./data/rmf_superpixel_dataset"
 tile_size: 128
 n_bands: 9
-n_classes: 7
-class_names: ['poplar', 'spruce', 'birch', 'fir', 'cedar', 'pine', 'larch']
-rmf_genus_class_weights: [0.07031139, 0.01921179, 0.07409001, 0.42451091, 0.17147074, 0.10330588, 0.13709928]
-
-rmf_genus_season_map: ["img_s2_spring", "img_s2_summer", "img_s2_fall", "img_s2_winter"]
-rmf_genus_img_mean: [0.03160664256098236, 0.04618838721108558, 0.03861428583377172, 0.07090616520613562, 0.15561610097045714, 0.17856626457839184, 0.07710683671201311, 0.040927769735820005, 0.19361669481592234]
-rmf_genus_img_std: [0.06414650556729361, 0.06203337034833279, 0.06376456568086916, 0.06340872677237001, 0.06740255021568313, 0.07126848402911938, 0.03439929642996024, 0.015347019413382483, 0.07240695848487705]
-
+n_classes: 9
+class_names: ["BF", "BW", "CE", "LA", "PT", "PJ", "PO", "SB", "SW"]
+rmf_sp_class_weights: [0.13698052, 0.02423971, 0.05625495, 0.04423566, 0.0258036 , 0.03557034, 0.25459799, 0.00646059, 0.41585663]
+rmf_sp_season_map: ["img_s2_spring", "img_s2_summer", "img_s2_fall", "img_s2_winter"]
+rmf_sp_img_mean: [0.03143438892257177, 0.04599593009591673, 0.03839599945331553, 0.07086259592524217, 0.15610703817935337, 0.17926126493589656, 0.07738302697998556, 0.04106526673859286, 0.19440731995176916]
+rmf_sp_img_std: [0.06415304925477038, 0.06200656250880813, 0.06358147692998166, 0.06342475618939908, 0.06746606522481252, 0.07134634097950032, 0.03421618568094429, 0.01534128202581308, 0.07240852113287985]
 # Training parameters
 task: tsc
 head:  all_head # Options: no_pc_head, fuse_head, all_head, no_img_head

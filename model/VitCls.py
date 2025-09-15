@@ -1,73 +1,30 @@
-from timm.models.vision_transformer import VisionTransformer
+import timm
+from torchgeo.models import ViTBase16_Weights, vit_base_patch16_224
 import torch.nn as nn
 import torch.nn.functional as F
-
-class HeadlessVIT(VisionTransformer):
-    """Vision transformer without the classification head module. Just acts as
-    a feature extractor.
-    """
-    
-    def __init__(self,
-                 **kwargs):
-        
-        super().__init__(**kwargs)
-
-        del self.head
-    
-    def forward(self, x):
-        x = self.forward_features(x)
-        return x
-
     
 class S2Transformer(nn.Module):
-    """Transformer for S2. 
-    
-    Note
-    ----
-    Should use the S2Transformer dataloader.
     """
-    def __init__(self, 
-                    num_classes,
-                    p_dropout = 0.3,
-                    # args for VIT
-                    n_bands_vit=36,
-                    img_size=128, 
-                    patch_size=6, 
-                    embed_dim=768, 
-                    depth=12,             
-                    num_heads=12, 
-                    mlp_ratio=4.,             
-                    qkv_bias=True,
-                    usehead=False
-                ):
+    Vit for S2. 
+    """
+    def __init__(self, n_channels, num_classes=9, aligned=False):
         super().__init__()
-        self.usehead= usehead
+        self.aligned = aligned
+        weights = ViTBase16_Weights.SENTINEL2_MI_MS_SATLAS
+        res = vit_base_patch16_224(weights, in_chans=n_channels)
         
-        self.vit = HeadlessVIT(img_size=img_size, patch_size=patch_size, 
-                                in_chans=n_bands_vit, num_classes=num_classes,
-                                embed_dim=embed_dim, depth=depth, 
-                                num_heads=num_heads, mlp_ratio=mlp_ratio, 
-                                qkv_bias=qkv_bias)
-        if usehead:
-            self.head = nn.Sequential(
-                                        nn.Linear(embed_dim, 2048),
-                                        nn.ReLU(),
-                                        nn.Dropout(p = p_dropout),
-                                        nn.Linear(2048, num_classes)
-                                    )
+        fc = nn.Linear(res.fc.in_features, num_classes)
+        res.fc = fc
+        self.backbone = res
+        if self.aligned:
+            from .decoder import DisAlignLinear
+            self.disalign_head = DisAlignLinear(num_classes, num_classes)
             
     def forward(self, x):
-        x1 = self.vit(x)
+        out = self.backbone(x)
+        if self.aligned:
+            out = self.disalign_head(out)
+            
+        probs = F.softmax(out, dim=1)
         
-        # Always take CLS token for classification
-        if x1.ndim == 3:
-            cls_token = x1[:, 0]  # (bs, embed_dim)
-        else:
-            cls_token = x1
-        
-        if self.usehead:
-            x = self.head(cls_token) # [batch, n_class]
-            probs = F.softmax(x, dim=1)
-            return probs, x1
-        else:
-            return x1
+        return probs, out

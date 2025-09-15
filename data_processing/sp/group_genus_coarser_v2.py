@@ -14,10 +14,10 @@ species_names = ['AB', 'PO', 'MR', 'BF', 'CE', 'PW', 'MH', 'BW', 'SW', 'OR', 'PR
 species_to_genus = {
     'AB': 'hardwood',
     'PO': 'poplar',
-    'SW': 'spruce',
+    'SW': 'conifer',
     'BW': 'hardwood',
-    'BF': 'fir',
-    'CE': 'cedar',
+    'BF': 'conifer',
+    'CE': 'conifer',
     'MR': 'hardwood',
     'MH': 'hardwood',
     'PW': 'pine',
@@ -25,7 +25,7 @@ species_to_genus = {
     'OR': 'hardwood'
 }
 
-genus_order = ['hardwood', 'poplar', 'spruce', 'fir', 'cedar', 'pine']
+genus_order = ['hardwood', 'poplar', 'conifer', 'pine']
 
 # === Input/Output Paths ===
 src_folder = "/mnt/g/ovf/ovf_superpixel_dataset/tile_128"
@@ -87,7 +87,7 @@ def save_genus_files(indices, split_name, file_paths, dst_folder, species_list, 
             data["label"], data["per_pixel_labels"], species_list, species_to_genus, genus_order
         )
         np.savez_compressed(
-            os.path.join(split_folder, 'ovf_2s_coarser', file_name),
+            os.path.join(split_folder, 'ovf_4class', file_name),
             superpixel_images=data["superpixel_images"],
             point_cloud=data["point_cloud"],
             label=genus_label,
@@ -101,7 +101,7 @@ def save_genus_files(indices, split_name, file_paths, dst_folder, species_list, 
 
 print(f"=== {dataset_name.upper()} : Genus Grouping & Split ===")
 print("Scanning files...")
-superpixel_files = sorted(glob(os.path.join(src_folder, "**/ovf_2s_sp/*.npz")))
+superpixel_files = sorted(glob(os.path.join(src_folder, "**/ovf_sp/*.npz")))
 file_names = [os.path.basename(f) for f in superpixel_files]
 labels_genus = []
 

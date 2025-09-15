@@ -1,5 +1,4 @@
 import argparse
-from utils.trainer import train
 import os
 import torch
 import yaml
@@ -25,13 +24,13 @@ def override_config(cfg, args):
         cfg['dataset'] = args.dataset
     if args.pretrained_ckpt is not None:
         cfg['pretrained_ckpt'] = args.pretrained_ckpt
-    if args.fix_backbone:
-        cfg['fix_backbone'] = args.fix_backbone
+    if args.scheduler:
+        cfg['scheduler'] = args.scheduler
     # hps
     if args.lr is not None:
         cfg['lr'] = args.lr
-    if args.scheduler is not None:
-        cfg['scheduler'] = args.scheduler
+    if args.emb_dims is not None:
+        cfg['emb_dims'] = args.emb_dims
     if args.optimizer is not None:
         cfg['optimizer'] = args.optimizer
     if args.multitasks_uncertain_loss:
@@ -40,8 +39,8 @@ def override_config(cfg, args):
         cfg['loss_func'] = args.loss_func
     if args.pc_normal:
         cfg['pc_normal'] = args.pc_normal
-    if args.fps:
-        cfg['fps'] = args.fps
+    if args.use_ms:
+        cfg['use_ms'] = args.use_ms
     return cfg
 
     
@@ -61,12 +60,13 @@ def parse_args():
     parser.add_argument('--lr', type=float)
     parser.add_argument('--multitasks_uncertain_loss', type=bool, default=False)
     parser.add_argument('--loss_func', type=str)
-    parser.add_argument('--scheduler', type=str)
+    parser.add_argument('--emb_dims', type=int)
     parser.add_argument('--optimizer', type=str)
     parser.add_argument('--pretrained_ckpt', default=None)
-    parser.add_argument('--fix_backbone', type=bool, default=False)
+    parser.add_argument('--scheduler', type=str)
     parser.add_argument('--pc_normal', type=bool, default=False)
-    parser.add_argument('--fps', type=bool, default=False) 
+    parser.add_argument('--use_ms', type=bool, default=False) 
+    parser.add_argument('--level', type=str)
     return parser.parse_args()
     
 def main():
@@ -81,7 +81,7 @@ def main():
         if args.data_dir is not None
         else os.path.join(os.getcwd(), "data")
     )
-    if cfg["loss_func"] in ["wmse", "wrmse", "wkl"]:
+    if cfg["loss_func"] in ["wmse", "wrmse", "wkl", "ewmse"]:
         class_weights = cfg.get(f'{args.dataset}_class_weights', None)
         cfg[f'{args.dataset}_class_weights'] = torch.tensor(class_weights).float()
     else:
@@ -90,7 +90,12 @@ def main():
     os.makedirs(cfg['save_dir'], exist_ok=True)
     print(cfg)
     # Call the train function with parsed arguments
-    train(cfg)
+    if cfg['task'] == 'tsc_cd':
+        from utils.cd_trainer import train
+        train(cfg, args.level)
+    else:
+        from utils.trainer import train
+        train(cfg)
 
 
 if __name__ == "__main__":
