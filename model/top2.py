@@ -106,7 +106,7 @@ class FusionModel(pl.LightningModule):
         return img_preds, pc_preds
 
     def forward_and_metrics(
-        self, images, pc_feat, point_clouds, labels, stage
+        self, images, img_masks, pc_feat, point_clouds, labels, stage
     ):
         """
         Forward operations, computes the masked loss, R² score, and logs the metrics.
@@ -183,12 +183,14 @@ class FusionModel(pl.LightningModule):
 
     def training_step(self, batch, batch_idx):
         images = batch["images"] if "images" in batch else None
+        img_mask = batch["mask"] if "mask" in batch else None
         point_clouds = batch["point_cloud"] if "point_cloud" in batch else None
         labels = batch["label"]
         pc_feat = batch["pc_feat"] if "pc_feat" in batch else None
 
         loss = self.forward_and_metrics(
             images,
+            img_mask,
             pc_feat,
             point_clouds,
             labels,
@@ -198,12 +200,14 @@ class FusionModel(pl.LightningModule):
 
     def validation_step(self, batch, batch_idx):
         images = batch["images"] if "images" in batch else None
+        img_mask = batch["mask"] if "mask" in batch else None
         point_clouds = batch["point_cloud"] if "point_cloud" in batch else None
         labels = batch["label"]
         pc_feat = batch["pc_feat"] if "pc_feat" in batch else None
 
         loss = self.forward_and_metrics(
             images,
+            img_mask,
             pc_feat,
             point_clouds,
             labels,
@@ -236,12 +240,14 @@ class FusionModel(pl.LightningModule):
 
     def test_step(self, batch, batch_idx):
         images = batch["images"] if "images" in batch else None
+        img_mask = batch["mask"] if "mask" in batch else None
         point_clouds = batch["point_cloud"] if "point_cloud" in batch else None
         labels = batch["label"]
         pc_feat = batch["pc_feat"] if "pc_feat" in batch else None
 
         labels, fuse_preds, loss = self.forward_and_metrics(
             images,
+            img_mask,
             pc_feat,
             point_clouds,
             labels,
