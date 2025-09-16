@@ -83,7 +83,7 @@ def train(config):
     
     print("start setting dataset")
     # Initialize the DataModule
-    if config["task"] in ["tsc", "lsc", "tsc_mid", "tsc_aligned", "tsc_mid_decision"]:
+    if config["task"] in ["tsc", "lsc", "tsc_mid", "tsc_aligned", "tsc_mid_decision", "top2"]:
         if config["dataset"] in ["ovf", "rmf"]:
             from dataset.balanced_dataset import BalancedDataModule
             data_module = BalancedDataModule(config)
