@@ -7,7 +7,7 @@ from torchmetrics.regression import R2Score
 from torchmetrics.classification import (
     ConfusionMatrix,
 )
-from .loss import apply_mask, calc_masked_loss
+from .loss import apply_mask, calc_masked_loss, get_class_grw_weight
 
 class S2Model(pl.LightningModule):
     def __init__(self, config, n_classes):
@@ -56,8 +56,12 @@ class S2Model(pl.LightningModule):
             )
 
         # Define loss functions
-        if self.cfg["loss_func"] in ["wmse", "wrmse", "wkl"]:
+        if self.loss_func in ["wmse", "wrmse", "wkl", "ewmse"]:
             self.weights = self.cfg[f"{self.cfg['dataset']}_class_weights"]
+            if self.loss_func == "ewmse":
+                self.weights = get_class_grw_weight(self.weights, n_classes, exp_scale=0.2)
+        else:
+            self.weights = None
         
         self.criterion = nn.MSELoss()
 
@@ -133,10 +137,7 @@ class S2Model(pl.LightningModule):
             r2_metric = self.val_r2
         else:  # stage == "test"
             r2_metric = self.test_r2
-        if self.cfg["loss_func"] in ["wmse", "wrmse", "wkl"]:
-            weights = self.weights.to(pixel_preds.device)
-        else:
-            weights = None
+        weights = self.weights.to(pixel_preds.device) if self.weights is not None else None
 
         # Image stream
         if pixel_preds is not None:

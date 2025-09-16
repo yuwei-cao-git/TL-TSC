@@ -3,7 +3,7 @@ import pytorch_lightning as pl
 from torch.optim import Adam, SGD, AdamW
 from torch.optim.lr_scheduler import StepLR, ReduceLROnPlateau, CosineAnnealingLR
 from .pointnext import PointNextModel
-from .loss import calc_masked_loss
+from .loss import calc_masked_loss, get_class_grw_weight
 
 # from sklearn.metrics import r2_score
 from torchmetrics.classification import MulticlassF1Score, MulticlassAccuracy
@@ -21,9 +21,13 @@ class PCModel(pl.LightningModule):
                                     return_type='logits'
                                 )
 
-        # Loss function and other parameters
-        if self.params["loss_func"] in ["wmse", "wrmse", "wkl"]:
-            self.weights = self.params[f"{self.params['dataset']}_class_weights"]
+        # Compute the loss with the WeightedMSELoss, which will handle the weights
+        if self.loss_func in ["wmse", "wrmse", "wkl", "ewmse"]:
+            self.weights = self.cfg[f"{self.cfg['dataset']}_class_weights"]
+            if self.loss_func == "ewmse":
+                self.weights = get_class_grw_weight(self.weights, n_classes, exp_scale=0.2)
+        else:
+            self.weights = None
 
         self.train_r2 = R2Score()
 
@@ -71,18 +75,12 @@ class PCModel(pl.LightningModule):
         feats = feats.permute(0, 2, 1)
         logits = self.forward(xyz, feats)
         preds = F.softmax(logits, dim=1)
-        preds_rounded = torch.round(preds, decimals=2)
 
-        # Compute the loss with the WeightedMSELoss, which will handle the weights
-        if self.params["loss_func"] in ["wmse", "wrmse", "wkl"]:
-            weights = self.weights.to(preds.device)
-            # Compute the loss with the WeightedMSELoss, which will handle the weights
-        else:
-            weights = None
-        
-        loss = calc_masked_loss(self.loss_func, targets, preds_rounded, weights)
+        weights = self.weights.to(preds.device) if self.weights is not None else None
+        loss = calc_masked_loss(self.loss_func, targets, preds, weights)
 
         # Calculate R² and F1 score for valid pixels
+        preds_rounded = torch.round(preds, decimals=2)
         if stage == "train":
             r2 = self.train_r2(preds_rounded.view(-1), targets.view(-1))
         elif stage == "val":
