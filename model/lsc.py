@@ -57,8 +57,7 @@ class FusionModel(pl.LightningModule):
             num_classes=n_classes,
             drop=self.cfg["dp_fuse"],
             last_feat_size=(self.cfg["tile_size"] // 8) if self.cfg["network"] == "ResNet" else (self.cfg["tile_size"] // 16),
-            return_type='logsoftmax',
-            return_feature=False
+            return_type='logsoftmax'
         )
 
         self.criterion = nn.NLLLoss() #SmoothClsLoss(smoothing_ratio=0.1)

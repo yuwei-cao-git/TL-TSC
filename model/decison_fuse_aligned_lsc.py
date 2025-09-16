@@ -10,7 +10,7 @@ from .pointnext import PointNextModel
 from .decoder import DecisionLevelFusion
 
 from torchmetrics.classification import Accuracy, ConfusionMatrix, F1Score
-from .loss import apply_mask_per_batch, calc_masked_loss
+from .loss import apply_mask_per_batch
 
 
 class FusionModel(pl.LightningModule):
@@ -32,22 +32,22 @@ class FusionModel(pl.LightningModule):
         # Image stream
         if self.cfg["network"] == "Unet":
             from .unet import UNet
-            self.s2_model = UNet(n_channels=total_input_channels, n_classes=n_classes, aligned=True)
+            self.s2_model = UNet(n_channels=total_input_channels, n_classes=n_classes, return_type='logsoftmax', aligned=True)
         elif self.cfg["network"] == "ResUnet":
             from .ResUnet import ResUnet
-            self.s2_model = ResUnet(n_channels=total_input_channels, n_classes=n_classes, aligned=True)
+            self.s2_model = ResUnet(n_channels=total_input_channels, n_classes=n_classes, return_type='logsoftmax', aligned=True)
         elif self.cfg["network"] == "FCNResNet":
             from .resnet_fcn import FCNResNet50
-            self.s2_model = FCNResNet50(n_channels=total_input_channels, n_classes=n_classes, aligned=True)
+            self.s2_model = FCNResNet50(n_channels=total_input_channels, n_classes=n_classes, return_type='logsoftmax', aligned=True)
         elif self.cfg["network"] == "ResNet":
             from .ResNet import Resnet
-            self.s2_model = Resnet(n_channels=total_input_channels, num_classes=n_classes, aligned=True)
+            self.s2_model = Resnet(n_channels=total_input_channels, num_classes=n_classes, return_type='logsoftmax', aligned=True)
         elif self.cfg["network"] == "Vit":
             from .VitCls import S2Transformer
-            self.s2_model = S2Transformer(num_classes=n_classes, usehead=True, aligned=True)
+            self.s2_model = S2Transformer(num_classes=n_classes, usehead=True, return_type='logsoftmax', aligned=True)
 
         # Point cloud stream
-        self.pc_model = PointNextModel(self.cfg, in_dim=3, n_classes=n_classes, aligned=False)
+        self.pc_model = PointNextModel(self.cfg, in_dim=3, n_classes=n_classes, return_type='logsoftmax', aligned=False)
 
         # Decision-level fusion module
         self.fuse_head = DecisionLevelFusion(

@@ -3,16 +3,17 @@ import pandas as pd
 import numpy as np
 
 import torch
+import torch.nn as nn
 import pytorch_lightning as pl
 
-from .decoder import MambaFusionDecoder
 from .pointnext import PointNextModel
+from .decoder import DecisionLevelFusion
 
 from torchmetrics.classification import (
     MultilabelPrecision, MultilabelRecall, MultilabelF1Score, MultilabelAccuracy
 )
 
-from .loss import MultiLabelFocalLoss
+from .loss import apply_mask_per_batch
 
 
 class FusionModel(pl.LightningModule):

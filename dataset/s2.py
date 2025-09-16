@@ -48,7 +48,7 @@ class S2Dataset(Dataset):
         ).float()  # Shape: (num_classes, 128, 128)
         nodata_mask = torch.from_numpy(nodata_mask).bool()
         
-        #superpixel_images = self.transforms(superpixel_images)
+        superpixel_images = self.transforms(superpixel_images)
 
         # Apply transforms if needed
         if self.image_transform != None:

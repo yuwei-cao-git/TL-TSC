@@ -62,11 +62,11 @@ def train(config):
     )
 
     # Define a checkpoint callback to save the best model
-    metric = "val_r2"
+    metric = "val_loss"
     early_stopping = EarlyStopping(
         monitor=metric,  # Metric to monitor
         patience=10,  # Number of epochs with no improvement after which training will be stopped
-        mode="max",  # Set "min" for validation loss
+        mode="min",  # Set "min" for validation loss
         verbose=True,
     )
     
