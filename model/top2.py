@@ -37,8 +37,8 @@ class FusionModel(pl.LightningModule):
             self.s2_model = UNet(
                 n_channels=total_input_channels,
                 n_classes=n_classes,
-                decoder=False,
-                return_type='logits',
+                decoder=True,
+                return_type='softmax',
             )
         elif self.cfg["network"] == "ResUnet":
             from .ResUnet import ResUnet
@@ -46,8 +46,8 @@ class FusionModel(pl.LightningModule):
             self.s2_model = ResUnet(
                 n_channels=total_input_channels,
                 n_classes=n_classes,
-                decoder=False,
-                return_type='logits',
+                decoder=True,
+                return_type='softmax',
             )
         elif self.cfg["network"] == "ResNet":
             from .resnet_fcn import FCNResNet50
@@ -55,46 +55,29 @@ class FusionModel(pl.LightningModule):
             self.s2_model = FCNResNet50(
                 n_channels=total_input_channels,
                 n_classes=n_classes,
-                return_type='logits',
+                return_type='softmax',
                 upsample_method='bilinear',
                 pretrained=True,
-                decoder=False
+                decoder=True
             )
 
         # PC stream backbone
         self.pc_model = PointNextModel(self.cfg, 
                                     in_dim=3, #if self.cfg["dataset"] in ["rmf", "ovf"] else 6, 
                                     n_classes=n_classes, 
-                                    decoder=False
+                                    decoder=True
                                 )
-
-        # Late Fusion and classification layers with additional MLPs
-        if self.cfg["network"] == "ResNet":
-            img_chs=2048
-        elif self.cfg["network"] == "ResUnet":
-            img_chs=1024
-        elif self.cfg["network"] == "Vit":
-            img_chs=768
-        else:
-            img_chs=512
         
-        self.fuse_head = MambaFusionDecoder(
-            in_img_chs=img_chs,
-            in_pc_chs=(self.cfg["emb_dims"]),
-            dim=self.cfg["fusion_dim"],
-            hidden_ch=self.cfg["linear_layers_dims"],
-            num_classes=n_classes,
-            drop=self.cfg["dp_fuse"],
-            last_feat_size=(self.cfg["tile_size"]
-            // 8) if self.cfg["network"] == "ResNet" else (self.cfg["tile_size"]
-            // 16),
-            return_type='logits',
-            decoder=True
+        # Decision-level fusion module
+        self.fuse_head = DecisionLevelFusion(
+            n_classes=n_classes,
+            method=self.cfg["decision_fuse_type"],
+            weight_img=self.cfg.get("decision_weight_img", 0.7),
+            weight_pc=self.cfg.get("decision_weight_pc", 0.3)
         )
         
         # Metrics
-        #self.criterion = nn.BCEWithLogitsLoss()
-        self.criterion = MultiLabelFocalLoss()
+        self.criterion = nn.BCEWithLogitsLoss()
 
         # TorchMetrics for multi-label (top-2)
         self.val_acc = MultilabelAccuracy(num_labels=n_classes, threshold=0.3, average="macro")
@@ -110,23 +93,16 @@ class FusionModel(pl.LightningModule):
 
     
     def forward(self, images, pc_feat, xyz):
-        img_emb = None
-        pc_emb = None
-        class_output = None
-
         # Process images
         if self.cfg["dataset"] in ['rmf', 'ovf']:
             stacked_features = torch.cat(images, dim=1)
         else:
             B, _, _, H, W = images.shape
             stacked_features = images.view(B, -1, H, W)
-        img_emb = self.s2_model(stacked_features)  
-        pc_emb = self.pc_model(pc_feat, xyz)  # torch.Size([bs, 768, 28])
-
-        # Fusion and classification
-        class_output = self.fuse_head(img_emb, pc_emb) # torch.Size([8, 1794, 8, 8])
+        img_preds, _ = self.s2_model(stacked_features)
+        pc_preds, _ = self.pc_model(pc_feat, xyz)
         
-        return class_output
+        return img_preds, pc_preds
 
     def forward_and_metrics(
         self, images, pc_feat, point_clouds, labels, stage
@@ -154,7 +130,12 @@ class FusionModel(pl.LightningModule):
         label_2hot.scatter_(1, top2_labels, 1.0)
 
         # Forward pass
-        fuse_preds = self.forward(images, pc_feat, point_clouds)
+        image_preds, pc_preds = self.forward(images, pc_feat, point_clouds)
+        if self.cfg["network"] !="ResNet":
+            img_logits_list = apply_mask_per_batch(image_preds, img_masks, multi_class=True)
+            image_preds = torch.stack([p.mean(dim=0) if p.numel() > 0 else torch.zeros(image_preds.shape[1], device=image_preds.device) for p in img_logits_list], dim=0)
+            # image_preds = torch.stack([F.normalize(p.mean(dim=0), p=1, dim=0) if p.numel() > 0 else torch.zeros(image_preds.shape[1], device=image_preds.device) for p in img_logits_list], dim=0)
+        fuse_preds = self.fuse_head(image_preds, pc_preds)
         logs = {}
         
         # Compute fusion loss

@@ -3,17 +3,14 @@ import pandas as pd
 import numpy as np
 
 import torch
-import torch.nn.functional as F
 import pytorch_lightning as pl
-from timm.scheduler import CosineLRScheduler
+import torch.nn as nn
 
 from .pointnext import PointNextModel
 from .decoder import DecisionLevelFusion
 
-from torchmetrics.regression import R2Score
-from torchmetrics.functional import r2_score
-from torchmetrics.classification import ConfusionMatrix
-from .loss import apply_mask_per_batch, calc_masked_loss, get_class_grw_weight
+from torchmetrics.classification import Accuracy, ConfusionMatrix, F1Score
+from .loss import apply_mask_per_batch, calc_masked_loss
 
 
 class FusionModel(pl.LightningModule):
@@ -60,26 +57,15 @@ class FusionModel(pl.LightningModule):
             weight_pc=self.cfg.get("decision_weight_pc", 0.3)
         )
 
-        self.loss_func = self.cfg["loss_func"]
-        #self.criterion = nn.MSELoss()
-        if self.loss_func in ["wmse", "wrmse", "wkl", "ewmse"]:
-            self.weights = self.cfg[f"{self.cfg['dataset']}_class_weights"]
-            if self.loss_func == "ewmse":
-                self.weights = get_class_grw_weight(self.weights, n_classes, exp_scale=0.2)
-        else:
-            self.weights = None
-
-        self.train_r2 = R2Score()
-        self.val_r2 = R2Score()
-        self.test_r2 = R2Score()
+        self.loss_func = nn.NLLLoss() #SmoothClsLoss(smoothing_ratio=0.1)
+        self.metric = Accuracy(task="multiclass", num_classes=n_classes)
+        self.f1_metric = F1Score(task="multiclass", num_classes=n_classes, average='macro')
         self.confmat = ConfusionMatrix(task="multiclass", num_classes=n_classes)
 
         # Optimizer and scheduler settings
         self.optimizer_type = self.cfg["optimizer"]
         self.scheduler_type = self.cfg["scheduler"]
         
-        self.best_test_r2 = 0.0
-        self.best_test_outputs = None
         self.validation_step_outputs = []
 
     def forward(self, images, pc_feat, xyz):
@@ -97,28 +83,25 @@ class FusionModel(pl.LightningModule):
     def forward_and_metrics(self, images, img_masks, pc_feat, point_clouds, labels, pixel_labels, stage):
         pc_feat = pc_feat.permute(0, 2, 1) if pc_feat is not None else None
         point_clouds = point_clouds.permute(0, 2, 1) if point_clouds is not None else None
-
+        true_cls = labels.argmax(dim=1)
+        
         image_preds, pc_preds = self.forward(images, pc_feat, point_clouds)
         if self.cfg["network"] !="ResNet":
             img_logits_list = apply_mask_per_batch(image_preds, img_masks, multi_class=True)
             image_preds = torch.stack([p.mean(dim=0) if p.numel() > 0 else torch.zeros(image_preds.shape[1], device=image_preds.device) for p in img_logits_list], dim=0)
-            # image_preds = torch.stack([F.normalize(p.mean(dim=0), p=1, dim=0) if p.numel() > 0 else torch.zeros(image_preds.shape[1], device=image_preds.device) for p in img_logits_list], dim=0)
+            
         fuse_preds = self.fuse_head(image_preds, pc_preds)
+        pred_cls = fuse_preds.argmax(dim=1)
 
-        r2_metric = getattr(self, f"{stage}_r2")
-        weights = self.weights.to(fuse_preds.device) if self.weights is not None else None
+        acc = self.metric(pred_cls, true_cls)
+        f1 = self.f1_metric(pred_cls, true_cls)
         
         # classification loss
-        loss = calc_masked_loss(self.loss_func, fuse_preds, labels, weights)
-        # consistency_loss
-        # avg_preds = valid_pixel_preds.mean(dim=0, keepdim=True)
-        # consistency_loss = nn.KLDivLoss(reduction='batchmean')(valid_pixel_preds.log_softmax(dim=1), avg_preds.softmax(dim=1).expand_as(valid_pixel_preds))
-        # loss += 0.05 * consistency_loss
-        
-        r2 = r2_metric(torch.round(fuse_preds, decimals=2).view(-1), labels.view(-1))
+        loss = self.criterion(pred_cls, true_cls)
 
         self.log(f"{stage}_loss", loss, on_step=True, on_epoch=True, prog_bar=True, sync_dist=True)
-        self.log(f"{stage}_r2", r2, on_step=True, on_epoch=True, prog_bar=True, sync_dist=True)
+        self.log(f"{stage}_acc", acc, on_step=True, on_epoch=True, prog_bar=True, sync_dist=True)
+        self.log(f"{stage}_f1", f1, on_step=True, on_epoch=True, prog_bar=True, sync_dist=True)
 
         if stage == "val":
             self.validation_step_outputs.append({"val_target": labels, "val_pred": fuse_preds})
@@ -143,31 +126,30 @@ class FusionModel(pl.LightningModule):
         test_true = torch.cat([output["val_target"] for output in self.validation_step_outputs], dim=0)
         test_pred = torch.cat([output["val_pred"] for output in self.validation_step_outputs], dim=0)
 
-        last_epoch_val_r2 = r2_score(torch.round(test_pred.flatten(), decimals=1), test_true.flatten())
-        self.log("ave_val_r2", last_epoch_val_r2, sync_dist=True)
-        self.log("sys_r2", sys_r2, sync_dist=True)
+        pred_classes = torch.argmax(test_pred, dim=1)
+        true_classes = torch.argmax(test_true, dim=1)
+        cm = self.confmat(pred_classes, true_classes)
 
-        if last_epoch_val_r2 > self.best_test_r2:
-            self.best_test_r2 = last_epoch_val_r2
-            self.best_test_outputs = {"preds_all": test_pred, "true_labels_all": test_true}
+        acc = self.metric(pred_classes, true_classes)
+        f1 = self.f1_metric(test_pred, true_classes)
+        self.log("val_acc_epoch", acc, sync_dist=True)
+        self.log("val_f1_epoch", f1, sync_dist=True)
+        print(f"Validation Accuracy: {acc}, F1 Score: {f1}")
+        print("Confusion Matrix:")
+        print(cm)
 
-            cm = self.confmat(torch.argmax(test_pred, dim=1), torch.argmax(test_true, dim=1))
-            print("Confusion Matrix at best R²:", cm)
-            print(f"R2 Score: {sys_r2}")
-            print(f"Class R²: {r2_score(torch.round(test_pred, decimals=1), test_true, multioutput='raw_values')}")
-
-            self.save_to_file(test_true, test_pred, self.cfg["class_names"])
+        #self.save_to_file(true_classes, test_pred, self.cfg["class_names"])
 
         self.validation_step_outputs.clear()
-        self.val_r2.reset()
 
     def save_to_file(self, labels, outputs, classes):
-        labels = labels.cpu().numpy() if isinstance(labels, torch.Tensor) else labels
-        outputs = outputs.cpu().numpy() if isinstance(outputs, torch.Tensor) else outputs
-        data = {"SampleID": np.arange(labels.shape[0])}
-        for i, class_name in enumerate(classes):
-            data[f"True_{class_name}"] = labels[:, i]
-            data[f"Pred_{class_name}"] = outputs[:, i]
+        labels = labels.cpu().numpy()
+        outputs = outputs.cpu().numpy()
+        data = {
+            "SampleID": np.arange(len(labels)),
+            "True_class": labels,
+            "Pred_class": np.argmax(outputs, axis=1),
+        }
         df = pd.DataFrame(data)
         output_dir = os.path.join(self.cfg["save_dir"], self.cfg["log_name"], "outputs")
         os.makedirs(output_dir, exist_ok=True)

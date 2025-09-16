@@ -117,7 +117,7 @@ def train(config):
         from model.decison_fuse_aligned import FusionModel
         model = FusionModel(config, n_classes=config["n_classes"])
     elif config["task"] == "lsc":
-        from model.lsc import FusionModel
+        from model.decison_fuse_aligned_lsc import FusionModel
         model = FusionModel(config, n_classes=config["n_classes"])
     elif config["task"] == "pc_tsc":
         from model.pc_model import PCModel
@@ -128,7 +128,7 @@ def train(config):
     elif config["task"] == "img_tsc":
         from model.s2_model import S2Model
         model = S2Model(config, n_classes=config["n_classes"])
-    else:
+    elif config["task"] == "top2":
         from model.top2 import FusionModel
         model = FusionModel(config, n_classes=config["n_classes"])
         
