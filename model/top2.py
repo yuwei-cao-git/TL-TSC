@@ -63,11 +63,8 @@ class FusionModel(pl.LightningModule):
             )
 
         # PC stream backbone
-        self.pc_model = PointNextModel(self.cfg, 
-                                    in_dim=3, #if self.cfg["dataset"] in ["rmf", "ovf"] else 6, 
-                                    n_classes=n_classes, 
-                                    decoder=True
-                                )
+        # Point cloud stream
+        self.pc_model = PointNextModel(self.cfg, in_dim=3, n_classes=n_classes, return_type='softmax', aligned=False)
         
         # Decision-level fusion module
         self.fuse_head = DecisionLevelFusion(
@@ -181,39 +178,22 @@ class FusionModel(pl.LightningModule):
         else:
             return loss_fuse
 
-    def training_step(self, batch, batch_idx):
-        images = batch["images"] if "images" in batch else None
-        img_mask = batch["mask"] if "mask" in batch else None
-        point_clouds = batch["point_cloud"] if "point_cloud" in batch else None
-        labels = batch["label"]
-        pc_feat = batch["pc_feat"] if "pc_feat" in batch else None
-
-        loss = self.forward_and_metrics(
-            images,
-            img_mask,
-            pc_feat,
-            point_clouds,
-            labels,
-            stage="train",
+    def _shared_step(self, batch, stage):
+        return self.forward_and_metrics(
+            batch.get("images"),
+            batch.get("mask"),
+            batch.get("pc_feat"),
+            batch.get("point_cloud"),
+            batch.get("label"),
+            batch.get("per_pixel_labels"),
+            stage
         )
-        return loss
+
+    def training_step(self, batch, batch_idx):
+        return self._shared_step(batch, stage="train")
 
     def validation_step(self, batch, batch_idx):
-        images = batch["images"] if "images" in batch else None
-        img_mask = batch["mask"] if "mask" in batch else None
-        point_clouds = batch["point_cloud"] if "point_cloud" in batch else None
-        labels = batch["label"]
-        pc_feat = batch["pc_feat"] if "pc_feat" in batch else None
-
-        loss = self.forward_and_metrics(
-            images,
-            img_mask,
-            pc_feat,
-            point_clouds,
-            labels,
-            stage="val",
-        )
-        return loss
+        return self._shared_step(batch, stage="val")
 
     def on_validation_epoch_end(self):
         test_true = torch.cat(
@@ -231,7 +211,6 @@ class FusionModel(pl.LightningModule):
         top2_accuracy = sum(correct) / len(correct)
         self.log("top2_acc", top2_accuracy, sync_dist=True)
         
-
         self.validation_step_outputs.clear()
         self.val_acc.reset()
         self.val_f1.reset()
@@ -239,24 +218,8 @@ class FusionModel(pl.LightningModule):
         self.val_recall.reset()
 
     def test_step(self, batch, batch_idx):
-        images = batch["images"] if "images" in batch else None
-        img_mask = batch["mask"] if "mask" in batch else None
-        point_clouds = batch["point_cloud"] if "point_cloud" in batch else None
-        labels = batch["label"]
-        pc_feat = batch["pc_feat"] if "pc_feat" in batch else None
-
-        labels, fuse_preds, loss = self.forward_and_metrics(
-            images,
-            img_mask,
-            pc_feat,
-            point_clouds,
-            labels,
-            stage="test"
-        )
-
-        self.save_to_file(labels, fuse_preds, self.cfg["class_names"])
-        return loss
-
+        return self._shared_step(batch, stage="test")
+    
     def save_to_file(self, labels, outputs, classes):
         # Convert tensors to numpy arrays or lists as necessary
         labels = labels.cpu().numpy() if isinstance(labels, torch.Tensor) else labels
