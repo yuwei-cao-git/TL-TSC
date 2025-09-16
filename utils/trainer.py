@@ -141,9 +141,9 @@ def train(config):
         max_epochs=config["max_epochs"],
         logger=[wandb_logger],
         callbacks=callbacks,
-        devices=config["gpus"],
+        # devices=config["gpus"],
         num_nodes=1,
-        strategy='ddp' # DDPStrategy(find_unused_parameters=False)
+        strategy='auto' # DDPStrategy(find_unused_parameters=False)
     )
     
     # Train the model
