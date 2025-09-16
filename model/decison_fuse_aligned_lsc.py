@@ -97,7 +97,7 @@ class FusionModel(pl.LightningModule):
         f1 = self.f1_metric(pred_cls, true_cls)
         
         # classification loss
-        loss = self.loss_func(pred_cls, true_cls)
+        loss = self.loss_func(fuse_preds, true_cls)
 
         self.log(f"{stage}_loss", loss, on_step=True, on_epoch=True, prog_bar=True, sync_dist=True)
         self.log(f"{stage}_acc", acc, on_step=True, on_epoch=True, prog_bar=True, sync_dist=True)
@@ -122,7 +122,6 @@ class FusionModel(pl.LightningModule):
         return loss
 
     def on_validation_epoch_end(self):
-        sys_r2 = self.val_r2.compute()
         test_true = torch.cat([output["val_target"] for output in self.validation_step_outputs], dim=0)
         test_pred = torch.cat([output["val_pred"] for output in self.validation_step_outputs], dim=0)
 
