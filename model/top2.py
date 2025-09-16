@@ -185,7 +185,6 @@ class FusionModel(pl.LightningModule):
             batch.get("pc_feat"),
             batch.get("point_cloud"),
             batch.get("label"),
-            batch.get("per_pixel_labels"),
             stage
         )
 

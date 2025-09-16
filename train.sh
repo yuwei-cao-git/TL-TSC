@@ -1,10 +1,6 @@
 #!/bin/bash
 
-<<<<<<< HEAD
 LOG_FILE="log.txt"
-=======
-LOG_FILE="log_7.txt"
->>>>>>> 5ae178ce39bfbf34d5c3d07e16c01653142d71fe
 SLEEP_DURATION=10  # seconds
 
 echo "Starting training..." | tee -a "$LOG_FILE"
@@ -82,19 +78,6 @@ commands=(
 
     # tuning rmf_genus using pretained ovf_genus
     "python train_fuse.py --data_dir '/mnt/g/rmf/rmf_superpixel_dataset' --config 'configs/config_rmf_genus.yaml' --task 'tsc_aligned' --log_name 'tsc_aligned_ovf_genus_pretained_rmf_genus_tuned' --gpus 1 --batch_size 32 --head 'fuse_head' --dataset 'rmf_genus' --encoder 'b' --network 'ResUnet' --lr 1e-3 --emb_dims 768 --loss_func 'mse' --scheduler 'steplr' --pretrained_ckpt 'tsc_aligned_ovf_genus/checkpoints/final_model.ckpt'"  
-
-    # with normal
-    # training from scratch: ovf_sp
-    "python train_fuse.py --data_dir '/mnt/g/ovf/ovf_superpixel_dataset' --config 'configs/config_ovf_sp.yaml' --task 'tsc_aligned' --log_name 'tsc_aligned_ovf_sp_normal' --gpus 1 --pc_normal True --batch_size 32 --head 'fuse_head' --dataset 'ovf_sp' --encoder 'b' --network 'ResUnet' --lr 5e-4 --emb_dims 768 --loss_func 'mse' --scheduler 'steplr'"
-
-    # training from scratch: ovf_genus
-    "python train_fuse.py --data_dir '/mnt/g/ovf/ovf_superpixel_dataset' --config 'configs/config_ovf_genus.yaml' --task 'tsc_aligned' --log_name 'tsc_aligned_ovf_genus_normal' --pc_normal True --gpus 1 --batch_size 32 --head 'fuse_head' --dataset 'ovf_genus' --encoder 'b' --network 'ResUnet' --lr 5e-4 --emb_dims 768 --loss_func 'mse' --scheduler 'steplr'"
-
-    # training from scratch: ovf_coarser
-    "python train_fuse.py --data_dir '/mnt/g/ovf/ovf_superpixel_dataset' --config 'configs/config_ovf_coarser.yaml' --task 'tsc_aligned' --log_name 'tsc_aligned_ovf_coarser_normal' --pc_normal True --gpus 1 --batch_size 32 --head 'fuse_head' --dataset 'ovf_coarser' --encoder 'b' --network 'ResUnet' --lr 5e-4 --emb_dims 768 --loss_func 'mse' --scheduler 'steplr'"
-
-    # training from scratch: ovf_4class
-    "python train_fuse.py --data_dir '/mnt/g/ovf/ovf_superpixel_dataset' --pc_normal True --config 'configs/config_ovf_4class.yaml' --task 'tsc_aligned' --log_name 'tsc_aligned_ovf_4class_normal' --gpus 1 --batch_size 32 --head 'fuse_head' --dataset 'ovf_4class' --encoder 'b' --network 'ResUnet' --lr 5e-4 --emb_dims 768 --loss_func 'mse' --scheduler 'steplr'" 
 
     # pre-training rmf_sp with ewmse
     "python train_fuse.py --data_dir '/mnt/g/rmf/rmf_superpixel_dataset' --config 'configs/config_rmf_sp.yaml' --task 'tsc_aligned' --log_name 'tsc_aligned_rmf_sp_ewmse' --gpus 1 --batch_size 32 --head 'fuse_head' --dataset 'rmf_sp' --encoder 'b' --network 'ResUnet' --lr 1e-3 --emb_dims 768 --loss_func 'ewmse' --scheduler 'steplr'"
