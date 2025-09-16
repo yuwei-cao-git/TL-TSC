@@ -97,7 +97,7 @@ class FusionModel(pl.LightningModule):
         f1 = self.f1_metric(pred_cls, true_cls)
         
         # classification loss
-        loss = self.criterion(pred_cls, true_cls)
+        loss = self.loss_func(pred_cls, true_cls)
 
         self.log(f"{stage}_loss", loss, on_step=True, on_epoch=True, prog_bar=True, sync_dist=True)
         self.log(f"{stage}_acc", acc, on_step=True, on_epoch=True, prog_bar=True, sync_dist=True)
