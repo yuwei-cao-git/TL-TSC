@@ -54,7 +54,8 @@ class S2Model(pl.LightningModule):
                 pretrained=True,
                 decoder=True
             )
-
+            
+        self.loss_func=self.params["loss_func"]
         # Define loss functions
         if self.loss_func in ["wmse", "wrmse", "wkl", "ewmse"]:
             self.weights = self.cfg[f"{self.cfg['dataset']}_class_weights"]

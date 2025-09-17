@@ -21,14 +21,6 @@ class PCModel(pl.LightningModule):
                                     return_type='logits'
                                 )
 
-        # Compute the loss with the WeightedMSELoss, which will handle the weights
-        if self.loss_func in ["wmse", "wrmse", "wkl", "ewmse"]:
-            self.weights = self.cfg[f"{self.cfg['dataset']}_class_weights"]
-            if self.loss_func == "ewmse":
-                self.weights = get_class_grw_weight(self.weights, n_classes, exp_scale=0.2)
-        else:
-            self.weights = None
-
         self.train_r2 = R2Score()
 
         self.val_r2 = R2Score()
@@ -47,6 +39,14 @@ class PCModel(pl.LightningModule):
             num_classes=self.params["n_classes"], average="micro"
         )
         self.loss_func=self.params["loss_func"]
+        
+        # Compute the loss with the WeightedMSELoss, which will handle the weights
+        if self.loss_func in ["wmse", "wrmse", "wkl", "ewmse"]:
+            self.weights = self.cfg[f"{self.cfg['dataset']}_class_weights"]
+            if self.loss_func == "ewmse":
+                self.weights = get_class_grw_weight(self.weights, n_classes, exp_scale=0.2)
+        else:
+            self.weights = None
 
     def forward(self, point_cloud, xyz):
         """
