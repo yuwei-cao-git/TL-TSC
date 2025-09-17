@@ -42,7 +42,7 @@ class PCModel(pl.LightningModule):
         
         # Compute the loss with the WeightedMSELoss, which will handle the weights
         if self.loss_func in ["wmse", "wrmse", "wkl", "ewmse"]:
-            self.weights = self.cfg[f"{self.cfg['dataset']}_class_weights"]
+            self.weights = self.params[f"{self.params['dataset']}_class_weights"]
             if self.loss_func == "ewmse":
                 self.weights = get_class_grw_weight(self.weights, n_classes, exp_scale=0.2)
         else:
