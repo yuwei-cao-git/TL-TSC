@@ -24,7 +24,9 @@ def override_config(cfg, args):
         cfg['dataset'] = args.dataset
     if args.pretrained_ckpt is not None:
         cfg['pretrained_ckpt'] = args.pretrained_ckpt
-    if args.scheduler:
+    if args.align_header is not None:
+        cfg['align_header'] = args.align_header
+    if args.scheduler is not None:
         cfg['scheduler'] = args.scheduler
     # hps
     if args.lr is not None:
@@ -67,6 +69,7 @@ def parse_args():
     parser.add_argument('--pc_normal', type=bool, default=False)
     parser.add_argument('--use_ms', type=bool, default=False) 
     parser.add_argument('--level', type=str)
+    parser.add_argument('--align_header', type=str)
     return parser.parse_args()
     
 def main():
