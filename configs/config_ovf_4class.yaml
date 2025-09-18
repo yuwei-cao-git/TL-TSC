@@ -2,7 +2,7 @@
 
 # General
 dataset: ovf_4class
-data_dir: "/mnt/g/ovf/ovf_superpixel_dataset"
+data_dir: "./data/ovf_superpixel_dataset"
 tile_size: 128
 n_bands: 9
 
@@ -59,4 +59,4 @@ rotate: false
 pc_normal: false
 
 # Hardware
-gpus: 2
+gpus: 1

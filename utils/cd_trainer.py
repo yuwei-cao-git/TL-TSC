@@ -13,7 +13,9 @@ def get_region_class_map(level: str = "species"):
     elif level == "genus":
         return {"A": 7, "B": 9}
     elif level == "coarser":
-        return {"A": 5, "B": 5}
+        return {"A": 4, "B": 6}
+    elif level == "4class":
+        return {"A": 4, "B": 4}
     else:
         raise ValueError(f"Unknown taxonomy level: {level}")
 
@@ -23,13 +25,18 @@ def train(config, level: str = "species"):
     # Build datamodule from two YAML configs
     if level == "species":
         dm, cfg_A, cfg_B = build_multi_region_dm(
-            config.get("cfg_path_A", "configs/config_rmf.yaml"),
-            config.get("cfg_path_B", "configs/config_ovf.yaml"),
+            config.get("cfg_path_A", "configs/config_rmf_sp.yaml"),
+            config.get("cfg_path_B", "configs/config_ovf_sp.yaml"),
         )
     elif level == "coarser":
         dm, cfg_A, cfg_B = build_multi_region_dm(
-            config.get("cfg_path_A", "configs/config_rmf_5class.yaml"),
-            config.get("cfg_path_B", "configs/config_ovf_5class.yaml"),
+            config.get("cfg_path_A", "configs/config_rmf_4class.yaml"),
+            config.get("cfg_path_B", "configs/config_ovf_coarser.yaml"),
+        )
+    elif level == "4class":
+        dm, cfg_A, cfg_B = build_multi_region_dm(
+            config.get("cfg_path_A", "configs/config_rmf_4class.yaml"),
+            config.get("cfg_path_B", "configs/config_ovf_4class.yaml"),
         )
     else:
         dm, cfg_A, cfg_B = build_multi_region_dm(

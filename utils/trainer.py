@@ -107,9 +107,6 @@ def train(config):
     if config["task"] == "tsc_mid":
         from model.fuse import FusionModel
         model = FusionModel(config, n_classes=config["n_classes"])
-    elif config["task"] == "tsc_mid_decision":
-        from model.mh_df import FusionModel
-        model = FusionModel(config, n_classes=config["n_classes"])
     elif config["task"] == "tsc":
         from model.decison_fuse import FusionModel
         model = FusionModel(config, n_classes=config["n_classes"])

@@ -183,11 +183,11 @@ class MultiHeadFusionModel(pl.LightningModule):
                 self.log(f"{stage}_B/label_nan_frac", torch.isnan(labels).float().mean(), prog_bar=False, batch_size=labels.size(0), sync_dist=True)
                 self.log(f"{stage}_B/label_var_mean", labels.var(dim=0).mean(), prog_bar=False, batch_size=labels.size(0), sync_dist=True)
 
-        logits, mask8 = self.forward(images, img_masks, pc_feat, point_clouds, region_key)
+        logits = self.forward(images, img_masks, pc_feat, point_clouds, region_key)
         pred_props = F.softmax(logits, dim=1)
         
         # KLDiv on distributions
-        loss_core = F.mse_loss(torch.round(pred_props, decimals=2), labels)
+        loss_core = F.mse_loss(pred_props, labels)
         
         # entropy regularizer (prevent overconfident wrong preds)
         entropy = -(pred_props * pred_props.clamp_min(1e-8).log()).sum(dim=1).mean()

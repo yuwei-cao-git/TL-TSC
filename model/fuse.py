@@ -14,7 +14,7 @@ from torchmetrics.functional import r2_score
 from torchmetrics.classification import (
     ConfusionMatrix,
 )
-from .loss import apply_mask, calc_masked_loss
+from .loss import apply_mask, calc_masked_loss, get_class_grw_weight
 
 
 class FusionModel(pl.LightningModule):
@@ -94,8 +94,12 @@ class FusionModel(pl.LightningModule):
         )
 
         # Define loss functions
-        if self.cfg["loss_func"] in ["wmse", "wrmse", "wkl"]:
-            self.weights = self.cfg.get(f"{self.cfg['dataset']}_class_weights", None)
+        if self.loss_func in ["wmse", "wrmse", "wkl", "ewmse"]:
+            self.weights = self.cfg[f"{self.cfg['dataset']}_class_weights"]
+            if self.loss_func == "ewmse":
+                self.weights = get_class_grw_weight(self.weights, n_classes, exp_scale=0.2)
+        else:
+            self.weights = None
         
         # multi-task loss weight
         if self.cfg["multitasks_uncertain_loss"]:
