@@ -118,7 +118,7 @@ class FusionModel(pl.LightningModule):
 
     def test_step(self, batch, batch_idx):
         labels, fuse_preds, loss = self.forward_and_metrics(batch["images"], batch.get("mask"), batch["pc_feat"], batch["point_cloud"], batch["label"], batch.get("per_pixel_labels"), "test")
-        self.save_to_file(labels, fuse_preds, self.cfg["class_names"])
+        #self.save_to_file(labels, fuse_preds, self.cfg["class_names"])
         return loss
 
     def on_validation_epoch_end(self):

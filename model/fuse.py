@@ -25,6 +25,7 @@ class FusionModel(pl.LightningModule):
         
         self.cfg = config
         self.lr = self.cfg["lr"]
+        self.loss_func = self.cfg["loss_func"]
         
         # seasonal s2 data fusion block
         self.ms_fusion = self.cfg["use_ms"]

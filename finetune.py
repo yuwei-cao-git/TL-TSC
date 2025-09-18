@@ -237,10 +237,9 @@ def train(cfg, ft_mode_cli=None):
 
     if ft_mode == "linear_probe":
         mode_linear_probe(model, use_ms_fusion=use_ms)
-        
     elif ft_mode == "full_ft":
         mode_full_ft(model, use_ms_fusion=use_ms)
-    elif ft_mode == "adapters":
+    elif ft_mode == "adapter":
         # your channel counts
         s2_ch = int(cfg.get("s2_head_in_ch", 1024))
         pc_ch = int(cfg.get("pc_head_in_ch", 768))
