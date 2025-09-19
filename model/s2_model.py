@@ -34,7 +34,8 @@ class S2Model(pl.LightningModule):
             self.s2_model = UNet(
                 n_channels=total_input_channels,
                 n_classes=n_classes,
-                decoder=True
+                decoder=True,
+                aligned=(True if self.cfg['align_header'] in ['pc', 'both'] else False)
             )
         elif self.cfg["network"] == "ResUnet":
             from .ResUnet import ResUnet
@@ -42,7 +43,8 @@ class S2Model(pl.LightningModule):
             self.s2_model = ResUnet(
                 n_channels=total_input_channels,
                 n_classes=n_classes,
-                decoder=True
+                decoder=True,
+                aligned=(True if self.cfg['align_header'] in ['pc', 'both'] else False)
             )
         elif self.cfg["network"] == "ResNet":
             from .resnet_fcn import FCNResNet50

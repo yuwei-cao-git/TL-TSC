@@ -18,7 +18,8 @@ class PCModel(pl.LightningModule):
                                     in_dim=3, #if self.cfg["dataset"] in ["rmf", "ovf"] else 6, 
                                     n_classes=n_classes, 
                                     decoder=True,
-                                    return_type='logits'
+                                    return_type='logits',
+                                    aligned=(True if self.cfg['align_header'] in ['pc', 'both'] else False)
                                 )
 
         self.train_r2 = R2Score()
