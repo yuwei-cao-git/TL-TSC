@@ -19,7 +19,7 @@ class PCModel(pl.LightningModule):
                                     n_classes=n_classes, 
                                     decoder=True,
                                     return_type='logits',
-                                    aligned=(True if self.cfg['align_header'] in ['pc', 'both'] else False)
+                                    aligned=(True if self.params['align_header'] in ['pc', 'both'] else False)
                                 )
 
         self.train_r2 = R2Score()
