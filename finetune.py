@@ -289,7 +289,7 @@ if __name__ == "__main__":
     cfg.setdefault("log_name", "finetune")
     cfg.setdefault("optimizer", "adamW")
     cfg.setdefault("lr", 1e-3)
-    cfg.setdefault("max_epochs", 20)
+    cfg.setdefault("max_epochs", 100)
     cfg.setdefault("patience", 15)
     cfg.setdefault("s2_head_in_ch", 1024)
     cfg.setdefault("pc_head_in_ch", 768)
