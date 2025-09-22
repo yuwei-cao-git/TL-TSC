@@ -70,7 +70,7 @@ class S2DataModule(LightningDataModule):
         super().__init__()
         self.config = config
         self.batch_size = config["batch_size"]
-        self.num_workers = config["gpus"]*2
+        self.num_workers = 8 #config["gpus"]*2
         self.image_transform = (
             config["image_transform"] if config["image_transform"] != "None" else None
         )
