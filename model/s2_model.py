@@ -158,7 +158,7 @@ class S2Model(pl.LightningModule):
             pixel_r2 = r2_metric(valid_pixel_preds_rounded.view(-1), valid_pixel_true.view(-1))
 
             # Log metrics
-            logs.update({f"pixel_{stage}_r2": pixel_r2})
+            logs.update({f"{stage}_r2": pixel_r2})
         
 
         # Compute RMSE

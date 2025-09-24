@@ -66,11 +66,11 @@ def mode_full_ft(model, use_ms_fusion=True):
         for n, p in model.named_parameters():
             if _starts(n, MF_BLOCK): p.requires_grad = False
 
-def mode_freeze_last_k(model, k=1, use_ms_fusion=True):
+def mode_freeze_last_k(model, k=1):
     train = []
     if k >= 1: train += S2_LATE + PC_LATE
     if k >= 2: train += S2_MID  + PC_MID
-    if k >= 3: train += S2_EARLY + PC_EARLY + MF_BLOCK
+    if k >= 3: train += S2_EARLY + PC_EARLY
     train += S2_HEAD + PC_HEAD + FUSE_HEAD
     _set_requires_grad(model, train)
 
@@ -207,7 +207,7 @@ def train(cfg, ft_mode_cli=None):
 
     # --- model (same mapping as your trainer) ---
     task = cfg["task"]
-    if task == "tsc_aligned":
+    if task == "tsca":
         from model.decison_fuse_aligned import FusionModel
     elif task == "tsc":
         from model.decison_fuse import FusionModel
@@ -296,7 +296,7 @@ if __name__ == "__main__":
     cfg.setdefault("optimizer", "adamW")
     cfg.setdefault("lr", 1e-3)
     cfg.setdefault("max_epochs", 100)
-    cfg.setdefault("patience", 15)
+    cfg.setdefault("patience", 10)
     cfg.setdefault("s2_head_in_ch", 1024)
     cfg.setdefault("pc_head_in_ch", 768)
     cfg.setdefault("task", args.task)

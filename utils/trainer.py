@@ -83,7 +83,7 @@ def train(config):
     
     print("start setting dataset")
     # Initialize the DataModule
-    if config["task"] in ["tsc", "lsc", "tsc_mid", "tsc_aligned", "tsc_mid_decision", "top2"]:
+    if config["task"] in ["tsc", "lsc", "tsc_mid", "tsca", "tsc_mid_decision", "top2"]:
         if config["dataset"] in ["ovf", "rmf"]:
             from dataset.balanced_dataset import BalancedDataModule
             data_module = BalancedDataModule(config)
@@ -110,7 +110,7 @@ def train(config):
     elif config["task"] == "tsc":
         from model.decison_fuse import FusionModel
         model = FusionModel(config, n_classes=config["n_classes"])
-    elif config["task"] == "tsc_aligned":
+    elif config["task"] == "tsca":
         from model.decison_fuse_aligned import FusionModel
         model = FusionModel(config, n_classes=config["n_classes"])
     elif config["task"] == "lsc":

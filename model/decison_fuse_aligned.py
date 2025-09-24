@@ -3,9 +3,7 @@ import pandas as pd
 import numpy as np
 
 import torch
-import torch.nn.functional as F
 import pytorch_lightning as pl
-from timm.scheduler import CosineLRScheduler
 
 from .pointnext import PointNextModel
 from .decoder import DecisionLevelFusion
