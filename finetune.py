@@ -32,18 +32,24 @@ def _load_backbone_weights(model, checkpoint_path):
 # --------------------------
 # Freeze / unfreeze modes
 # --------------------------
-S2_EARLY = ["s2_model.encoder.stem", "s2_model.encoder.residual_block1"]
-S2_MID   = ["s2_model.encoder.residual_block2", "s2_model.encoder.residual_block3"]
-S2_LATE  = ["s2_model.encoder.residual_block4", "s2_model.decoder"]
+S2_EARLY = ["s2_model.encoder.stem", 
+            "s2_model.encoder.residual_block1"]
+S2_MID   = ["s2_model.encoder.residual_block2", 
+            "s2_model.encoder.residual_block3"]
+S2_LATE  = ["s2_model.encoder.residual_block4", 
+            "s2_model.decoder"]
 S2_HEAD  = ["s2_model.classifier"]
 
-PC_EARLY = ["pc_model.encoder.encoder.stem", "pc_model.encoder.encoder.encoder.0"]
-PC_MID   = ["pc_model.encoder.encoder.encoder.1", "pc_model.encoder.encoder.encoder.2"]
-PC_LATE  = ["pc_model.encoder.encoder.encoder.3", "pc_model.encoder.backbone.head"]
+PC_EARLY = ["pc_model.encoder.encoder.stem", 
+            "pc_model.encoder.encoder.encoder.0"]
+PC_MID   = ["pc_model.encoder.encoder.encoder.1", 
+            "pc_model.encoder.encoder.encoder.2"]
+PC_LATE  = ["pc_model.encoder.encoder.encoder.3", 
+            "pc_model.encoder.backbone.head"]
 PC_HEAD  = ["pc_model.decoder.cls_head"]
 
 FUSE_HEAD = ["fuse_head"]
-MF_BLOCK  = ["mf_module"]  # only train if use_ms==True
+MF_BLOCK  = ["mf_module"] 
 
 def _starts(n, prefixes): return any(n.startswith(p) for p in prefixes)
 def _set_requires_grad(model, train_prefixes):
