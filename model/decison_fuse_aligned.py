@@ -119,10 +119,14 @@ class FusionModel(pl.LightningModule):
 
         self.log(f"{stage}_loss", loss, on_step=True, on_epoch=True, prog_bar=True, sync_dist=True)
         self.log(f"{stage}_r2", r2, on_step=True, on_epoch=True, prog_bar=True, sync_dist=True)
+        
+        
 
         if stage == "val":
             self.validation_step_outputs.append({"val_target": labels, "val_pred": fuse_preds})
         if stage == "test":
+            rmse = torch.sqrt(loss)
+            self.log(f"{stage}_rmse", rmse, sync_dist=True)
             return labels, fuse_preds, loss
         else:
             return loss

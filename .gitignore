@@ -195,3 +195,7 @@ log_genus.txt
 record.txt
 *.txt
 wandb/
+vis/ovf_ft_comparison.svg
+vis/tfs_comparison.svg
+vis/species_amount_comparison.svg
+*.svg
