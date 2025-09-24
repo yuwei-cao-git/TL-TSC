@@ -2,7 +2,7 @@
 
 # General
 dataset: ovf_4class
-data_dir: "./data/ovf_superpixel_dataset"
+data_dir: "/mnt/g/ovf/ovf_superpixel_dataset"
 tile_size: 128
 n_bands: 9
 
@@ -47,7 +47,7 @@ num_points: 7168
 fps: false
 encoder: b                      # Options: s, b, l, xl
 fusion_dim: 128
-dp_fuse: 0.3
+dp_fuse: 0.6
 dp_pc: 0.3
 use_ms: false
 linear_layers_dims: [512, 256]

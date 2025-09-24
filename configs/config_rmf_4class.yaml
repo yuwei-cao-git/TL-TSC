@@ -2,7 +2,7 @@
 
 # General
 dataset: rmf_4class                        # Options: rmf, rmf_superpixel_dataset
-data_dir: "./data/rmf_superpixel_dataset"
+data_dir: "/mnt/g/rmf/rmf_superpixel_dataset"
 tile_size: 128
 n_bands: 9
 n_classes: 4
@@ -38,7 +38,7 @@ emb_dims: 768
 num_points: 7168
 encoder: b                      # Options: s, b, l, xl
 fusion_dim: 128
-dp_fuse: 0.3
+dp_fuse: 0.6
 dp_pc: 0.3
 use_ms: false
 linear_layers_dims: [512, 256]
