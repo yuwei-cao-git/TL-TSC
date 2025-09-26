@@ -189,7 +189,7 @@ data/
 log.txt
 train.sh
 
-# undertest
+# logs
 log_*.txt
 log_genus.txt
 record.txt
