@@ -44,6 +44,13 @@ def resample_points_within_polygon(
         use_idx = farthest_point_sampling(pts, num_points)
         pts = pts[use_idx, :]
         classification = np.ones(num_points, dtype=np.uint8)
+    elif pts.shape[0] <= max_pts // 2:
+        x = np.random.uniform(min_x, max_x, num_points)
+        y = np.random.uniform(min_y, max_y, num_points)
+        z = np.random.uniform(min_z, max_z, num_points)
+        # Combine into an array of (x, y, z) points
+        pts = np.column_stack((x, y, z))
+        classification = np.zeros(num_points, dtype=np.uint8)
     else:
         use_idx = np.random.choice(pts.shape[0], num_points, replace=True)
         pts = pts[use_idx, :]

@@ -198,7 +198,7 @@ def clip_raster(raster_file, shapefile, output_file, invert=False, crop=True):
         src_crs = src.crs
 
         # Clip the raster using the shapefile geometry
-        # shapefile_data = shapefile_data.to_crs(src_crs)
+        shapefile_data = shapefile_data.to_crs(src_crs)
         clipped_raster, transform = mask(
             src, shapefile_data.geometry, crop=crop, invert=invert
         )

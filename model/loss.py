@@ -18,6 +18,7 @@ def calc_mse_loss(valid_outputs, valid_targets):
     loss = mse(valid_outputs, valid_targets)
 
     return loss
+
 class WeightedMSELoss(nn.Module):
     def __init__(self, weights):
         super(WeightedMSELoss, self).__init__()
@@ -341,6 +342,8 @@ def calc_masked_loss(loss_func_name, valid_outputs, valid_targets, weights=None)
         return calc_pinball_loss(valid_outputs, valid_targets)
     elif loss_func_name == "L1Smooth":
         return smooth_l1_loss(valid_outputs, valid_targets)
+    elif loss_func_name == "bwkl":
+        return plot_props_bias_aux_loss(valid_outputs, valid_targets, class_weights=weights, beta=2.0, eps=1e-8)
     
 class MultiLabelFocalLoss(nn.Module):
     def __init__(self, alpha=1.0, gamma=2.0, reduction='mean'):
@@ -394,3 +397,35 @@ class ClsLoss(nn.Module):
         total_loss = F.nll_loss(pred, target)
 
         return total_loss
+
+def plot_props_bias_aux_loss(
+    plot_props, target_props, class_weights=None, beta=2.0, eps=1e-8
+):
+    """
+    Weighted KL(target_props || plot_props) with bias-aware weights and optional class weights.
+    Upweights:
+    - high-proportion classes that are underpredicted
+    - low-proportion classes that are overpredicted
+    """
+    targ = target_props.clamp_min(eps)
+    pred = plot_props.clamp_min(eps)
+    kl_per_class = targ * (targ.log() - pred.log())  # [B,K]
+
+    # --- Bias-aware weighting term
+    s = (targ - pred) * (2 * targ - 1.0)
+    w_bias = torch.exp(beta * s)
+    w_bias = w_bias / w_bias.mean(dim=1, keepdim=True).clamp_min(1e-12)
+
+    # --- Class weights
+    if class_weights is not None:
+        w_class = torch.as_tensor(
+            class_weights, dtype=torch.float32, device=plot_props.device
+        )
+        w_class = w_class / w_class.mean().clamp_min(1e-12)
+        w_class = w_class.unsqueeze(0).expand_as(kl_per_class)  # [B,K]
+    else:
+        w_class = torch.ones_like(kl_per_class)
+
+    # --- Combine weights and compute mean loss
+    weighted_kl = w_bias * w_class * kl_per_class
+    return weighted_kl.sum(dim=1).mean()  # scalar

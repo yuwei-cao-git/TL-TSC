@@ -196,3 +196,16 @@ record.txt
 *.txt
 wandb/
 vis/
+
+# used code
+data_processing/db/
+dataset/all_dataset.py
+data_processing/sp/generate_sp_w_aux_4.py
+configs/finetune.yaml
+dataset/balanced_dataset.py
+data_processing/generate_sp_w_aux_4.py
+model/finetune.py
+data_processing/superpixel_split_5.py
+data_processing/group_genus_coarser_rmf.py
+data_processing/group_genus_rmf.py
+data_processing/label_gen.py

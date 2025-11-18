@@ -117,13 +117,11 @@ class FusionModel(pl.LightningModule):
 
         self.log(f"{stage}_loss", loss, on_step=True, on_epoch=True, prog_bar=True, sync_dist=True)
         self.log(f"{stage}_r2", r2, on_step=True, on_epoch=True, prog_bar=True, sync_dist=True)
-        
-        
 
         if stage == "val":
             self.validation_step_outputs.append({"val_target": labels, "val_pred": fuse_preds})
         if stage == "test":
-            rmse = torch.sqrt(loss)
+            rmse = torch.sqrt(calc_masked_loss('mse', fuse_preds, labels, weights=None))
             self.log(f"{stage}_rmse", rmse, sync_dist=True)
             return labels, fuse_preds, loss
         else:
@@ -158,7 +156,7 @@ class FusionModel(pl.LightningModule):
             print(f"R2 Score: {sys_r2}")
             print(f"Class R²: {r2_score(torch.round(test_pred, decimals=1), test_true, multioutput='raw_values')}")
 
-            self.save_to_file(test_true, test_pred, self.cfg["class_names"])
+            # self.save_to_file(test_true, test_pred, self.cfg["class_names"])
 
         self.validation_step_outputs.clear()
         self.val_r2.reset()

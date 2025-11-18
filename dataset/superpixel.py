@@ -213,7 +213,7 @@ class SuperpixelDataModule(LightningDataModule):
             batch_size=self.batch_size,
             shuffle=False,
             num_workers=self.num_workers,
-            drop_last=False,
+            drop_last=True,
             collate_fn=self.collate_fn,
         )
 
