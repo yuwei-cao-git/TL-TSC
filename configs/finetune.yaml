@@ -14,7 +14,7 @@ freeze_last_k: 1
 
 # General
 dataset: ovf_coarser
-data_dir: ./data/ovf_superpixel_dataset
+data_dir: /mnt/g/ovf/ovf_superpixel_dataset
 tile_size: 128
 n_bands: 9
 n_classes: 6
@@ -29,7 +29,7 @@ ovf_coarser_img_std: [0.013001235936613913, 0.012274226049356364, 0.012735332075
 # ovf_coarser_img_std: [0.08632466386209953, 0.08161959376768174, 0.08477277257181819, 0.08218470236534788, 0.08344650212568164, 0.0886688905866315, 0.059485454246911616, 0.03590568279071751, 0.08754291674956742]
 
 # Training parameters
-task: tsc_aligned
+task: tsca
 head:  fuse_head # Options: no_pc_head, fuse_head, all_head, no_img_head
 pretrained_ckpt: None #tl_logs/no_img_head_unet_pointnet_rmf_cosine/wandblogs/TL-TSC/28g98vp3/checkpoints/epoch=0-step=3246.ckpt
 fix_backbone: false
@@ -43,7 +43,7 @@ decision_fuse_type: weighted #weighted, mlp
 
 # Loss weights
 multitasks_uncertain_loss: false
-loss_func: mse
+loss_func: ewmse
 
 # Model architecture
 network: ResUnet
