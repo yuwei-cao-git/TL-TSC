@@ -1,7 +1,7 @@
 import os
 import torch
 from pytorch_lightning import Trainer, seed_everything
-#from pytorch_lightning.strategies.ddp import DDPStrategy
+# from pytorch_lightning.strategies.ddp import DDPStrategy
 from pytorch_lightning.callbacks import EarlyStopping, ModelCheckpoint
 from lightning.pytorch.loggers import WandbLogger
 from pytorch_lightning.utilities.model_summary import ModelSummary
@@ -37,7 +37,7 @@ def save_config(cfg, save_dir, filename="config.yaml"):
     with open(config_path, "w") as f:
         yaml.dump(cfg, f, default_flow_style=False)
     print(f"Saved config to {config_path}")
-    
+
 def train(config):
     seed_everything(123)
     log_name = config["log_name"]
@@ -50,7 +50,7 @@ def train(config):
         os.mkdir(log_dir)
     if not os.path.exists(chk_dir):
         os.mkdir(chk_dir)
-    
+
     save_config(config, log_dir)
 
     # Initialize WandB, CSV Loggers
@@ -69,7 +69,7 @@ def train(config):
         mode="max",  # Set "min" for validation loss
         verbose=True,
     )
-    
+
     # Define a checkpoint callback to save the best model
     checkpoint_callback = ModelCheckpoint(
         monitor=metric,  # Track the validation loss
@@ -78,9 +78,9 @@ def train(config):
         save_top_k=1,  # Only save the best model
         mode="max",  # We want to minimize the validation loss
     )
-    
+
     callbacks = [early_stopping, checkpoint_callback]
-    
+
     print("start setting dataset")
     # Initialize the DataModule
     if config["task"] in ["tsc", "lsc", "tsc_mid", "tsca", "tsc_mid_decision", "top2"]:
@@ -102,7 +102,7 @@ def train(config):
     else:
         from dataset.s2 import S2DataModule
         data_module = S2DataModule(config)
-    
+
     # Use the calculated input channels from the DataModule to initialize the model
     if config["task"] == "tsc_mid":
         from model.fuse import FusionModel
@@ -128,7 +128,7 @@ def train(config):
     elif config["task"] == "top2":
         from model.top2 import FusionModel
         model = FusionModel(config, n_classes=config["n_classes"])
-        
+
     if config["pretrained_ckpt"] != "None":
         # load backbone weights only, ignore head mismatch
         model = load_backbone_weights(model, config["pretrained_ckpt"])
@@ -138,11 +138,12 @@ def train(config):
         max_epochs=config["max_epochs"],
         logger=[wandb_logger],
         callbacks=callbacks,
+        gradient_clip_val=0.5,
         # devices=config["gpus"],
         num_nodes=1,
-        strategy='auto' # DDPStrategy(find_unused_parameters=False)
+        strategy="auto",  # DDPStrategy(find_unused_parameters=False)
     )
-    
+
     # Train the model
     trainer.fit(model, data_module)
 

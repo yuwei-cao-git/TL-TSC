@@ -69,7 +69,7 @@ def calc_mae_loss(valid_outputs, valid_targets):
 # mainfold loss
 
 def smooth_l1_loss(
-    input, target, beta: float, reduction: str = "none", size_average=False
+    input, target, beta: float = 1.0, reduction: str = "none", size_average=False
 ):
     """
     Smooth L1 loss defined in the Fast R-CNN paper
@@ -292,7 +292,7 @@ def calc_masked_loss(loss_func_name, valid_outputs, valid_targets, weights=None)
     elif loss_func_name == "mse":
         return calc_mse_loss(valid_outputs, valid_targets)
     elif loss_func_name == "kl":
-        return calc_kl_loss(valid_targets, valid_outputs, weights)
+        return calc_kl_loss(valid_targets, valid_outputs)
     elif loss_func_name == "wkl":
         return weighted_kl_divergence(valid_targets, valid_outputs, weights)
     elif loss_func_name == "mae":

@@ -3,6 +3,7 @@ import pandas as pd
 import numpy as np
 
 import torch
+import torch.nn as nn
 import pytorch_lightning as pl
 
 from .pointnext import PointNextModel
@@ -41,7 +42,7 @@ class FusionModel(pl.LightningModule):
             from .resnet_fcn import FCNResNet50
             self.s2_model = FCNResNet50(n_channels=total_input_channels, n_classes=n_classes, aligned=(True if self.cfg['align_header'] in ['img', 'both'] else False))
         elif self.cfg["network"] == "ResNet":
-            from .ResNet import Resnet
+            from .resnet import Resnet
             self.s2_model = Resnet(n_channels=total_input_channels, num_classes=n_classes, aligned=(True if self.cfg['align_header'] in ['img', 'both'] else False))
         elif self.cfg["network"] == "Vit":
             from .VitCls import S2Transformer
@@ -59,7 +60,7 @@ class FusionModel(pl.LightningModule):
         )
 
         self.loss_func = self.cfg["loss_func"]
-        #self.criterion = nn.MSELoss()
+        # self.criterion = nn.MSELoss()
         if self.loss_func in ["wmse", "wrmse", "wkl", "ewmse"]:
             self.weights = self.cfg[f"{self.cfg['dataset']}_class_weights"]
             if self.loss_func == "ewmse":
@@ -75,10 +76,27 @@ class FusionModel(pl.LightningModule):
         # Optimizer and scheduler settings
         self.optimizer_type = self.cfg["optimizer"]
         self.scheduler_type = self.cfg["scheduler"]
-        
+
         self.best_test_r2 = 0.0
         self.best_test_outputs = None
         self.validation_step_outputs = []
+
+        # 💡 Call the initialization function here
+        self._initialize_weights(self.s2_model)
+        self._initialize_weights(self.pc_model)
+        self._initialize_weights(self.fuse_head)
+
+    def _initialize_weights(self, m):
+        # A recursive function to apply initialization to all relevant layers
+        if isinstance(m, nn.Linear):
+            # Kaiming/He initialization for linear layers followed by ReLU
+            nn.init.kaiming_uniform_(m.weight, nonlinearity="relu")
+            if m.bias is not None:
+                nn.init.constant_(m.bias, 0)
+        elif isinstance(m, nn.Conv2d):
+            nn.init.kaiming_uniform_(m.weight, nonlinearity="relu")
+            if m.bias is not None:
+                nn.init.constant_(m.bias, 0)
 
     def forward(self, images, pc_feat, xyz):
         if self.ms_fusion:
@@ -105,14 +123,14 @@ class FusionModel(pl.LightningModule):
 
         r2_metric = getattr(self, f"{stage}_r2")
         weights = self.weights.to(fuse_preds.device) if self.weights is not None else None
-        
+
         # classification loss
         loss = calc_masked_loss(self.loss_func, fuse_preds, labels, weights)
         # consistency_loss
         # avg_preds = valid_pixel_preds.mean(dim=0, keepdim=True)
         # consistency_loss = nn.KLDivLoss(reduction='batchmean')(valid_pixel_preds.log_softmax(dim=1), avg_preds.softmax(dim=1).expand_as(valid_pixel_preds))
         # loss += 0.05 * consistency_loss
-        
+
         r2 = r2_metric(torch.round(fuse_preds, decimals=2).view(-1), labels.view(-1))
 
         self.log(f"{stage}_loss", loss, on_step=True, on_epoch=True, prog_bar=True, sync_dist=True)
@@ -220,12 +238,12 @@ class FusionModel(pl.LightningModule):
             return {"optimizer": optimizer, "lr_scheduler": scheduler}
         elif self.scheduler_type == "cosinewarmup":
             scheduler = torch.optim.lr_scheduler.CosineAnnealingWarmRestarts(
-                optimizer, T_0=10
+                optimizer, T_0=20, t_mult=2
             )
             return {"optimizer": optimizer, "lr_scheduler": scheduler}
         elif self.scheduler_type == "onecycle":
             scheduler = torch.optim.lr_scheduler.OneCycleLR(
-                optimizer, max_lr=0.1, epochs=self.cfg["max_epochs"], steps_per_epoch=len(self.train_dataloader()) / self.trainer.accumulate_grad_batches
+                optimizer, max_lr=0.04, epochs=self.cfg["max_epochs"], steps_per_epoch=len(self.train_dataloader()) / self.trainer.accumulate_grad_batches
             )
             return {"optimizer": optimizer, "lr_scheduler": scheduler}
         elif self.scheduler_type == "CosLR":
