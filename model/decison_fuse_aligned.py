@@ -115,11 +115,25 @@ class FusionModel(pl.LightningModule):
         point_clouds = point_clouds.permute(0, 2, 1) if point_clouds is not None else None
 
         image_preds, pc_preds = self.forward(images, pc_feat, point_clouds)
-        if self.cfg["network"] !="ResNet":
-            img_logits_list = apply_mask_per_batch(image_preds, img_masks, multi_class=True)
-            image_preds = torch.stack([p.mean(dim=0) if p.numel() > 0 else torch.zeros(image_preds.shape[1], device=image_preds.device) for p in img_logits_list], dim=0)
-            # image_preds = torch.stack([F.normalize(p.mean(dim=0), p=1, dim=0) if p.numel() > 0 else torch.zeros(image_preds.shape[1], device=image_preds.device) for p in img_logits_list], dim=0)
+        
+        img_logits_list = apply_mask_per_batch(image_preds, img_masks, multi_class=True)
+        image_preds = torch.stack([p.mean(dim=0) if p.numel() > 0 else torch.zeros(image_preds.shape[1], device=image_preds.device) for p in img_logits_list], dim=0)
+        # image_preds = torch.stack([F.normalize(p.mean(dim=0), p=1, dim=0) if p.numel() > 0 else torch.zeros(image_preds.shape[1], device=image_preds.device) for p in img_logits_list], dim=0)
         fuse_preds = self.fuse_head(image_preds, pc_preds)
+        
+        if not torch.isfinite(fuse_preds).all():
+            print(f"\n[forward_and_metrics] Non-finite fuse_preds at epoch={self.current_epoch}")
+            print("  fuse_preds stats:",
+                fuse_preds.min().item(),
+                fuse_preds.max().item())
+            raise RuntimeError("NaN/Inf in fuse_preds")
+
+        if not torch.isfinite(labels).all():
+            print(f"\n[forward_and_metrics] Non-finite labels at epoch={self.current_epoch}")
+            print("  labels stats:",
+                labels.min().item(),
+                labels.max().item())
+            raise RuntimeError("NaN/Inf in labels")
 
         r2_metric = getattr(self, f"{stage}_r2")
         weights = self.weights.to(fuse_preds.device) if self.weights is not None else None
@@ -238,7 +252,7 @@ class FusionModel(pl.LightningModule):
             return {"optimizer": optimizer, "lr_scheduler": scheduler}
         elif self.scheduler_type == "cosinewarmup":
             scheduler = torch.optim.lr_scheduler.CosineAnnealingWarmRestarts(
-                optimizer, T_0=20, t_mult=2
+                optimizer, T_0=20, T_mult=2
             )
             return {"optimizer": optimizer, "lr_scheduler": scheduler}
         elif self.scheduler_type == "onecycle":

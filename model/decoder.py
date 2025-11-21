@@ -36,7 +36,7 @@ class ConvBNReLU(nn.Sequential):
             norm_layer(out_channels),
             nn.ReLU6(),
         )
-        
+
 
 class MambaFusion(nn.Module):
     def __init__(
@@ -227,9 +227,9 @@ class MambaFusionDecoder(nn.Module):
             return class_output
         else:
             return x
-    
+
 # -----------------------------------------------------------------------------------
-# Use mamba & upsamping as decoder: MambaDecoder 
+# Use mamba & upsamping as decoder: MambaDecoder
 # -----------------------------------------------------------------------------------
 class Conv(nn.Sequential):
     def __init__(self, in_channels, out_channels, kernel_size=3, dilation=1, stride=1, bias=False):
@@ -237,7 +237,7 @@ class Conv(nn.Sequential):
             nn.Conv2d(in_channels, out_channels, kernel_size=kernel_size, bias=bias,
                       dilation=dilation, stride=stride, padding=((stride - 1) + dilation * (kernel_size - 1)) // 2)
         )
-            
+
 class ConvFFN(nn.Module):
     def __init__(self, in_ch=128, hidden_ch=512, out_ch=128, drop=0.):
         super(ConvFFN, self).__init__()
@@ -310,11 +310,11 @@ class MambaDecoder(nn.Module):
         elif isinstance(m, nn.BatchNorm2d):
             nn.init.constant_(m.bias, 0)
             nn.init.constant_(m.weight, 1.0)
-            
+
 # -----------------------------------------------------------------------------------
-# Use just upsamping as decoder: SimpleDecoder 
+# Use just upsamping as decoder: SimpleDecoder
 # -----------------------------------------------------------------------------------
-            
+
 class SimpleUpDecoder(nn.Module):
     def __init__(self, encoder_channel=512, decoder_channels=128, num_classes=9):
         super().__init__()
@@ -350,7 +350,6 @@ class SimpleUpDecoder(nn.Module):
         elif isinstance(m, nn.BatchNorm2d):
             nn.init.constant_(m.bias, 0)
             nn.init.constant_(m.weight, 1.0)
-            
 
 
 class DecisionLevelFusion(nn.Module):
@@ -369,22 +368,17 @@ class DecisionLevelFusion(nn.Module):
 
     def forward(self, img_logits, pc_logits):
         # Only one modality available
-        if img_logits is None:
-            return pc_logits
-        if pc_logits is None:
-            return img_logits
-
+        # Ensure both logits have the same shape
+        if img_logits.shape != pc_logits.shape:
+            raise ValueError("Shape mismatch between img_logits and pc_logits")
         if self.method == "weighted":
             return self.weight_img * img_logits + self.weight_pc * pc_logits
         elif self.method == "mlp":
-            # Ensure both logits have the same shape
-            if img_logits.shape != pc_logits.shape:
-                raise ValueError("Shape mismatch between img_logits and pc_logits")
             fused_input = torch.cat([img_logits, pc_logits], dim=1)
             return self.fuse_mlp(fused_input)
         else:
             raise ValueError(f"Unknown fusion method: {self.method}")
-        
+
 class DisAlignFCNHead(nn.Module):
     """Fully Convolution Networks for Semantic Segmentation.
 
@@ -448,7 +442,9 @@ class DisAlignFCNHead(nn.Module):
                 padding=kernel_size // 2)
 
         # Magnitude and Margin of DisAlign
-        self.logit_scale = nn.Parameter(torch.ones(1,self.num_classes, 1, 1))
+        # self.logit_scale = nn.Parameter(torch.ones(1,self.num_classes, 1, 1))
+        # 🌟 CRITICAL FIX 1: Use log-scale for stability
+        self.log_logit_scale = nn.Parameter(torch.zeros(1, self.num_classes, 1, 1))
         self.logit_bias = nn.Parameter(torch.zeros(1,self.num_classes, 1, 1))
         # Confidence function
         self.confidence_layer = ConvBNReLU(
@@ -458,7 +454,7 @@ class DisAlignFCNHead(nn.Module):
         )
         self.dropout = nn.Dropout2d(0.1)
         self.conv_seg = nn.Conv2d(channels, self.out_channels, kernel_size=1)
-    
+
     def forward(self, x):
         """Forward function."""
         output = self.convs(x)
@@ -469,17 +465,18 @@ class DisAlignFCNHead(nn.Module):
         output = self.dropout(output)
         output = self.conv_seg(output)
 
-        # only adjust the foreground classification scores
-        scores_tmp = confidence * (output * self.logit_scale + self.logit_bias)
-        output = scores_tmp + (1 - confidence) * output
-    
-        return output
-    
+        # 🌟 CRITICAL FIX 2: Compute the safe scale
+        safe_logit_scale = torch.exp(self.log_logit_scale)
 
+        # only adjust the foreground classification scores
+        # scores_tmp = confidence * (output * self.logit_scale + self.logit_bias)
+        scores_tmp = confidence * (output * safe_logit_scale + self.logit_bias)
+        output = scores_tmp + (1 - confidence) * output
+
+        return output
+
+"""
 class DisAlignLinear(nn.Linear):
-    """
-    A wrapper for nn.Linear with support of DisAlign method.
-    """
     def __init__(self, in_features, out_features, bias = True):
         super().__init__(in_features=in_features, out_features=out_features, bias=bias)
         self.confidence_layer = nn.Linear(in_features, 1)
@@ -492,4 +489,39 @@ class DisAlignLinear(nn.Linear):
         confidence = self.confidence_layer(input).sigmoid()
         logit_after = (1 + confidence * self.logit_scale) * logit_before + \
             confidence * self.logit_bias
+        return logit_after
+"""
+
+class DisAlignLinear(nn.Linear):
+    """
+    A wrapper for nn.Linear with support of DisAlign method,
+    stabilized with a log-constrained scale parameter.
+    """
+
+    def __init__(self, in_features, out_features, bias=True):
+        super().__init__(in_features=in_features, out_features=out_features, bias=bias)
+        self.confidence_layer = nn.Linear(in_features, 1)
+
+        # 🌟 CRITICAL FIX 1: Replace unstable logit_scale with log_logit_scale
+        # Initialize to zero, so exp(0) = 1, maintaining the original starting behavior
+        self.log_logit_scale = nn.Parameter(torch.zeros(1, out_features))
+
+        # logit_bias can also be constrained if it causes issues, but we'll leave it
+        # as is for now, as the scale is the more dangerous term.
+        self.logit_bias = nn.Parameter(torch.zeros(1, out_features))
+
+        nn.init.constant_(self.confidence_layer.weight, 0.1)
+
+    def forward(self, input):
+        logit_before = F.linear(input, self.weight, self.bias)
+        confidence = self.confidence_layer(input).sigmoid()
+
+        # 🌟 CRITICAL FIX 2: Compute the safe, positive-only scale
+        safe_logit_scale = torch.exp(self.log_logit_scale)
+
+        # Apply the scaled logit and bias
+        logit_after = (
+            1 + confidence * safe_logit_scale
+        ) * logit_before + confidence * self.logit_bias
+
         return logit_after

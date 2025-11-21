@@ -1,7 +1,7 @@
 import torch.nn as nn
 import torch.nn.functional as F
 from pointnext import pointnext_s, PointNext, pointnext_b, pointnext_l, pointnext_xl
-
+from .decoder import DisAlignLinear
 
 class PointNextEncoder(nn.Module):
     def __init__(self, config, in_dim):
@@ -49,7 +49,6 @@ class PointNextClassifier(nn.Module):
             nn.Linear(256, self.n_classes),
         )
         if aligned:
-            from .decoder import DisAlignLinear
             self.disalign_head = DisAlignLinear(self.n_classes, self.n_classes)
 
     def forward(self, pc_feats):

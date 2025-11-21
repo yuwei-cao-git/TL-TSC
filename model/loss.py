@@ -58,7 +58,7 @@ class PinballLoss:
             loss = loss.mean()
 
         return loss
-    
+
 # MAE loss
 def calc_mae_loss(valid_outputs, valid_targets):
     loss = torch.sum(torch.abs(valid_outputs - valid_targets), dim=1)
@@ -193,7 +193,7 @@ def apply_mask(outputs, targets, mask, multi_class=True, keep_shp=False):
             valid_outputs = outputs[~expanded_mask]
             valid_targets = targets[~expanded_mask]
             return valid_outputs, valid_targets
-        
+
 def apply_mask_per_batch(preds, mask, multi_class=True):
     """
     Apply a mask to predictions and labels. Only valid pixels (mask == 1) are kept.
@@ -212,7 +212,7 @@ def apply_mask_per_batch(preds, mask, multi_class=True):
     else:
         preds = preds[mask > 0]
         return preds
-        
+
 
 def weighted_kl_divergence(y_true, y_pred, weights=None):
     y_true = y_true.clamp(min=1e-8)
@@ -285,6 +285,24 @@ def get_class_grw_weight(class_weight, num_classes=9, exp_scale=0.2):
     return class_weight
 
 def calc_masked_loss(loss_func_name, valid_outputs, valid_targets, weights=None):
+    # 1) Empty tensor check
+    if valid_outputs.numel() == 0 or valid_targets.numel() == 0:
+        print("\n[calc_masked_loss] Empty valid_outputs/valid_targets!")
+        print("  shapes:", valid_outputs.shape, valid_targets.shape)
+        # return a zero loss that still has grad
+        return torch.zeros([], device=valid_outputs.device, requires_grad=True)
+
+    # 2) Finite check
+    if not torch.isfinite(valid_outputs).all():
+        print("\n[calc_masked_loss] Non-finite values in valid_outputs")
+        print("  stats:", valid_outputs.min().item(), valid_outputs.max().item())
+        raise RuntimeError("NaN/Inf in valid_outputs")
+
+    if not torch.isfinite(valid_targets).all():
+        print("\n[calc_masked_loss] Non-finite values in valid_targets")
+        print("  stats:", valid_targets.min().item(), valid_targets.max().item())
+        raise RuntimeError("NaN/Inf in valid_targets")
+    
     if loss_func_name in ["wmse", "ewmse"]:
         return calc_wmse_loss(valid_outputs, valid_targets, weights)
     elif loss_func_name == "wrmse":
@@ -303,7 +321,7 @@ def calc_masked_loss(loss_func_name, valid_outputs, valid_targets, weights=None)
         return smooth_l1_loss(valid_outputs, valid_targets)
     elif loss_func_name == "bwkl":
         return plot_props_bias_aux_loss(valid_outputs, valid_targets, class_weights=weights, beta=2.0, eps=1e-8)
-    
+
 class MultiLabelFocalLoss(nn.Module):
     def __init__(self, alpha=1.0, gamma=2.0, reduction='mean'):
         super(MultiLabelFocalLoss, self).__init__()
@@ -330,7 +348,7 @@ class MultiLabelFocalLoss(nn.Module):
             return loss.sum()
         else:
             return loss
-        
+
 class SmoothClsLoss(nn.Module):
     def __init__(self, smoothing_ratio=0.1):
         super(SmoothClsLoss, self).__init__()
