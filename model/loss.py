@@ -69,7 +69,7 @@ def calc_mae_loss(valid_outputs, valid_targets):
 # mainfold loss
 
 def smooth_l1_loss(
-    input, target, beta: float = 1.0, reduction: str = "none", size_average=False
+    input, target, beta: float = 1.0, reduction: str = "mean", size_average=False
 ):
     """
     Smooth L1 loss defined in the Fast R-CNN paper
