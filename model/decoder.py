@@ -442,9 +442,9 @@ class DisAlignFCNHead(nn.Module):
                 padding=kernel_size // 2)
 
         # Magnitude and Margin of DisAlign
-        # self.logit_scale = nn.Parameter(torch.ones(1,self.num_classes, 1, 1))
+        self.logit_scale = nn.Parameter(torch.ones(1,self.num_classes, 1, 1))
         # 🌟 CRITICAL FIX 1: Use log-scale for stability
-        self.log_logit_scale = nn.Parameter(torch.zeros(1, self.num_classes, 1, 1))
+        # self.log_logit_scale = nn.Parameter(torch.zeros(1, self.num_classes, 1, 1))
         self.logit_bias = nn.Parameter(torch.zeros(1,self.num_classes, 1, 1))
         # Confidence function
         self.confidence_layer = ConvBNReLU(
@@ -466,16 +466,15 @@ class DisAlignFCNHead(nn.Module):
         output = self.conv_seg(output)
 
         # 🌟 CRITICAL FIX 2: Compute the safe scale
-        safe_logit_scale = torch.exp(self.log_logit_scale)
-
+        # safe_logit_scale = torch.exp(self.log_logit_scale)
         # only adjust the foreground classification scores
-        # scores_tmp = confidence * (output * self.logit_scale + self.logit_bias)
-        scores_tmp = confidence * (output * safe_logit_scale + self.logit_bias)
+        # scores_tmp = confidence * (output * safe_logit_scale + self.logit_bias)
+        scores_tmp = confidence * (output * self.logit_scale + self.logit_bias)
         output = scores_tmp + (1 - confidence) * output
 
         return output
 
-"""
+
 class DisAlignLinear(nn.Linear):
     def __init__(self, in_features, out_features, bias = True):
         super().__init__(in_features=in_features, out_features=out_features, bias=bias)
@@ -490,14 +489,9 @@ class DisAlignLinear(nn.Linear):
         logit_after = (1 + confidence * self.logit_scale) * logit_before + \
             confidence * self.logit_bias
         return logit_after
+
 """
-
 class DisAlignLinear(nn.Linear):
-    """
-    A wrapper for nn.Linear with support of DisAlign method,
-    stabilized with a log-constrained scale parameter.
-    """
-
     def __init__(self, in_features, out_features, bias=True):
         super().__init__(in_features=in_features, out_features=out_features, bias=bias)
         self.confidence_layer = nn.Linear(in_features, 1)
@@ -525,3 +519,4 @@ class DisAlignLinear(nn.Linear):
         ) * logit_before + confidence * self.logit_bias
 
         return logit_after
+"""
