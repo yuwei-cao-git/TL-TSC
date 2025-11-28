@@ -200,12 +200,12 @@ def train(cfg, ft_mode_cli=None):
     ckpt  = ModelCheckpoint(monitor=metric, filename="best", dirpath=chk_dir, save_top_k=1, mode="max")
     callbacks = [early, ckpt]
 
-    # --- datamodule (your original routing) ---
+    # --- datamodule ---
     print("[finetune] init dataset")
     from dataset.superpixel import SuperpixelDataModule
     data_module = SuperpixelDataModule(cfg)
 
-    # --- model (same mapping as your trainer) ---
+    # --- model ---
     task = cfg["task"]
     if task == "tsca":
         from model.decison_fuse_aligned import FusionModel
@@ -217,7 +217,6 @@ def train(cfg, ft_mode_cli=None):
     # heads fresh for B; then load A-weights (backbone-only)
     # (keep even when training from scratch; it just re-inits heads cleanly)
     if hasattr(model, "s2_model") or hasattr(model, "pc_model"):
-        # If your class already does this, you can comment out:
         # Reinit S2 conv_seg, PC last Linear, and fusion head
         if hasattr(model, "s2_model") and hasattr(model.s2_model, "classifier") and hasattr(model.s2_model.classifier, "conv_seg"):
             m = model.s2_model.classifier.conv_seg
@@ -246,7 +245,6 @@ def train(cfg, ft_mode_cli=None):
     elif ft_mode == "full_ft":
         mode_full_ft(model, use_ms_fusion=use_ms)
     elif ft_mode == "adapter":
-        # your channel counts
         s2_ch = int(cfg.get("s2_head_in_ch", 1024))
         pc_ch = int(cfg.get("pc_head_in_ch", 768))
         mode_adapters(model, s2_channels=s2_ch, pc_channels=pc_ch, use_ms_fusion=use_ms,
@@ -254,7 +252,7 @@ def train(cfg, ft_mode_cli=None):
                         pc_bottleneck=int(cfg.get("pc_adapter_bottleneck", 16)))
     else:
         k_last=int(ft_mode.split('_')[-1])
-        mode_freeze_last_k(model, k=k_last, use_ms_fusion=use_ms)
+        mode_freeze_last_k(model, k=k_last)
 
     # --- optional L2-SP (set l2sp_alpha in YAML; works with any mode) ---
     monkeypatch_l2sp(model, cfg.get("l2sp_alpha", None))
@@ -287,6 +285,7 @@ if __name__ == "__main__":
     ap.add_argument("--task", default=None, help="Override: tsc | tsc_align")
     ap.add_argument("--pretrained_ckpt", default=None, help="Override: linear_probe | freeze_last_k | full_ft | adapters")
     ap.add_argument("--log_name", default=None)
+    ap.add_argument("--dataset", default="wrf_sp")
     args = ap.parse_args()
     with open(args.cfg, "r") as f:
         cfg = json.load(f) if args.cfg.endswith(".json") else yaml.safe_load(f)
@@ -301,16 +300,20 @@ if __name__ == "__main__":
     cfg.setdefault("pc_head_in_ch", 768)
     cfg.setdefault("task", args.task)
     cfg.setdefault("pretrained_ckpt", args.pretrained_ckpt)
-    
+
     # Explicit overrides from CLI if provided
     if args.task is not None:
         cfg["task"] = args.task
 
     if args.pretrained_ckpt is not None:
         cfg["pretrained_ckpt"] = args.pretrained_ckpt
-    
+
     if args.log_name is not None:
         cfg["log_name"] = args.log_name
+
+    if cfg["loss_func"] == "ewmse":
+        class_weights = cfg.get(f"{args.dataset}_class_weights", None)
+        cfg[f"{args.dataset}_class_weights"] = torch.tensor(class_weights).float()
 
     if args.ft_mode is not None:
         cfg["ft_mode"] = args.ft_mode

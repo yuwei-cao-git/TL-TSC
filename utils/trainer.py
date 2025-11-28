@@ -1,5 +1,6 @@
 import os
 import torch
+from torch import nn
 from pytorch_lightning import Trainer, seed_everything
 # from pytorch_lightning.strategies.ddp import DDPStrategy
 from pytorch_lightning.callbacks import EarlyStopping, ModelCheckpoint
@@ -37,6 +38,20 @@ def save_config(cfg, save_dir, filename="config.yaml"):
     with open(config_path, "w") as f:
         yaml.dump(cfg, f, default_flow_style=False)
     print(f"Saved config to {config_path}")
+
+
+def initialize_weights(m):
+    # A recursive function to apply initialization to all relevant layers
+    if isinstance(m, nn.Linear):
+        # Kaiming/He initialization for linear layers followed by ReLU
+        nn.init.kaiming_uniform_(m.weight, nonlinearity="relu")
+        if m.bias is not None:
+            nn.init.constant_(m.bias, 0)
+    elif isinstance(m, nn.Conv2d):
+        nn.init.kaiming_uniform_(m.weight, nonlinearity="relu")
+        if m.bias is not None:
+            nn.init.constant_(m.bias, 0)
+
 
 def train(config):
     seed_everything(123)
@@ -132,6 +147,8 @@ def train(config):
     if config["pretrained_ckpt"] != "None":
         # load backbone weights only, ignore head mismatch
         model = load_backbone_weights(model, config["pretrained_ckpt"])
+    else:
+        initialize_weights(model)
 
     # Create a PyTorch Lightning Trainer
     trainer = Trainer(

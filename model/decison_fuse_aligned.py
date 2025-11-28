@@ -80,24 +80,7 @@ class FusionModel(pl.LightningModule):
         self.best_test_r2 = 0.0
         self.best_test_outputs = None
         self.validation_step_outputs = []
-
-        # 💡 Call the initialization function here
-        self._initialize_weights(self.s2_model)
-        self._initialize_weights(self.pc_model)
-        self._initialize_weights(self.fuse_head)
-
-    def _initialize_weights(self, m):
-        # A recursive function to apply initialization to all relevant layers
-        if isinstance(m, nn.Linear):
-            # Kaiming/He initialization for linear layers followed by ReLU
-            nn.init.kaiming_uniform_(m.weight, nonlinearity="relu")
-            if m.bias is not None:
-                nn.init.constant_(m.bias, 0)
-        elif isinstance(m, nn.Conv2d):
-            nn.init.kaiming_uniform_(m.weight, nonlinearity="relu")
-            if m.bias is not None:
-                nn.init.constant_(m.bias, 0)
-
+        
     def forward(self, images, pc_feat, xyz):
         if self.ms_fusion:
             stacked_features = self.mf_module(images)
@@ -111,29 +94,28 @@ class FusionModel(pl.LightningModule):
         return img_preds, pc_preds
 
     def forward_and_metrics(self, images, img_masks, pc_feat, point_clouds, labels, pixel_labels, stage):
+        if not torch.isfinite(labels).all():
+            print(
+                f"\n[forward_and_metrics] Non-finite labels at epoch={self.current_epoch}"
+            )
+            print("  labels stats:", labels.min().item(), labels.max().item())
+            raise RuntimeError("NaN/Inf in labels")
+
         pc_feat = pc_feat.permute(0, 2, 1) if pc_feat is not None else None
         point_clouds = point_clouds.permute(0, 2, 1) if point_clouds is not None else None
 
         image_preds, pc_preds = self.forward(images, pc_feat, point_clouds)
-        
+
         img_logits_list = apply_mask_per_batch(image_preds, img_masks, multi_class=True)
         image_preds = torch.stack([p.mean(dim=0) if p.numel() > 0 else torch.zeros(image_preds.shape[1], device=image_preds.device) for p in img_logits_list], dim=0)
-        # image_preds = torch.stack([F.normalize(p.mean(dim=0), p=1, dim=0) if p.numel() > 0 else torch.zeros(image_preds.shape[1], device=image_preds.device) for p in img_logits_list], dim=0)
         fuse_preds = self.fuse_head(image_preds, pc_preds)
-        
+
         if not torch.isfinite(fuse_preds).all():
             print(f"\n[forward_and_metrics] Non-finite fuse_preds at epoch={self.current_epoch}")
             print("  fuse_preds stats:",
                 fuse_preds.min().item(),
                 fuse_preds.max().item())
             raise RuntimeError("NaN/Inf in fuse_preds")
-
-        if not torch.isfinite(labels).all():
-            print(f"\n[forward_and_metrics] Non-finite labels at epoch={self.current_epoch}")
-            print("  labels stats:",
-                labels.min().item(),
-                labels.max().item())
-            raise RuntimeError("NaN/Inf in labels")
 
         r2_metric = getattr(self, f"{stage}_r2")
         weights = self.weights.to(fuse_preds.device) if self.weights is not None else None
