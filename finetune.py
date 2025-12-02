@@ -212,6 +212,12 @@ def train(cfg, ft_mode_cli=None):
     elif task == "tsc":
         from model.decison_fuse import FusionModel
 
+    if cfg["loss_func"] in ["wmse", "wrmse", "wkl", "ewmse"]:
+        class_weights = cfg.get(f"{args.dataset}_class_weights", None)
+        cfg[f"{args.dataset}_class_weights"] = torch.tensor(class_weights).float()
+    else:
+        cfg[f"{args.dataset}_class_weights"] = None
+        
     model = FusionModel(cfg, n_classes=cfg["n_classes"])
 
     # heads fresh for B; then load A-weights (backbone-only)
@@ -237,7 +243,7 @@ def train(cfg, ft_mode_cli=None):
 
     # --- choose finetune mode ---
     ft_mode = (ft_mode_cli or cfg.get("ft_mode", "linear_probe")).lower()
-    
+
     use_ms  = bool(cfg.get("use_ms", False))  # MF block in front of S2
 
     if ft_mode == "linear_probe":
