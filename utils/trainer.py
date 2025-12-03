@@ -126,9 +126,10 @@ def train(config):
         from model.decison_fuse import FusionModel
         model = FusionModel(config, n_classes=config["n_classes"])
     elif config["task"] == "tsca":
-        from model.decison_fuse_aligned import FusionModel
+        from model.decision_fusion_aligned import FusionModel
         model = FusionModel(config, n_classes=config["n_classes"])
-    elif config["task"] == "lsc":
+        
+    """ elif config["task"] == "lsc":
         from model.decison_fuse_aligned_lsc import FusionModel
         model = FusionModel(config, n_classes=config["n_classes"])
     elif config["task"] == "pc_tsc":
@@ -142,7 +143,7 @@ def train(config):
         model = S2Model(config, n_classes=config["n_classes"])
     elif config["task"] == "top2":
         from model.top2 import FusionModel
-        model = FusionModel(config, n_classes=config["n_classes"])
+        model = FusionModel(config, n_classes=config["n_classes"]) """
 
     if config["pretrained_ckpt"] != "None":
         # load backbone weights only, ignore head mismatch

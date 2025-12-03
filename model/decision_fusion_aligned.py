@@ -80,7 +80,7 @@ class FusionModel(pl.LightningModule):
         self.best_test_r2 = 0.0
         self.best_test_outputs = None
         self.validation_step_outputs = []
-        
+
     def forward(self, images, pc_feat, xyz):
         if self.ms_fusion:
             stacked_features = self.mf_module(images)
@@ -239,7 +239,9 @@ class FusionModel(pl.LightningModule):
             return {"optimizer": optimizer, "lr_scheduler": scheduler}
         elif self.scheduler_type == "onecycle":
             scheduler = torch.optim.lr_scheduler.OneCycleLR(
-                optimizer, max_lr=0.04, epochs=self.cfg["max_epochs"], steps_per_epoch=len(self.train_dataloader()) / self.trainer.accumulate_grad_batches
+                optimizer,
+                max_lr=0.04,
+                total_steps=self.trainer.estimated_stepping_batches,
             )
             return {"optimizer": optimizer, "lr_scheduler": scheduler}
         elif self.scheduler_type == "CosLR":
