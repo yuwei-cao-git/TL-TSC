@@ -1,4 +1,5 @@
 import torch
+from torch import nn
 import pytorch_lightning as pl
 from torch.optim import Adam, SGD, AdamW
 from torch.optim.lr_scheduler import StepLR, ReduceLROnPlateau, CosineAnnealingLR
@@ -40,7 +41,8 @@ class PCModel(pl.LightningModule):
             num_classes=self.params["n_classes"], average="micro"
         )
         self.loss_func=self.params["loss_func"]
-        
+        self.criterion = nn.MSELoss()
+
         # Compute the loss with the WeightedMSELoss, which will handle the weights
         if self.loss_func in ["wmse", "wrmse", "wkl", "ewmse"]:
             self.weights = self.params[f"{self.params['dataset']}_class_weights"]
@@ -96,6 +98,7 @@ class PCModel(pl.LightningModule):
             true_lead = torch.argmax(targets, dim=1)
             f1 = self.test_f1(pred_lead, true_lead)
             oa = self.test_oa(pred_lead, true_lead)
+            rmse = torch.sqrt(self.criterion(preds, targets))
 
         # Log the loss and R² score
         sync_state = True
@@ -111,7 +114,7 @@ class PCModel(pl.LightningModule):
             on_step=True,
             on_epoch=(stage != "train"),
         )
-        
+
         if stage != "train":
             self.log(
                 f"{stage}_f1",
@@ -125,6 +128,16 @@ class PCModel(pl.LightningModule):
             self.log(
                 f"{stage}_oa",
                 oa,
+                logger=True,
+                prog_bar=True,
+                sync_dist=sync_state,
+                on_step=False,
+                on_epoch=True,
+            )
+        if stage == "test":
+            self.log(
+                "rmse",
+                rmse,
                 logger=True,
                 prog_bar=True,
                 sync_dist=sync_state,

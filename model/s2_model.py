@@ -12,15 +12,15 @@ from .loss import apply_mask, calc_masked_loss, get_class_grw_weight
 class S2Model(pl.LightningModule):
     def __init__(self, config, n_classes):
         super().__init__()
-        
+
         self.save_hyperparameters(config)
-        
+
         self.cfg = config
         self.lr = self.cfg["lr"]
-        
+
         # seasonal s2 data fusion block
         self.ms_fusion = self.cfg["use_ms"]
-        if self.ms_fusion:  # mid fusion
+        if self.ms_fusion:
             from .seasonal_fusion import FusionBlock
             self.mf_module = FusionBlock(n_inputs=len(self.cfg[f"{self.cfg['dataset']}_season_map"]), in_ch=self.cfg["n_bands"], n_filters=64)
             total_input_channels = 64
@@ -56,7 +56,7 @@ class S2Model(pl.LightningModule):
                 pretrained=True,
                 decoder=True
             )
-            
+
         self.loss_func=self.cfg["loss_func"]
         # Define loss functions
         if self.loss_func in ["wmse", "wrmse", "wkl", "ewmse"]:
@@ -65,7 +65,7 @@ class S2Model(pl.LightningModule):
                 self.weights = get_class_grw_weight(self.weights, n_classes, exp_scale=0.2)
         else:
             self.weights = None
-        
+
         self.criterion = nn.MSELoss()
 
         # Metrics
@@ -86,16 +86,7 @@ class S2Model(pl.LightningModule):
         self.best_test_r2 = 0.0
         self.best_test_outputs = None
         self.validation_step_outputs = []
-    
-    def freeze_backbone(self):
-        if self.ms_fusion:  # mid fusion
-            for param in self.mf_module.parameters():
-                param.requires_grad = False
-        for param in self.s2_model.parameters():
-            param.requires_grad = False
-        for param in self.pc_model.parameters():
-            param.requires_grad = False
-    
+
     def forward(self, images):
         image_outputs = None
 
@@ -132,7 +123,7 @@ class S2Model(pl.LightningModule):
         pixel_preds = self.forward(images)
         logs = {}
         loss = torch.tensor(0.0, device=pixel_preds.device)
-        
+
         # Select appropriate metric instances based on the stage
         if stage == "train":
             r2_metric = self.train_r2
@@ -157,19 +148,19 @@ class S2Model(pl.LightningModule):
             valid_pixel_preds_rounded = torch.round(valid_pixel_preds, decimals=2)
             pixel_r2 = r2_metric(valid_pixel_preds_rounded.view(-1), valid_pixel_true.view(-1))
 
-            # Log metrics
-            logs.update({f"{stage}_r2": pixel_r2})
-        
-
-        # Compute RMSE
-        rmse = torch.sqrt(loss)
-        logs.update(
+            logs.update(
             {
-                f"{stage}_loss": loss,
-                f"{stage}_rmse": rmse,
+                f"{stage}_r2": pixel_r2,
+                f"{stage}_loss": loss
             }
-        )
-
+            )
+            if stage == "test":
+                rmse = torch.sqrt(loss)
+                logs.update(
+                    {
+                        f"{stage}_rmse": rmse,
+                    }
+                )
         # Log all metrics
         for key, value in logs.items():
             self.log(
@@ -181,7 +172,7 @@ class S2Model(pl.LightningModule):
                 logger=True,
                 sync_dist=True,
             )
-        
+
         return loss
 
     def training_step(self, batch, batch_idx):
@@ -236,16 +227,15 @@ class S2Model(pl.LightningModule):
 
     def configure_optimizers(self):
         params = []
-        
+
         # Include parameters from the image model
         if self.cfg["use_ms"]:
             mf_params = list(self.mf_module.parameters())
             params.append({"params": mf_params, "lr": 1e-4})
-        
+
         if any(p.requires_grad for p in self.s2_model.parameters()):
             image_params = list(self.s2_model.parameters())
             params.append({"params": image_params, "lr": 1e-4})
-
 
         # Choose the optimizer based on input parameter
         if self.optimizer_type == "adam":
