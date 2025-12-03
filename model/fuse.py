@@ -518,9 +518,7 @@ class FusionModel(pl.LightningModule):
             scheduler = torch.optim.lr_scheduler.OneCycleLR(
                 optimizer,
                 max_lr=0.04,
-                epochs=self.cfg["max_epochs"],
-                steps_per_epoch=len(self.train_dataloader())
-                / self.trainer.accumulate_grad_batches,
+                total_steps=self.trainer.estimated_stepping_batches,
             )
             return {"optimizer": optimizer, "lr_scheduler": scheduler}
         elif self.scheduler_type == "CosLR":
