@@ -126,21 +126,21 @@ def train(config):
         from model.decison_fuse import FusionModel
         model = FusionModel(config, n_classes=config["n_classes"])
     elif config["task"] == "tsca":
-        from model.decision_fusion_aligned import FusionModel
-        model = FusionModel(config, n_classes=config["n_classes"])
-        
-    """ elif config["task"] == "lsc":
-        from model.decison_fuse_aligned_lsc import FusionModel
+        from model.decison_fuse_aligned import FusionModel
         model = FusionModel(config, n_classes=config["n_classes"])
     elif config["task"] == "pc_tsc":
         from model.pc_model import PCModel
         model = PCModel(config, n_classes=config["n_classes"])
-    elif config["task"] == "pc_lsc":
-        from model.lsc_pc import PCModel
-        model = PCModel(config, n_classes=config["n_classes"])
     elif config["task"] == "img_tsc":
         from model.s2_model import S2Model
         model = S2Model(config, n_classes=config["n_classes"])
+        
+    """ elif config["task"] == "lsc":
+        from model.decison_fuse_aligned_lsc import FusionModel
+        model = FusionModel(config, n_classes=config["n_classes"])
+    elif config["task"] == "pc_lsc":
+        from model.lsc_pc import PCModel
+        model = PCModel(config, n_classes=config["n_classes"])
     elif config["task"] == "top2":
         from model.top2 import FusionModel
         model = FusionModel(config, n_classes=config["n_classes"]) """
