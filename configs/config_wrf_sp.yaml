@@ -28,7 +28,7 @@ weight_decay: 0.0001 # L2 penalty higher -> 0.1
 decision_fuse_type: weighted #average, weighted, mlp
 
 # Loss weights
-multitasks_uncertain_loss: false
+multitasks_uncertain_loss: true
 loss_func: mse
 
 # Model architecture
