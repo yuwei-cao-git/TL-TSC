@@ -126,7 +126,8 @@ def train(config):
         from model.decison_fuse import FusionModel
         model = FusionModel(config, n_classes=config["n_classes"])
     elif config["task"] == "tsca":
-        from model.decison_fuse_aligned import FusionModel
+        from model.decision_fusion_aligned import FusionModel
+
         model = FusionModel(config, n_classes=config["n_classes"])
     elif config["task"] == "pc_tsc":
         from model.pc_model import PCModel
@@ -134,7 +135,7 @@ def train(config):
     elif config["task"] == "img_tsc":
         from model.s2_model import S2Model
         model = S2Model(config, n_classes=config["n_classes"])
-        
+
     """ elif config["task"] == "lsc":
         from model.decison_fuse_aligned_lsc import FusionModel
         model = FusionModel(config, n_classes=config["n_classes"])
@@ -160,6 +161,7 @@ def train(config):
         # devices=config["gpus"],
         num_nodes=1,
         strategy="auto",  # DDPStrategy(find_unused_parameters=False)
+        detect_anomaly=True,
     )
 
     # Train the model

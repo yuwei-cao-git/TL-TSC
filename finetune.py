@@ -208,7 +208,7 @@ def train(cfg, ft_mode_cli=None):
     # --- model ---
     task = cfg["task"]
     if task == "tsca":
-        from model.decison_fuse_aligned import FusionModel
+        from model.decision_fusion import FusionModel
     elif task == "tsc":
         from model.decison_fuse import FusionModel
 

@@ -110,12 +110,14 @@ class FusionModel(pl.LightningModule):
         image_preds = torch.stack([p.mean(dim=0) if p.numel() > 0 else torch.zeros(image_preds.shape[1], device=image_preds.device) for p in img_logits_list], dim=0)
         fuse_preds = self.fuse_head(image_preds, pc_preds)
 
-        if not torch.isfinite(fuse_preds).all():
-            print(f"\n[forward_and_metrics] Non-finite fuse_preds at epoch={self.current_epoch}")
-            print("  fuse_preds stats:",
-                fuse_preds.min().item(),
-                fuse_preds.max().item())
-            raise RuntimeError("NaN/Inf in fuse_preds")
+        if not (
+            torch.isfinite(fuse_preds).all()
+        ):
+            print("\n[fuse_head output] Non-finite values detected!")
+            print("image_preds stats:", image_preds.min().item(), image_preds.max().item())
+            print("pc_preds stats:", pc_preds.min().item(), pc_preds.max().item())
+            print("fuse_preds stats:", fuse_preds.min().item(), fuse_preds.max().item())
+            raise RuntimeError("NaN/Inf generated in self.fuse_head")
 
         r2_metric = getattr(self, f"{stage}_r2")
         weights = self.weights.to(fuse_preds.device) if self.weights is not None else None
