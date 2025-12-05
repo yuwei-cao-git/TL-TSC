@@ -161,7 +161,6 @@ def train(config):
         # devices=config["gpus"],
         num_nodes=1,
         strategy="auto",  # DDPStrategy(find_unused_parameters=False)
-        detect_anomaly=True,
     )
 
     # Train the model
