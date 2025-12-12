@@ -279,9 +279,8 @@ def train(cfg, ft_mode_cli=None):
         max_epochs=int(cfg["max_epochs"]),
         logger=[wandb_logger],
         callbacks=callbacks,
-        devices=int(cfg.get("gpus", 1)),
         num_nodes=1,
-        strategy=DDPStrategy(find_unused_parameters=False),
+        strategy="auto",  # DDPStrategy(find_unused_parameters=False)
     )
 
     # --- go ---
