@@ -7,7 +7,7 @@ patience: 15
 pretrained_ckpt: ./rmf_cktp/final_model.ckpt
 l2sp_alpha: 0            # off for linear probe
 s2_head_in_ch: 64
-pc_head_in_ch: 64
+pc_head_in_ch: 32
 freeze_last_k: 1
 
 # General
@@ -47,7 +47,7 @@ multitasks_uncertain_loss: false
 loss_func: ewmse
 
 # Model architecture
-network: ResUnet
+network: Unet
 emb_dims: 768
 num_points: 7168
 encoder: b                      # Options: s, b, l, xl
@@ -56,7 +56,7 @@ dp_fuse: 0.6
 dp_pc: 0.3
 use_ms: false
 linear_layers_dims: [512, 256]
-align_header: img
+align_header: both
 
 # Data transforms
 image_transform: compose

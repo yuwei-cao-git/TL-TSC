@@ -106,7 +106,7 @@ def attach_adapters(model, s2_channels: int, pc_channels: int,
         model.pc_model.decoder.cls_head = nn.Sequential(Conv1dAdapter(pc_channels, pc_bottleneck),
                                                         model.pc_model.decoder.cls_head)
 
-def mode_adapters(model, s2_channels=64, pc_channels=768, use_ms_fusion=True,
+def mode_adapters(model, s2_channels=32, pc_channels=768, use_ms_fusion=True,
                     s2_bottleneck=16, pc_bottleneck=16):
     attach_adapters(model, s2_channels, pc_channels, s2_bottleneck, pc_bottleneck)
     for _, p in model.named_parameters(): p.requires_grad = False
@@ -208,16 +208,16 @@ def train(cfg, ft_mode_cli=None):
     # --- model ---
     task = cfg["task"]
     if task == "tsca":
-        from model.decision_fusion import FusionModel
-    elif task == "tsc":
-        from model.decison_fuse import FusionModel
+        from model.decision_fusion_aligned import FusionModel
+    elif task == "tsc_mid":
+        from model.fuse import FusionModel
 
     if cfg["loss_func"] in ["wmse", "wrmse", "wkl", "ewmse"]:
         class_weights = cfg.get(f"{args.dataset}_class_weights", None)
         cfg[f"{args.dataset}_class_weights"] = torch.tensor(class_weights).float()
     else:
         cfg[f"{args.dataset}_class_weights"] = None
-        
+
     model = FusionModel(cfg, n_classes=cfg["n_classes"])
 
     # heads fresh for B; then load A-weights (backbone-only)
@@ -254,8 +254,8 @@ def train(cfg, ft_mode_cli=None):
         s2_ch = int(cfg.get("s2_head_in_ch", 1024))
         pc_ch = int(cfg.get("pc_head_in_ch", 768))
         mode_adapters(model, s2_channels=s2_ch, pc_channels=pc_ch, use_ms_fusion=use_ms,
-                        s2_bottleneck=int(cfg.get("s2_adapter_bottleneck", 16)),
-                        pc_bottleneck=int(cfg.get("pc_adapter_bottleneck", 16)))
+                        s2_bottleneck=int(cfg.get("s2_adapter_bottleneck", 32)),
+                        pc_bottleneck=int(cfg.get("pc_adapter_bottleneck", 64)))
     else:
         k_last=int(ft_mode.split('_')[-1])
         mode_freeze_last_k(model, k=k_last)
@@ -292,6 +292,7 @@ if __name__ == "__main__":
     ap.add_argument("--pretrained_ckpt", default=None, help="Override: linear_probe | freeze_last_k | full_ft | adapters")
     ap.add_argument("--log_name", default=None)
     ap.add_argument("--dataset", default="wrf_sp")
+    ap.add_argument("--data_dir", default="./data/")
     args = ap.parse_args()
     with open(args.cfg, "r") as f:
         cfg = json.load(f) if args.cfg.endswith(".json") else yaml.safe_load(f)
@@ -299,13 +300,24 @@ if __name__ == "__main__":
     cfg.setdefault("save_dir", "tl_logs")
     cfg.setdefault("log_name", "finetune")
     cfg.setdefault("optimizer", "adamW")
-    cfg.setdefault("lr", 1e-3)
+    cfg.setdefault("lr", 5e-4)
     cfg.setdefault("max_epochs", 100)
     cfg.setdefault("patience", 10)
     cfg.setdefault("s2_head_in_ch", 1024)
     cfg.setdefault("pc_head_in_ch", 768)
     cfg.setdefault("task", args.task)
     cfg.setdefault("pretrained_ckpt", args.pretrained_ckpt)
+    prefix = "rmf" if args.dataset == "rmf_sp" else "wrf"
+    cfg.setdefault("data_dir", os.path.join(args.data_dir, f"{prefix}_superpixel_dataset"))
+    cfg.setdefault("n_classes", 8 if args.dataset == "wrf_sp" else 9)
+    cfg.setdefault(
+        "class_names",
+        (
+            ["SB", "LA", "PJ", "BW", "PT", "BF", "CW", "SW"]
+            if args.dataset == "wrf_sp"
+            else ["BF", "BW", "CE", "LA", "PT", "PJ", "PO", "SB", "SW"]
+        ),
+    )
 
     # Explicit overrides from CLI if provided
     if args.task is not None:
