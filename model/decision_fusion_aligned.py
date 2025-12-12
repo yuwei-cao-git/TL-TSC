@@ -260,5 +260,34 @@ class FusionModel(pl.LightningModule):
                     "scheduler": scheduler,
                     "interval": "epoch",
                 }}
+        elif self.scheduler_type == "StepLRWarmup":
+            # Determine the warmup phase length (e.g., 2 to 5 epochs is common)
+            warmup_epochs = self.cfg.get("warmup_epochs", 3) 
+
+            # 1. Warmup: Bring LR from tiny value (1e-6) up to the full initial LR
+            warmup = torch.optim.lr_scheduler.LinearLR(
+                optimizer,
+                start_factor=(1e-6 / self.cfg["lr"]),  # Ensure start is close to zero
+                end_factor=1.0,
+                total_iters=warmup_epochs,
+            )
+
+            # 2. Main Policy: StepLR (takes over immediately after warmup)
+            steplr = torch.optim.lr_scheduler.StepLR(
+                optimizer, step_size=self.cfg["step_size"], gamma=0.1
+            )
+
+            # Combine the schedulers: switch from warmup to steplr after the milestone
+            scheduler = torch.optim.lr_scheduler.SequentialLR(
+                optimizer, schedulers=[warmup, steplr], milestones=[warmup_epochs]
+            )
+            return {
+                "optimizer": optimizer,
+                "lr_scheduler": {
+                    "scheduler": scheduler,
+                    "interval": "epoch",
+                    "frequency": 1,
+                }
+            }
         else:
             return optimizer

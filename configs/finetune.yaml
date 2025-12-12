@@ -7,7 +7,7 @@ patience: 15
 pretrained_ckpt: ./rmf_cktp/final_model.ckpt
 l2sp_alpha: 0            # off for linear probe
 s2_head_in_ch: 64
-pc_head_in_ch: 64
+pc_head_in_ch: 32
 freeze_last_k: 1
 
 # General
