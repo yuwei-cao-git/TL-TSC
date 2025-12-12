@@ -214,8 +214,15 @@ def train(cfg, ft_mode_cli=None):
 
     if cfg["loss_func"] in ["wmse", "wrmse", "wkl", "ewmse"]:
         class_weights = cfg.get(f"{args.dataset}_class_weights", None)
-        cfg[f"{args.dataset}_class_weights"] = torch.tensor(class_weights).float()
+
+        if class_weights is None:
+            raise ValueError(f"No class weight found for dataset: {args.dataset}")
+
+        # Convert list to torch tensor
+        cfg[f"{args.dataset}_class_weights"] = torch.tensor(class_weights, dtype=torch.float32)
+
     else:
+        # Loss functions that do NOT use class weights
         cfg[f"{args.dataset}_class_weights"] = None
 
     model = FusionModel(cfg, n_classes=cfg["n_classes"])
@@ -288,7 +295,7 @@ if __name__ == "__main__":
     ap = argparse.ArgumentParser()
     ap.add_argument("--cfg", required=True, help="Path to YAML or JSON config")
     ap.add_argument("--ft_mode", default=None, help="Override: linear_probe | freeze_last_k | full_ft | adapters")
-    ap.add_argument("--task", default=None, help="Override: tsc | tsc_align")
+    ap.add_argument("--task", default=None, help="Override: tsc | tsca")
     ap.add_argument("--pretrained_ckpt", default=None, help="Override: linear_probe | freeze_last_k | full_ft | adapters")
     ap.add_argument("--log_name", default=None)
     ap.add_argument("--dataset", default="wrf_sp")
@@ -328,10 +335,6 @@ if __name__ == "__main__":
 
     if args.log_name is not None:
         cfg["log_name"] = args.log_name
-
-    if cfg["loss_func"] == "ewmse":
-        class_weights = cfg.get(f"{args.dataset}_class_weights", None)
-        cfg[f"{args.dataset}_class_weights"] = torch.tensor(class_weights).float()
 
     if args.ft_mode is not None:
         cfg["ft_mode"] = args.ft_mode
