@@ -213,17 +213,17 @@ def train(cfg, ft_mode_cli=None):
         from model.fuse import FusionModel
 
     if cfg["loss_func"] in ["wmse", "wrmse", "wkl", "ewmse"]:
-        class_weights = cfg.get(f"{args.dataset}_class_weights", None)
+        class_weights = cfg.get(f"{cfg['dataset']}_class_weights", None)
 
         if class_weights is None:
             raise ValueError(f"No class weight found for dataset: {args.dataset}")
 
         # Convert list to torch tensor
-        cfg[f"{args.dataset}_class_weights"] = torch.tensor(class_weights, dtype=torch.float32)
+        cfg[f"{cfg['dataset']}_class_weights"] = torch.tensor(class_weights, dtype=torch.float32)
 
     else:
         # Loss functions that do NOT use class weights
-        cfg[f"{args.dataset}_class_weights"] = None
+        cfg[f"{cfg['dataset']}_class_weights"] = None
 
     model = FusionModel(cfg, n_classes=cfg["n_classes"])
 
