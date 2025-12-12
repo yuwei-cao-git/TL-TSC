@@ -313,17 +313,6 @@ if __name__ == "__main__":
     cfg.setdefault("pc_head_in_ch", 768)
     cfg.setdefault("task", args.task)
     cfg.setdefault("pretrained_ckpt", args.pretrained_ckpt)
-    prefix = "rmf" if args.dataset == "rmf_sp" else "wrf"
-    cfg.setdefault("data_dir", os.path.join(args.data_dir, f"{prefix}_superpixel_dataset"))
-    cfg.setdefault("n_classes", 8 if args.dataset == "wrf_sp" else 9)
-    cfg.setdefault(
-        "class_names",
-        (
-            ["SB", "LA", "PJ", "BW", "PT", "BF", "CW", "SW"]
-            if args.dataset == "wrf_sp"
-            else ["BF", "BW", "CE", "LA", "PT", "PJ", "PO", "SB", "SW"]
-        ),
-    )
 
     # Explicit overrides from CLI if provided
     if args.task is not None:
@@ -337,4 +326,8 @@ if __name__ == "__main__":
 
     if args.ft_mode is not None:
         cfg["ft_mode"] = args.ft_mode
+    prefix = "rmf" if args.dataset == "rmf_sp" else "wrf"
+    cfg["data_dir"] = os.path.join(args.data_dir, f"{prefix}_superpixel_dataset")
+    cfg["n_classes"] = 8 if args.dataset == "wrf_sp" else 9
+    cfg["class_names"] = ["SB", "LA", "PJ", "BW", "PT", "BF", "CW", "SW"] if args.dataset == "wrf_sp" else ["BF", "BW", "CE", "LA", "PT", "PJ", "PO", "SB", "SW"]
     train(cfg, ft_mode_cli=args.ft_mode)
