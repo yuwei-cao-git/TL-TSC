@@ -2,6 +2,7 @@ import laspy
 import numpy as np
 import geopandas as gpd
 from shapely.geometry import Point
+import math
 import pyvista as pv  # New import
 
 import datetime
@@ -53,8 +54,8 @@ gdf = gpd.read_file(
 )
 polygon = gdf.geometry.iloc[0]
 
-center_x, center_y = 589392.49, 5379981.87
-radius = 11.28
+center_x, center_y = polygon.centroid.x, polygon.centroid.y
+radius = math.sqrt(polygon.area / math.pi)
 
 print("Center:", center_x, center_y)
 print("Radius:", radius)
