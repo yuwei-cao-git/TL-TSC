@@ -23,9 +23,9 @@ class FusionModel(pl.LightningModule):
         self.cfg = config
         self.ms_fusion = self.cfg["use_ms"]
         # Learning rates for different parts
-        self.img_lr = self.config.get("img_lr")
-        self.pc_lr = self.config.get("pc_lr")
-        self.fusion_lr = self.config.get("fuse_lr")
+        self.img_lr = self.cfg("img_lr")
+        self.pc_lr = self.cfg("pc_lr")
+        self.fusion_lr = self.cfg("fuse_lr")
 
         if self.ms_fusion:
             from .seasonal_fusion import FusionBlock
