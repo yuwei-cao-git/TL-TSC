@@ -169,21 +169,23 @@ class PCModel(pl.LightningModule):
         return self.foward_compute_loss_and_metrics(point_cloud, pc_feat, labels, "test")
 
     def configure_optimizers(self):
-        if self.params["optimizer"] == "Adam":
+        if self.params["optimizer"] == "adam":
             optimizer = Adam(
                 self.parameters(),
                 lr=self.params["lr"],
                 betas=(0.9, 0.999),
                 eps=1e-08,
             )
-        if self.params["optimizer"] == "AdamW":
+        if self.params["optimizer"] == "adamW":
             optimizer = AdamW(
-                self.parameters(), lr=self.params["lr"], weight_decay=0.05
+                self.parameters(),
+                lr=self.params["pc_lr"],
+                weight_decay=self.params["weight_decay"],
             )
         else:
             optimizer = SGD(
                 params=self.parameters(),
-                lr=self.params["lr"],
+                lr=self.params["pc_lr"],
                 momentum=0.9,
                 weight_decay=1e-4,
             )
@@ -212,10 +214,55 @@ class PCModel(pl.LightningModule):
                 verbose=False,
             )
             return {"optimizer": optimizer, "lr_scheduler": scheduler}
-        elif self.params["scheduler"] == "cosinewarmup":
-            scheduler = torch.optim.lr_scheduler.CosineAnnealingWarmRestarts(
-                optimizer, T_0=10, eta_min=1e-6
+        elif self.params["scheduler"] == "CosLR":
+            warmup_epochs = max(1, int(0.05 * self.cfg["max_epochs"]))  # ~5% warmup
+            total_epochs = self.cfg["max_epochs"]
+
+            warmup = torch.optim.lr_scheduler.LinearLR(
+                optimizer, start_factor=0.1, end_factor=1.0, total_iters=warmup_epochs
             )
-            return {"optimizer": optimizer, "lr_scheduler": scheduler}
+            cosine = torch.optim.lr_scheduler.CosineAnnealingLR(
+                optimizer, T_max=total_epochs - warmup_epochs, eta_min=1e-6
+            )
+
+            scheduler = torch.optim.lr_scheduler.SequentialLR(
+                optimizer, schedulers=[warmup, cosine], milestones=[warmup_epochs]
+            )
+            return {
+                "optimizer": optimizer,
+                "lr_scheduler": {
+                    "scheduler": scheduler,
+                    "interval": "epoch",
+                },
+            }
+        elif self.params["scheduler"] == "StepLRWarmup":
+            # Determine the warmup phase length (e.g., 2 to 5 epochs is common)
+            warmup_epochs = self.params.get("warmup_epochs", 3)
+
+            # 1. Warmup: Bring LR from tiny value (1e-6) up to the full initial LR
+            warmup = torch.optim.lr_scheduler.LinearLR(
+                optimizer,
+                start_factor=0.01,  # Ensure start is close to zero
+                end_factor=1.0,
+                total_iters=warmup_epochs,
+            )
+
+            # 2. Main Policy: StepLR (takes over immediately after warmup)
+            steplr = torch.optim.lr_scheduler.StepLR(
+                optimizer, step_size=self.params["step_size"], gamma=0.1
+            )
+
+            # Combine the schedulers: switch from warmup to steplr after the milestone
+            scheduler = torch.optim.lr_scheduler.SequentialLR(
+                optimizer, schedulers=[warmup, steplr], milestones=[warmup_epochs]
+            )
+            return {
+                "optimizer": optimizer,
+                "lr_scheduler": {
+                    "scheduler": scheduler,
+                    "interval": "epoch",
+                    "frequency": 1,
+                },
+            }
         else:
             return optimizer

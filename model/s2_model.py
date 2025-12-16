@@ -16,7 +16,7 @@ class S2Model(pl.LightningModule):
         self.save_hyperparameters(config)
 
         self.cfg = config
-        self.lr = self.cfg["lr"]
+        self.img_lr = self.cfg["img_lr"]
 
         # seasonal s2 data fusion block
         self.ms_fusion = self.cfg["use_ms"]
@@ -231,11 +231,11 @@ class S2Model(pl.LightningModule):
         # Include parameters from the image model
         if self.cfg["use_ms"]:
             mf_params = list(self.mf_module.parameters())
-            params.append({"params": mf_params, "lr": 1e-4})
+            params.append({"params": mf_params, "lr": self.img_lr})
 
         if any(p.requires_grad for p in self.s2_model.parameters()):
             image_params = list(self.s2_model.parameters())
-            params.append({"params": image_params, "lr": 1e-4})
+            params.append({"params": image_params, "lr": self.img_lr})
 
         # Choose the optimizer based on input parameter
         if self.optimizer_type == "adam":
@@ -280,10 +280,55 @@ class S2Model(pl.LightningModule):
                 T_max=self.cfg["max_epochs"]
             )
             return {"optimizer": optimizer, "lr_scheduler": scheduler}
-        elif self.scheduler_type == "cosinewarmup":
-            scheduler = torch.optim.lr_scheduler.CosineAnnealingWarmRestarts(
-                optimizer, T_0=10
+        elif self.scheduler_type == "CosLR":
+            warmup_epochs = max(1, int(0.05 * self.cfg["max_epochs"]))  # ~5% warmup
+            total_epochs = self.cfg["max_epochs"]
+
+            warmup = torch.optim.lr_scheduler.LinearLR(
+                optimizer, start_factor=0.1, end_factor=1.0, total_iters=warmup_epochs
             )
-            return {"optimizer": optimizer, "lr_scheduler": scheduler}
+            cosine = torch.optim.lr_scheduler.CosineAnnealingLR(
+                optimizer, T_max=total_epochs - warmup_epochs, eta_min=1e-6
+            )
+
+            scheduler = torch.optim.lr_scheduler.SequentialLR(
+                optimizer, schedulers=[warmup, cosine], milestones=[warmup_epochs]
+            )
+            return {
+                "optimizer": optimizer,
+                "lr_scheduler": {
+                    "scheduler": scheduler,
+                    "interval": "epoch",
+                },
+            }
+        elif self.scheduler_type == "StepLRWarmup":
+            # Determine the warmup phase length (e.g., 2 to 5 epochs is common)
+            warmup_epochs = self.cfg.get("warmup_epochs", 3)
+
+            # 1. Warmup: Bring LR from tiny value (1e-6) up to the full initial LR
+            warmup = torch.optim.lr_scheduler.LinearLR(
+                optimizer,
+                start_factor=0.01,  # Ensure start is close to zero
+                end_factor=1.0,
+                total_iters=warmup_epochs,
+            )
+
+            # 2. Main Policy: StepLR (takes over immediately after warmup)
+            steplr = torch.optim.lr_scheduler.StepLR(
+                optimizer, step_size=self.cfg["step_size"], gamma=0.1
+            )
+
+            # Combine the schedulers: switch from warmup to steplr after the milestone
+            scheduler = torch.optim.lr_scheduler.SequentialLR(
+                optimizer, schedulers=[warmup, steplr], milestones=[warmup_epochs]
+            )
+            return {
+                "optimizer": optimizer,
+                "lr_scheduler": {
+                    "scheduler": scheduler,
+                    "interval": "epoch",
+                    "frequency": 1,
+                },
+            }
         else:
             return optimizer
