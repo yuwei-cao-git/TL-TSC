@@ -24,8 +24,11 @@ class FusionModel(pl.LightningModule):
         self.save_hyperparameters(config)
 
         self.cfg = config
-        self.lr = self.cfg["lr"]
         self.loss_func = self.cfg["loss_func"]
+        # Learning rates for different parts
+        self.img_lr = self.config.get("img_lr")
+        self.pc_lr = self.config.get("pc_lr")
+        self.fusion_lr = self.config.get("fuse_lr")
 
         # seasonal s2 data fusion block
         self.ms_fusion = self.cfg["use_ms"]
@@ -440,25 +443,25 @@ class FusionModel(pl.LightningModule):
     def configure_optimizers(self):
         params = []
         if self.cfg["multitasks_uncertain_loss"]:
-            params.append({"params": [self.awl.params], "lr": self.lr})
+            params.append({"params": [self.awl.params], "lr": self.fuse_lr})
         # Include parameters from the image model
         if self.cfg["use_ms"]:
             mf_params = list(self.mf_module.parameters())
-            params.append({"params": mf_params, "lr": 1e-4})
+            params.append({"params": mf_params, "lr": self.img_lr})
 
         if any(p.requires_grad for p in self.s2_model.parameters()):
             image_params = list(self.s2_model.parameters())
-            params.append({"params": image_params, "lr": 1e-4})
+            params.append({"params": image_params, "lr": self.img_lr})
 
         # Include parameters from the point cloud model
         if any(p.requires_grad for p in self.pc_model.parameters()):
             point_params = list(self.pc_model.parameters()) 
-            params.append({"params": point_params, "lr": self.lr})
+            params.append({"params": point_params, "lr": self.pc_lr})
 
         # Include parameters from the fusion layers
         if any(p.requires_grad for p in self.fuse_head.parameters()):
             fusion_params = list(self.fuse_head.parameters())
-            params.append({"params": fusion_params, "lr": self.lr})
+            params.append({"params": fusion_params, "lr": self.fuse_lr})
 
         # Choose the optimizer based on input parameter
         if self.optimizer_type == "adam":
@@ -500,11 +503,6 @@ class FusionModel(pl.LightningModule):
                 optimizer, T_max=self.cfg["max_epochs"]
             )
             return {"optimizer": optimizer, "lr_scheduler": scheduler}
-        elif self.scheduler_type == "cosinewarmup":
-            scheduler = torch.optim.lr_scheduler.CosineAnnealingWarmRestarts(
-                optimizer, T_0=20, T_mult=2
-            )
-            return {"optimizer": optimizer, "lr_scheduler": scheduler}
         elif self.scheduler_type == "onecycle":
             scheduler = torch.optim.lr_scheduler.OneCycleLR(
                 optimizer,
@@ -531,6 +529,35 @@ class FusionModel(pl.LightningModule):
                 "lr_scheduler": {
                     "scheduler": scheduler,
                     "interval": "epoch",
+                },
+            }
+        elif self.scheduler_type == "StepLRWarmup":
+            # Determine the warmup phase length (e.g., 2 to 5 epochs is common)
+            warmup_epochs = self.cfg.get("warmup_epochs", 3)
+
+            # 1. Warmup: Bring LR from tiny value (1e-6) up to the full initial LR
+            warmup = torch.optim.lr_scheduler.LinearLR(
+                optimizer,
+                start_factor=0.01,  # Ensure start is close to zero
+                end_factor=1.0,
+                total_iters=warmup_epochs,
+            )
+
+            # 2. Main Policy: StepLR (takes over immediately after warmup)
+            steplr = torch.optim.lr_scheduler.StepLR(
+                optimizer, step_size=self.cfg["step_size"], gamma=0.1
+            )
+
+            # Combine the schedulers: switch from warmup to steplr after the milestone
+            scheduler = torch.optim.lr_scheduler.SequentialLR(
+                optimizer, schedulers=[warmup, steplr], milestones=[warmup_epochs]
+            )
+            return {
+                "optimizer": optimizer,
+                "lr_scheduler": {
+                    "scheduler": scheduler,
+                    "interval": "epoch",
+                    "frequency": 1,
                 },
             }
         else:

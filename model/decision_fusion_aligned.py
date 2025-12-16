@@ -21,8 +21,11 @@ class FusionModel(pl.LightningModule):
         self.save_hyperparameters(config)
 
         self.cfg = config
-        self.lr = self.cfg["lr"]
         self.ms_fusion = self.cfg["use_ms"]
+        # Learning rates for different parts
+        self.img_lr = self.config.get("img_lr")
+        self.pc_lr = self.config.get("pc_lr")
+        self.fusion_lr = self.config.get("fuse_lr")
 
         if self.ms_fusion:
             from .seasonal_fusion import FusionBlock
@@ -190,7 +193,17 @@ class FusionModel(pl.LightningModule):
         df.to_csv(os.path.join(output_dir, "test_outputs.csv"), mode="a")
 
     def configure_optimizers(self):
-        params = list(self.s2_model.parameters()) + list(self.pc_model.parameters()) + list(self.fuse_head.parameters())
+        params = []
+
+        image_params = list(self.s2_model.parameters())
+        pc_params = list(self.pc_model.parameters())
+        fuse_params = list(self.fuse_head.parameters())
+        params.append({"params": image_params, "lr": self.img_lr})
+        params.append({"params": pc_params, "lr": self.pc_lr})
+        params.append({"params": fuse_params, "lr": self.fusion_lr})
+        if self.cfg["use_ms"]:
+            mf_params = list(self.mf_module.parameters())
+            params.append({"params": mf_params, "lr": self.img_lr})
         # Choose the optimizer based on input parameter
         if self.optimizer_type == "adam":
             optimizer = torch.optim.Adam(
@@ -234,11 +247,6 @@ class FusionModel(pl.LightningModule):
                 T_max=self.cfg["max_epochs"]
             )
             return {"optimizer": optimizer, "lr_scheduler": scheduler}
-        elif self.scheduler_type == "cosinewarmup":
-            scheduler = torch.optim.lr_scheduler.CosineAnnealingWarmRestarts(
-                optimizer, T_0=20, T_mult=2
-            )
-            return {"optimizer": optimizer, "lr_scheduler": scheduler}
         elif self.scheduler_type == "onecycle":
             scheduler = torch.optim.lr_scheduler.OneCycleLR(
                 optimizer,
@@ -267,7 +275,7 @@ class FusionModel(pl.LightningModule):
             # 1. Warmup: Bring LR from tiny value (1e-6) up to the full initial LR
             warmup = torch.optim.lr_scheduler.LinearLR(
                 optimizer,
-                start_factor=(1e-6 / self.cfg["lr"]),  # Ensure start is close to zero
+                start_factor=0.01,  # Ensure start is close to zero
                 end_factor=1.0,
                 total_iters=warmup_epochs,
             )

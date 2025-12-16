@@ -20,7 +20,9 @@ batch_size: 64
 max_epochs: 100
 optimizer: adamW                 # Options: adam, adamW, sgd
 scheduler: steplr         # Options: plateau, steplr, asha, cosine, cosinewarmup
-lr: 0.0001
+pc_lr: 1e-5
+img_lr: 1e-4
+fuse_lr: 5e-4 
 patience: 10
 step_size: 10 #20
 momentum: 0.9

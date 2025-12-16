@@ -29,8 +29,12 @@ def override_config(cfg, args):
     if args.scheduler is not None:
         cfg['scheduler'] = args.scheduler
     # hps
-    if args.lr is not None:
-        cfg['lr'] = args.lr
+    if args.pc_lr is not None:
+        cfg["pc_lr"] = args.pc_lr
+    if args.img_lr is not None:
+        cfg["img_lr"] = args.img_lr
+    if args.fuse_lr is not None:
+        cfg["fuse_lr"] = args.fuse_lr
     if args.emb_dims is not None:
         cfg['emb_dims'] = args.emb_dims
     if args.optimizer is not None:
@@ -45,7 +49,7 @@ def override_config(cfg, args):
         cfg['use_ms'] = args.use_ms
     return cfg
 
-    
+
 def parse_args():
     parser = argparse.ArgumentParser(description="Train model with given parameters")
     # Add arguments
@@ -59,7 +63,9 @@ def parse_args():
     parser.add_argument('--network', type=str, help='Override head option')
     parser.add_argument('--encoder', type=str, help='Override encoder option')
     parser.add_argument('--dataset', type=str, help='Override dataset')
-    parser.add_argument('--lr', type=float)
+    parser.add_argument('--pc_lr', type=float)
+    parser.add_argument("--img_lr", type=float)
+    parser.add_argument("--fuse_lr", type=float)
     parser.add_argument('--multitasks_uncertain_loss', type=bool, default=False)
     parser.add_argument('--loss_func', type=str)
     parser.add_argument('--emb_dims', type=int)
@@ -71,7 +77,7 @@ def parse_args():
     parser.add_argument('--level', type=str)
     parser.add_argument('--align_header', type=str)
     return parser.parse_args()
-    
+
 def main():
     # Parse arguments
     args = parse_args()
