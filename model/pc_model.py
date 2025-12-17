@@ -215,8 +215,8 @@ class PCModel(pl.LightningModule):
             )
             return {"optimizer": optimizer, "lr_scheduler": scheduler}
         elif self.params["scheduler"] == "CosLR":
-            warmup_epochs = max(1, int(0.05 * self.cfg["max_epochs"]))  # ~5% warmup
-            total_epochs = self.cfg["max_epochs"]
+            warmup_epochs = max(1, int(0.05 * self.params["max_epochs"]))  # ~5% warmup
+            total_epochs = self.params["max_epochs"]
 
             warmup = torch.optim.lr_scheduler.LinearLR(
                 optimizer, start_factor=0.1, end_factor=1.0, total_iters=warmup_epochs
