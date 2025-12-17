@@ -26,9 +26,9 @@ class FusionModel(pl.LightningModule):
         self.cfg = config
         self.loss_func = self.cfg["loss_func"]
         # Learning rates for different parts
-        self.img_lr = self.cfg["img_lr"]
-        self.pc_lr = self.cfg["pc_lr"]
-        self.fusion_lr = self.cfg["fuse_lr"]
+        self.img_lr = self.cfg.get("img_lr", 5e-4)
+        self.pc_lr = self.cfg.get("pc_lr", 5e-4)
+        self.fusion_lr = self.cfg.get("fuse_lr", 5e-4)
 
         # seasonal s2 data fusion block
         self.ms_fusion = self.cfg["use_ms"]

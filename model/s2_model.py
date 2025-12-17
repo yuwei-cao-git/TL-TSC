@@ -16,7 +16,7 @@ class S2Model(pl.LightningModule):
         self.save_hyperparameters(config)
 
         self.cfg = config
-        self.img_lr = self.cfg["img_lr"]
+        self.img_lr = self.img_lr = self.cfg.get("img_lr", 5e-4)
 
         # seasonal s2 data fusion block
         self.ms_fusion = self.cfg["use_ms"]

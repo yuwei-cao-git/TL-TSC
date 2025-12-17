@@ -172,7 +172,7 @@ class PCModel(pl.LightningModule):
         if self.params["optimizer"] == "adam":
             optimizer = Adam(
                 self.parameters(),
-                lr=self.params["lr"],
+                lr=self.params["pc_lr"],
                 betas=(0.9, 0.999),
                 eps=1e-08,
             )
