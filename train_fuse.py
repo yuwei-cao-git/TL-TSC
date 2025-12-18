@@ -22,6 +22,8 @@ def override_config(cfg, args):
         cfg['network'] = args.network
     if args.dataset is not None:
         cfg['dataset'] = args.dataset
+    if args.test_dataset is not None:
+        cfg["test_dataset"] = args.test_dataset
     if args.pretrained_ckpt is not None:
         cfg['pretrained_ckpt'] = args.pretrained_ckpt
     if args.align_header is not None:
@@ -56,6 +58,7 @@ def parse_args():
     parser.add_argument('--task', type=str)
     parser.add_argument('--config', type=str, required=True, help='Path to config YAML file')
     parser.add_argument("--data_dir", type=str, default=None, help="path to data dir")
+    parser.add_argument("--test_data_dir", type=str, default=None, help="path to test data dir")
     parser.add_argument("--log_name", default="Fuse_resnet_pointnext_rmf")
     parser.add_argument('--gpus', type=int, help='Override learning rate')
     parser.add_argument('--batch_size', type=int, help='Override batch size')
@@ -63,6 +66,7 @@ def parse_args():
     parser.add_argument('--network', type=str, help='Override head option')
     parser.add_argument('--encoder', type=str, help='Override encoder option')
     parser.add_argument('--dataset', type=str, help='Override dataset')
+    parser.add_argument("--test_dataset", type=str, help="Override test dataset")
     parser.add_argument('--pc_lr', type=float)
     parser.add_argument("--img_lr", type=float)
     parser.add_argument("--fuse_lr", type=float)
@@ -90,12 +94,17 @@ def main():
         if args.data_dir is not None
         else os.path.join(os.getcwd(), "data")
     )
+    cfg["test_data_dir"] = (
+        args.test_data_dir
+        if args.test_data_dir is not None
+        else os.path.join(os.getcwd(), "data")
+    )
     if cfg["loss_func"] in ["wmse", "wrmse", "wkl", "ewmse"]:
         class_weights = cfg.get(f'{args.dataset}_class_weights', None)
         cfg[f'{args.dataset}_class_weights'] = torch.tensor(class_weights).float()
     else:
         cfg[f'{args.dataset}_class_weights'] = None
-    
+
     os.makedirs(cfg['save_dir'], exist_ok=True)
     print(cfg)
     # Call the train function with parsed arguments

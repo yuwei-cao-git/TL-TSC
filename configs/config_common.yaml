@@ -1,0 +1,64 @@
+# config_wrf.yaml
+
+# General
+dataset: wrf_common                        # Options: rmf, rmf_superpixel_dataset
+test_dataset: rmf_common
+data_dir: "./data/wrf_superpixel_dataset"
+test_data_dir: "./data/rmf_superpixel_dataset"
+tile_size: 128
+n_bands: 9
+n_classes: 7
+class_names: ["BF", "BW", "LA", "PT", "PJ", "SB", "SW"]
+
+wrf_common_class_weights: [0.05364469, 0.01978804, 0.05465972, 0.02803905, 0.01395136, 0.00694942, 0.82296773]
+wrf_common_season_map: ["img_s2_spring", "img_s2_summer", "img_s2_fall", "img_s2_winter"]
+wrf_common_img_mean: [0.13940404659725547, 0.15333042024211455, 0.14570949964179553, 0.17920036480947876, 0.25741902859797583, 0.2778984814406548, 0.18045766743090216, 0.14486279940253077, 0.29384077564130473]
+wrf_common_img_std: [0.06311265206632495, 0.058821895611075564, 0.060286401565781744, 0.05883486764221581, 0.059399116361657324, 0.06103218021711056, 0.03841718747514112, 0.017991467035539156, 0.06130167877678275]
+
+rmf_common_class_weights: [0.21411001, 0.03662661, 0.09656293, 0.03390503, 0.04737012, 0.0110322 , 0.5603931]
+rmf_common_season_map: ["img_s2_spring", "img_s2_summer", "img_s2_fall", "img_s2_winter"]
+rmf_common_img_mean: [0.03143438892257177, 0.04599593009591673, 0.03839599945331553, 0.07086259592524217, 0.15610703817935337, 0.17926126493589656, 0.07738302697998556, 0.04106526673859286, 0.19440731995176916]
+rmf_common_img_std: [0.06415304925477038, 0.06200656250880813, 0.06358147692998166, 0.06342475618939908, 0.06746606522481252, 0.07134634097950032, 0.03421618568094429, 0.01534128202581308, 0.07240852113287985]
+
+# Training parameters
+task: tsc
+head:  all_head # Options: no_pc_head, fuse_head, all_head, no_img_head
+pretrained_ckpt: None
+fix_backbone: false
+batch_size: 64
+max_epochs: 100
+optimizer: adamW                 # Options: adam, adamW, sgd
+scheduler: steplr         # Options: plateau, steplr, asha, cosine, cosinewarmup
+pc_lr: 0.0001
+img_lr: 0.0001
+fuse_lr: 0.0001
+patience: 10
+step_size: 10 #20
+momentum: 0.9
+weight_decay: 0.0001 # L2 penalty higher -> 0.1
+decision_fuse_type: weighted #average, weighted, mlp
+
+# Loss weights
+multitasks_uncertain_loss: true
+loss_func: mse
+
+# Model architecture
+network: ResUnet
+emb_dims: 768
+num_points: 7168
+encoder: b                      # Options: s, b, l, xl
+fusion_dim: 128
+dp_fuse: 0.3
+dp_pc: 0.3
+use_ms: false
+linear_layers_dims: [512, 256]
+align_header: img
+
+# Data transforms
+image_transform: compose
+point_cloud_transform: true
+rotate: false
+pc_normal: false
+
+# Hardware
+gpus: 1

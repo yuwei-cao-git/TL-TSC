@@ -108,6 +108,9 @@ def train(config):
                                                 val_sources=("ovf",),         # validate on OVF only
                                                 test_sources=("ovf",),        # test on OVF only
                                             )
+        elif config["dataset"] in ["rmf_common", "wrf_common"]:
+            from dataset.common import SuperpixelDataModule
+            data_module = SuperpixelDataModule(config)
         else:
             from dataset.superpixel import SuperpixelDataModule
             data_module = SuperpixelDataModule(config)
