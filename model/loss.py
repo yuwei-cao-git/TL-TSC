@@ -177,11 +177,11 @@ def apply_mask(outputs, targets, mask, multi_class=True, keep_shp=False):
             # Validate mask shape
             if mask.shape != expected_mask_shape:
                 raise ValueError(f"Mask shape mismatch. Expected {expected_mask_shape}, got {mask.shape}")
-            
+
             # Permute to put class dimension last: (B, H, W, C)
             outputs_permuted = outputs.permute(*permute_dims).contiguous()
             targets_permuted = targets.permute(*permute_dims).contiguous()
-            
+
             # Apply mask to exclude invalid data points
             valid_outputs = outputs_permuted[~mask]
             valid_targets = targets_permuted[~mask]
@@ -194,24 +194,21 @@ def apply_mask(outputs, targets, mask, multi_class=True, keep_shp=False):
             valid_targets = targets[~expanded_mask]
             return valid_outputs, valid_targets
 
-def apply_mask_per_batch(preds, mask, multi_class=True):
-    """
-    Apply a mask to predictions and labels. Only valid pixels (mask == 1) are kept.
-    Returns outputs grouped by batch for later aggregation.
-    """
+
+def apply_mask_per_batch(preds, nodata_mask, multi_class=True):
+    if nodata_mask.ndim == 4:
+        nodata_mask = nodata_mask.squeeze(1)  # (B,H,W) if it was (B,1,H,W)
+
+    valid = ~nodata_mask  # True where data is valid
+
     if multi_class:
         B, C, H, W = preds.shape
-        preds = preds.permute(0, 2, 3, 1)  # (B, H, W, C)
-        mask = mask.squeeze(1)  # (B, H, W)
-
-        masked_preds = []
-        for b in range(B):
-            valid = mask[b] > 0
-            masked_preds.append(preds[b][valid])  # (N_valid, C)
-        return masked_preds
+        preds = preds.permute(0, 2, 3, 1)  # (B,H,W,C)
+        return [preds[b][valid[b]] for b in range(B)]
     else:
-        preds = preds[mask > 0]
-        return preds
+        if preds.ndim == 4:
+            preds = preds.squeeze(1)
+        return [preds[b][valid[b]] for b in range(preds.shape[0])]
 
 
 def weighted_kl_divergence(y_true, y_pred, weights=None):

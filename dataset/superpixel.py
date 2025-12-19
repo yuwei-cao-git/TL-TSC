@@ -21,7 +21,7 @@ class SuperpixelDataset(Dataset):
         image_transform=None,
         point_cloud_transform=None,
         img_mean=None,
-        img_std=None
+        img_std=None,
     ):
         self.dataset_tag = dataset_tag
         self.superpixel_files = superpixel_files
@@ -29,14 +29,8 @@ class SuperpixelDataset(Dataset):
         self.point_cloud_transform = point_cloud_transform
         self.rotate = rotate
         self.normal = pc_normal
-
-        self.transforms = transforms.Compose(
-            [
-                transforms.ToImage(), 
-                transforms.ToDtype(torch.float32, scale=True),
-                transforms.Normalize(mean=img_mean, std=img_std)
-            ]
-        )
+        self.img_mean = img_mean
+        self.img_std = img_std
 
     def __len__(self):
         return len(self.superpixel_files)
@@ -44,29 +38,51 @@ class SuperpixelDataset(Dataset):
     def __getitem__(self, idx):
         data = np.load(self.superpixel_files[idx], allow_pickle=True)
         # Load data from the .npz file
-        superpixel_images = data[
-            "superpixel_images"
-        ].astype(np.float32) #/ (65535.0 if self.dataset_tag.startswith('ovf') else 10000.0)  # Shape: (num_seasons, num_channels, 128, 128)
-        coords = data["point_cloud"]  # Shape: (7168, 3)
-        label = data["label"]  # Shape: (num_classes,)
-        per_pixel_labels = data["per_pixel_labels"]  # Shape: (num_classes, 128, 128)
-        nodata_mask = data["nodata_mask"]  # Shape: (128, 128)
-
+        label = torch.from_numpy(data["label"]).float()  # Shape: (num_classes,)
+        per_pixel_labels = torch.from_numpy(
+            data["per_pixel_labels"]
+        ).float()  # Shape: (num_classes, 128, 128)
+        nodata_mask = torch.from_numpy(data["nodata_mask"]).bool()  # Shape: (128, 128)
+        superpixel_images = data["superpixel_images"].astype(np.float32) / (
+            65535.0 if self.dataset_tag.startswith("ovf") else 10000.0
+        )  # Shape: (num_seasons, num_channels, 128, 128)
+        mask = nodata_mask
+        S, C, H, W = superpixel_images.shape
+        if mask.ndim == 2:
+            mask = mask.unsqueeze(0).expand(S, H, W)  # (S,H,W)
+        if mask.ndim == 3:
+            mask = mask.unsqueeze(1)  # (S,1,H,W)
+        # make nodata pixels equal to mean in raw space
         superpixel_images = torch.from_numpy(
             superpixel_images
         ).float()  # Shape: (num_seasons, num_channels, 128, 128)
-        per_pixel_labels = torch.from_numpy(
-            per_pixel_labels
-        ).float()  # Shape: (num_classes, 128, 128)
-        nodata_mask = torch.from_numpy(nodata_mask).bool()
-        
-        superpixel_images = self.transforms(superpixel_images)
+
+        # --- normalize (broadcast mean/std over seasons) ---
+        mean = torch.tensor(self.img_mean, dtype=torch.float32).view(1, C, 1, 1)
+        std = (
+            torch.tensor(self.img_std, dtype=torch.float32)
+            .view(1, C, 1, 1)
+            .clamp_min(1e-6)
+        )
+        # make nodata pixels equal to mean in raw space
+        superpixel_images = superpixel_images.clone()
+        superpixel_images = torch.where(mask, mean, superpixel_images)
+        superpixel_images = (superpixel_images - mean) / std
+
+        superpixel_images = torch.nan_to_num(
+            superpixel_images, nan=0.0, posinf=0.0, neginf=0.0
+        )
+
         # Apply transforms if needed
         if self.image_transform != None:
-            superpixel_images = image_augment(superpixel_images, self.image_transform, 128)
-        
+            superpixel_images = image_augment(
+                superpixel_images, self.image_transform, 128
+            )
+        if not torch.isfinite(superpixel_images).all():
+            raise ValueError("Non-finite after preprocessing")
+
+        coords = data["point_cloud"]  # Shape: (7168, 3)
         normalized_coords = center_point_cloud(coords)
-        
         # Apply point cloud transforms if any
         if self.normal:
             if self.point_cloud_transform:
@@ -89,8 +105,9 @@ class SuperpixelDataset(Dataset):
 
         # After applying transforms
         feats = torch.from_numpy(feats).float()  # Shape: (7168, 3)
-        normalized_coords = torch.from_numpy(normalized_coords).float()  # Shape: (7168, 3)
-        label = torch.from_numpy(label).float()  # Shape: (num_classes,)
+        normalized_coords = torch.from_numpy(
+            normalized_coords
+        ).float()  # Shape: (7168, 3)
 
         sample = {
             "images": superpixel_images,  # Padded images of shape [num_seasons, num_channels, 128, 128]
