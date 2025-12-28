@@ -4,6 +4,11 @@ from glob import glob
 from sklearn.model_selection import train_test_split
 import argparse
 from tqdm import tqdm
+from .mapping_species import (
+    group_to_coarser,
+    iterative_split_superpixels,
+    save_split_files
+)
 
 # ======================================================
 # 1. DATASET CONFIG (augment-driven)
@@ -60,86 +65,7 @@ DATASETS = {
     },
 }
 
-
-# ======================================================
-# 2. GENERIC FUNCTIONS
-# ======================================================
-
-
-def group_to_fortypes(
-    label, per_pixel_labels, species_list, species_to_fortypes, fortype_order
-):
-    fortype_labels = np.zeros(len(fortype_order), dtype=label.dtype)
-    fortype_perpixel = np.zeros(
-        (len(fortype_order),) + per_pixel_labels.shape[1:], dtype=per_pixel_labels.dtype
-    )
-
-    fortype_to_idx = {g: i for i, g in enumerate(fortype_order)}
-
-    for i, sp in enumerate(species_list):
-        g = species_to_fortypes.get(sp)
-        if g in fortype_to_idx:
-            g_idx = fortype_to_idx[g]
-            fortype_labels[g_idx] += label[i]
-            fortype_perpixel[g_idx] += per_pixel_labels[i]
-
-    return fortype_labels, fortype_perpixel
-
-
-def check_balance(labels, index_groups, target_split, tolerance):
-    total = np.sum(labels, axis=0)
-    for i, idx in enumerate(index_groups):
-        proportion = np.sum(labels[idx], axis=0) / total
-        if not np.all(np.abs(proportion - target_split[i]) <= tolerance):
-            return False
-    return True
-
-
-def iterative_split(labels, target=[0.7, 0.15, 0.15], max_iter=20000, tolerance=0.01):
-    n = len(labels)
-    indices = np.arange(n)
-
-    for seed in range(max_iter):
-        train_val, test = train_test_split(
-            indices, test_size=target[2], random_state=seed
-        )
-        train, val = train_test_split(
-            train_val, test_size=target[1] / (target[0] + target[1]), random_state=seed
-        )
-
-        if check_balance(labels, [train, val, test], target, tolerance):
-            print(f"✓ Balanced split found at iteration {seed}")
-            return train, val, test
-
-    raise RuntimeError("Balanced split not found within max iterations.")
-
-
-def save_split_files(indices, split_name, file_paths, dst, cfg):
-    folder = os.path.join(dst, split_name, cfg["save_prefix"])
-    os.makedirs(folder, exist_ok=True)
-
-    for idx in indices:
-        fp = file_paths[idx]
-        name = os.path.basename(fp)
-
-        data = np.load(fp, allow_pickle=True)
-        glabel, gperpixel = group_to_fortypes(
-            data["label"],
-            data["per_pixel_labels"],
-            cfg["species_names"],
-            cfg["species_to_fortypes"],
-            cfg["fortype_order"],
-        )
-
-        np.savez_compressed(
-            os.path.join(folder, name),
-            superpixel_images=data["superpixel_images"],
-            point_cloud=data["point_cloud"],
-            label=glabel,
-            per_pixel_labels=gperpixel,
-            nodata_mask=data["nodata_mask"],
-        )
-
+# 2. import functions from mapping_species
 
 # ======================================================
 # 3. MAIN
@@ -169,7 +95,7 @@ def main(args):
     print("Computing fortype labels for all samples...")
     for fp in tqdm(files):
         d = np.load(fp, allow_pickle=True)
-        g, _ = group_to_fortypes(
+        g, _ = group_to_coarser(
             d["label"],
             d["per_pixel_labels"],
             cfg["species_names"],
@@ -182,7 +108,7 @@ def main(args):
 
     # ---- Balanced split ----
     print("\nGenerating balanced splits...")
-    train_idx, val_idx, test_idx = iterative_split(
+    train_idx, val_idx, test_idx = iterative_split_superpixels(
         fortype_labels,
         target=args.split,
         tolerance=args.tolerance,

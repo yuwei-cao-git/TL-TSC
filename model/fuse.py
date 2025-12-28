@@ -443,7 +443,7 @@ class FusionModel(pl.LightningModule):
     def configure_optimizers(self):
         params = []
         if self.cfg["multitasks_uncertain_loss"]:
-            params.append({"params": [self.awl.params], "lr": self.fuse_lr})
+            params.append({"params": [self.awl.params], "lr": self.fusion_lr})
         # Include parameters from the image model
         if self.cfg["use_ms"]:
             mf_params = list(self.mf_module.parameters())
@@ -461,7 +461,7 @@ class FusionModel(pl.LightningModule):
         # Include parameters from the fusion layers
         if any(p.requires_grad for p in self.fuse_head.parameters()):
             fusion_params = list(self.fuse_head.parameters())
-            params.append({"params": fusion_params, "lr": self.fuse_lr})
+            params.append({"params": fusion_params, "lr": self.fusion_lr})
 
         # Choose the optimizer based on input parameter
         if self.optimizer_type == "adam":

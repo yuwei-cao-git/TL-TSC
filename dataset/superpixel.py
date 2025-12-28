@@ -98,16 +98,14 @@ class SuperpixelDataset(Dataset):
             feats = np.asarray(pcd.normals)  # Shape: (N, 3)
         else:
             feats = normalize_point_cloud(coords)
-            if self.point_cloud_transform:
-                normalized_coords, feats, label = pointCloudTransform(
-                    normalized_coords, pc_feat=feats, target=label, rot=self.rotate
-                )
+        if self.point_cloud_transform:
+            normalized_coords, feats, label = pointCloudTransform(
+                normalized_coords, pc_feat=feats, target=label, rot=self.rotate
+            )
 
         # After applying transforms
         feats = torch.from_numpy(feats).float()  # Shape: (7168, 3)
-        normalized_coords = torch.from_numpy(
-            normalized_coords
-        ).float()  # Shape: (7168, 3)
+        normalized_coords = torch.from_numpy(normalized_coords).float()  # Shape: (7168, 3)
 
         sample = {
             "images": superpixel_images,  # Padded images of shape [num_seasons, num_channels, 128, 128]

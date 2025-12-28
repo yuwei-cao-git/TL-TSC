@@ -6,15 +6,7 @@ import os
 from pytorch_lightning import LightningDataModule
 from torch.utils.data import DataLoader
 from os.path import join
-from .augment import (
-    pointCloudTransform,
-    image_augment,
-    normalize_point_cloud,
-    center_point_cloud,
-)
 from .superpixel import SuperpixelDataset
-import torchvision.transforms.v2 as transforms
-import open3d as o3d
 
 class SuperpixelDataModule(LightningDataModule):
     def __init__(self, config):

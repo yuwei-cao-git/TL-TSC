@@ -72,24 +72,6 @@ def rotate_points(coords, x=None):
     return aug_coords, aug_x
 
 
-def point_rotate_perturbation(coords, angle_sigma=0.06, angle_clip=0.18, x=None):
-    angles = np.clip(angle_sigma * np.random.randn(3), -angle_clip, angle_clip)
-    Rx = angle_axis(angles[0], np.array([1.0, 0.0, 0.0]))
-    Ry = angle_axis(angles[1], np.array([0.0, 1.0, 0.0]))
-    Rz = angle_axis(angles[2], np.array([0.0, 0.0, 1.0]))
-
-    rot_mat = torch.matmul(torch.matmul(Rz, Ry), Rx)
-    aug_coords = coords
-    aug_coords[:, :3] = np.matmul(aug_coords[:, :3], rot_mat.t())
-    if x is None:
-        aug_x = None
-    else:
-        aug_x = x
-        aug_x[:, :3] = np.matmul(aug_x[:, :3], rot_mat.t())
-
-    return aug_coords, aug_x
-
-
 def point_removal(coords, n, x=None):
     # Get list of ids
     idx = list(range(np.shape(coords)[0]))
@@ -131,16 +113,6 @@ def point_jitter(coords, std=0.01, clip=0.05, x=None):
         x[:, 0:3] += jittered_data
 
     return coords, x
-
-
-def random_scale(coords, lo=0.9, hi=1.1, x=None):
-    scaler = np.random.uniform(lo, hi)
-    aug_coords = coords * scaler
-    if x is None:
-        aug_x = None
-    else:
-        aug_x = x * scaler
-    return aug_coords, aug_x
 
 
 def random_noise(coords, n, dim=1, x=None):
@@ -191,9 +163,9 @@ def pointCloudTransform(xyz, pc_feat, target, rot=False):
     n = random.randint(round(len(xyz) * 0.9), len(xyz))
     aug_xyz, aug_feats = point_removal(xyz, n, x=pc_feat)
     aug_xyz, aug_feats = random_noise(aug_xyz, n=(len(xyz) - n), x=aug_feats)
-    #aug_xyz, aug_feats = random_scale(xyz, x=pc_feat)
+
+    aug_xyz, aug_feats = rotate_points(aug_xyz, x=aug_feats)
     aug_xyz, aug_feats = point_translate(aug_xyz, x=aug_feats)
-    # aug_xyz, aug_feats = point_jitter(aug_xyz, x=aug_feats)
     if rot:
         aug_xyz, aug_feats = rotate_points(aug_xyz, x=aug_feats)
 
@@ -201,7 +173,7 @@ def pointCloudTransform(xyz, pc_feat, target, rot=False):
 
     return aug_xyz, aug_feats, target
 
-    
+
 def image_augment(img, image_transform, tile_size):
     if image_transform == "random":
         transform = transforms.RandomApply(

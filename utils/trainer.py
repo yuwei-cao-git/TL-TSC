@@ -5,7 +5,7 @@ from pytorch_lightning import Trainer, seed_everything
 # from pytorch_lightning.strategies.ddp import DDPStrategy
 from pytorch_lightning.callbacks import EarlyStopping, ModelCheckpoint
 from lightning.pytorch.loggers import WandbLogger
-from pytorch_lightning.utilities.model_summary import ModelSummary
+# from pytorch_lightning.utilities.model_summary import ModelSummary
 import yaml
 
 def load_backbone_weights(model, checkpoint_path):
@@ -98,7 +98,7 @@ def train(config):
 
     print("start setting dataset")
     # Initialize the DataModule
-    if config["task"] in ["tsc", "lsc", "tsc_mid", "tsca", "tsc_mid_decision", "top2"]:
+    if config["task"] in ["tsc", "lsc", "tsc_mid", "tsca", "top2"]:
         if config["dataset"] in ["ovf", "rmf"]:
             from dataset.balanced_dataset import BalancedDataModule
             data_module = BalancedDataModule(config)
@@ -108,7 +108,7 @@ def train(config):
                                                 val_sources=("ovf",),         # validate on OVF only
                                                 test_sources=("ovf",),        # test on OVF only
                                             )
-        elif config["dataset"] in ["rmf_common", "wrf_common"]:
+        elif config["dataset"] in ["rmf_common", "wrf_common", "rmf_msp", "wrf_msp"]:
             from dataset.common import SuperpixelDataModule
             data_module = SuperpixelDataModule(config)
         else:

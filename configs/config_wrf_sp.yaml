@@ -48,7 +48,7 @@ align_header: img
 # Data transforms
 image_transform: compose
 point_cloud_transform: true
-rotate: false
+rotate: true
 pc_normal: false
 
 # Hardware

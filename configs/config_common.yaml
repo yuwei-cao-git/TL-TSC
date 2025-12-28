@@ -1,4 +1,4 @@
-# config_wrf.yaml
+# config_common.yaml
 
 # General
 dataset: wrf_common                        # Options: rmf, rmf_superpixel_dataset
