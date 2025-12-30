@@ -9,7 +9,7 @@ import pytorch_lightning as pl
 from .decoder import MambaFusionDecoder
 from .pointnext import PointNextModel
 from torchmetrics import Accuracy, ConfusionMatrix, F1Score
-from .loss import apply_mask, SmoothClsLoss
+from .loss import apply_mask
 
 
 class FusionModel(pl.LightningModule):
@@ -18,7 +18,9 @@ class FusionModel(pl.LightningModule):
         self.save_hyperparameters(config)
 
         self.cfg = config
-        self.lr = self.cfg["lr"]
+        self.pc_lr = self.cfg["pc_lr"]
+        self.img_lr = self.cfg["img_lr"]
+        self.fuse_lr = self.cfg["fuse_lr"]
         self.ms_fusion = self.cfg["use_ms"]
 
         if self.ms_fusion:
@@ -140,7 +142,7 @@ class FusionModel(pl.LightningModule):
         pred_fuse_cls = fuse_preds.argmax(dim=1)
         acc_fuse = self.metric(pred_fuse_cls, true_cls)
         f1_fuse = self.f1_metric(fuse_preds, true_cls)
-        logs.update({f"fuse_{stage}_acc": acc_fuse, f"fuse_{stage}_f1": f1_fuse, f"fuse_{stage}_loss": loss_fuse})
+        logs.update({f"{stage}_acc": acc_fuse, f"{stage}_f1": f1_fuse, f"{stage}_loss": loss_fuse})
 
         total_loss = loss_fuse + loss_point + loss_pixel
         logs.update({f"{stage}_loss": total_loss})
@@ -208,7 +210,30 @@ class FusionModel(pl.LightningModule):
         df.to_csv(os.path.join(output_dir, "test_outputs.csv"), mode="a")
 
     def configure_optimizers(self):
-        params = list(self.parameters())
-        optimizer = torch.optim.Adam(params, lr=self.lr)
+        params = []
+
+        # Include parameters from the image model
+        if self.ms_fusion:
+            mf_params = list(self.mf_module.parameters())
+            params.append({"params": mf_params, "lr": self.img_lr})
+
+        if any(p.requires_grad for p in self.s2_model.parameters()):
+            image_params = list(self.s2_model.parameters())
+            params.append({"params": image_params, "lr": self.img_lr})
+
+        # Include parameters from the point cloud model
+        if any(p.requires_grad for p in self.pc_model.parameters()):
+            point_params = list(self.pc_model.parameters())
+            params.append({"params": point_params, "lr": self.pc_lr})
+
+        # Include parameters from the fusion layers
+        if any(p.requires_grad for p in self.fuse_head.parameters()):
+            fusion_params = list(self.fuse_head.parameters())
+            params.append({"params": fusion_params, "lr": self.fuse_lr})
+
+        if self.cfg["use_ms"]:
+            mf_params = list(self.mf_module.parameters())
+            params.append({"params": mf_params, "lr": self.img_lr})
+        optimizer = torch.optim.AdamW(params, weight_decay=self.cfg["weight_decay"])
         scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=10, gamma=0.1)
         return {"optimizer": optimizer, "lr_scheduler": scheduler}

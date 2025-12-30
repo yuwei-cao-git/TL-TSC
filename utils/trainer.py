@@ -77,7 +77,7 @@ def train(config):
     )
 
     # Define a checkpoint callback to save the best model
-    metric = "val_r2"
+    metric = "val_r2" if config["task"] in ["tsc", "tsc_mid", "tsca"] else "val_f1"
     early_stopping = EarlyStopping(
         monitor=metric,  # Metric to monitor
         patience=10,  # Number of epochs with no improvement after which training will be stopped
@@ -139,9 +139,10 @@ def train(config):
         from model.s2_model import S2Model
         model = S2Model(config, n_classes=config["n_classes"])
 
-    """ elif config["task"] == "lsc":
+    elif config["task"] == "lsc":
         from model.decison_fuse_aligned_lsc import FusionModel
         model = FusionModel(config, n_classes=config["n_classes"])
+    """ 
     elif config["task"] == "pc_lsc":
         from model.lsc_pc import PCModel
         model = PCModel(config, n_classes=config["n_classes"])
