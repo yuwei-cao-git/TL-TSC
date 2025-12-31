@@ -174,7 +174,7 @@ def pointCloudTransform(xyz, pc_feat, target, rot=False):
     aug_xyz, aug_feats = point_removal(xyz, n, x=pc_feat)
     aug_xyz, aug_feats = random_noise(aug_xyz, n=(len(xyz) - n), x=aug_feats)
 
-    #aug_xyz, aug_feats = random_scale(aug_xyz, x=aug_feats)
+    aug_xyz, aug_feats = random_scale(aug_xyz, x=aug_feats)
     aug_xyz, aug_feats = point_translate(aug_xyz, x=aug_feats)
     if rot:
         aug_xyz, aug_feats = rotate_points(aug_xyz, x=aug_feats)
@@ -191,7 +191,9 @@ def image_augment(img, image_transform, tile_size):
                 [
                     transforms.RandomCrop(size=(tile_size, tile_size)),
                     transforms.RandomHorizontalFlip(p=0.5),
-                    transforms.RandomPerspective(distortion_scale=0.6, p=1.0),
+                    transforms.RandomPerspective(
+                        distortion_scale=0.4, p=1.0
+                    ),  # occasionally produce NaN values if the distortion scale is high
                     transforms.RandomRotation(degrees=(0, 180)),
                     transforms.RandomAffine(
                         degrees=(30, 70),
@@ -208,7 +210,7 @@ def image_augment(img, image_transform, tile_size):
                 # transforms.RandomResizedCrop(224, scale=(0.2, 1.0), interpolation=interpol_mode),  # 3 is bicubic
                 transforms.RandomCrop(size=(tile_size, tile_size)),
                 transforms.RandomHorizontalFlip(p=0.5),
-                transforms.RandomPerspective(distortion_scale=0.6, p=1.0),
+                transforms.RandomPerspective(distortion_scale=0.4, p=1.0), # occasionally produce NaN values if the distortion scale is high
                 transforms.RandomRotation(degrees=(0, 180)),
                 transforms.RandomAffine(
                     degrees=(30, 70), translate=(0.1, 0.3), scale=(0.5, 0.75)

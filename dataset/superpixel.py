@@ -53,9 +53,7 @@ class SuperpixelDataset(Dataset):
         if mask.ndim == 3:
             mask = mask.unsqueeze(1)  # (S,1,H,W)
         # make nodata pixels equal to mean in raw space
-        superpixel_images = torch.from_numpy(
-            superpixel_images
-        ).float()  # Shape: (num_seasons, num_channels, 128, 128)
+        superpixel_images = torch.from_numpy(superpixel_images).float()  # Shape: (num_seasons, num_channels, 128, 128)
 
         # --- normalize (broadcast mean/std over seasons) ---
         mean = torch.tensor(self.img_mean, dtype=torch.float32).view(1, C, 1, 1)
@@ -64,14 +62,11 @@ class SuperpixelDataset(Dataset):
             .view(1, C, 1, 1)
             .clamp_min(1e-6)
         )
-        # make nodata pixels equal to mean in raw space
+        # make nodata pixels equal to mean in raw space, and handle any existing Infs/NaNs before Aug)
         superpixel_images = superpixel_images.clone()
         superpixel_images = torch.where(mask, mean, superpixel_images)
         superpixel_images = (superpixel_images - mean) / std
-
-        superpixel_images = torch.nan_to_num(
-            superpixel_images, nan=0.0, posinf=0.0, neginf=0.0
-        )
+        superpixel_images = torch.nan_to_num(superpixel_images, nan=0.0, posinf=0.0, neginf=0.0)
 
         # Apply transforms if needed
         if self.image_transform != None:
@@ -79,7 +74,14 @@ class SuperpixelDataset(Dataset):
                 superpixel_images, self.image_transform, 128
             )
         if not torch.isfinite(superpixel_images).all():
-            raise ValueError("Non-finite after preprocessing")
+            # If NaNs appeared AFTER augmentation, clean them one last time
+            # instead of crashing, or log the specific culprit.
+            print(
+                f"⚠️ Warning: Non-finite values detected after augmentation for index {idx}. Cleaning..."
+            )
+            superpixel_images = torch.nan_to_num(
+                superpixel_images, nan=0.0, posinf=0.0, neginf=0.0
+            )
 
         coords = data["point_cloud"]  # Shape: (7168, 3)
         normalized_coords = center_point_cloud(coords)
