@@ -77,7 +77,7 @@ def train(config):
     )
 
     # Define a checkpoint callback to save the best model
-    metric = "val_r2" if config["task"] in ["tsc", "tsc_mid", "tsca"] else "val_f1"
+    metric = "val_r2" if config["task"] in ["tsc", "tsc_mid", "tsca", "img_tsc", "pc_tsc"] else "val_f1"
     early_stopping = EarlyStopping(
         monitor=metric,  # Metric to monitor
         patience=10,  # Number of epochs with no improvement after which training will be stopped
