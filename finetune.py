@@ -154,10 +154,10 @@ def monkeypatch_l2sp(model, alpha):
 # --------------------------
 def make_optimizer_and_scheduler(model, cfg):
     params = filter(lambda p: p.requires_grad, model.parameters())
-    lr = float(cfg.get("lr", 1e-3))
+    lr = float(cfg.get("lr", 1e-5))
     wd = float(cfg.get("weight_decay", 5e-4))
     opt_name = str(cfg.get("optimizer", "adamW")).lower()
-    if opt_name == "adamw":
+    if opt_name == "adamW":
         optimizer = torch.optim.AdamW(params, lr=lr, weight_decay=wd)
     elif opt_name == "adam":
         optimizer = torch.optim.Adam(params, lr=lr, betas=(0.9, 0.999), eps=1e-8, weight_decay=wd)
@@ -295,6 +295,7 @@ if __name__ == "__main__":
     ap.add_argument("--cfg", required=True, help="Path to YAML or JSON config")
     ap.add_argument("--ft_mode", default=None, help="Override: linear_probe | freeze_last_k | full_ft | adapters")
     ap.add_argument("--task", default=None, help="Override: tsc | tsca")
+    ap.add_argument("--network", default=None, help="Override: Unet | ResUnet")
     ap.add_argument("--pretrained_ckpt", default=None, help="Override: linear_probe | freeze_last_k | full_ft | adapters")
     ap.add_argument("--log_name", default=None)
     ap.add_argument("--dataset", default="wrf_sp")
@@ -303,7 +304,7 @@ if __name__ == "__main__":
     with open(args.cfg, "r") as f:
         cfg = json.load(f) if args.cfg.endswith(".json") else yaml.safe_load(f)
     # sensible defaults if not present
-    cfg.setdefault("save_dir", os.path.join("tl_logs", args.log_name))
+    cfg.setdefault("save_dir", "tl_logs")
     cfg.setdefault("log_name", "finetune")
     cfg.setdefault("optimizer", "adamW")
     cfg.setdefault("pc_lr", 5e-4)
@@ -328,9 +329,11 @@ if __name__ == "__main__":
 
     if args.ft_mode is not None:
         cfg["ft_mode"] = args.ft_mode
+    if args.network is not None:
+        cfg["network"] = args.network
     prefix = "rmf" if args.dataset == "rmf_sp" else "wrf"
     cfg["dataset"] = args.dataset
-    #cfg["data_dir"] = os.path.join(args.data_dir, f"{prefix}_superpixel_dataset")
+    # cfg["data_dir"] = os.path.join(args.data_dir, f"{prefix}_superpixel_dataset")
     cfg["data_dir"] = args.data_dir
     cfg["n_classes"] = 8 if args.dataset == "wrf_sp" else 9
     cfg["class_names"] = ["SB", "LA", "PJ", "BW", "PT", "BF", "CW", "SW"] if args.dataset == "wrf_sp" else ["BF", "BW", "CE", "LA", "PT", "PJ", "PO", "SB", "SW"]
