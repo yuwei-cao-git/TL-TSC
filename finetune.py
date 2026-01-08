@@ -303,7 +303,7 @@ if __name__ == "__main__":
     with open(args.cfg, "r") as f:
         cfg = json.load(f) if args.cfg.endswith(".json") else yaml.safe_load(f)
     # sensible defaults if not present
-    cfg.setdefault("save_dir", "tl_logs")
+    cfg.setdefault("save_dir", os.path.join("tl_logs", args.log_name))
     cfg.setdefault("log_name", "finetune")
     cfg.setdefault("optimizer", "adamW")
     cfg.setdefault("pc_lr", 5e-4)
