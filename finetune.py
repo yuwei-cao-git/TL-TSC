@@ -154,7 +154,7 @@ def monkeypatch_l2sp(model, alpha):
 # --------------------------
 def make_optimizer_and_scheduler(model, cfg):
     params = filter(lambda p: p.requires_grad, model.parameters())
-    lr = float(cfg.get("lr", 1e-5))
+    lr = float(cfg.get("lr", 1e-3))
     wd = float(cfg.get("weight_decay", 5e-4))
     opt_name = str(cfg.get("optimizer", "adamW")).lower()
     if opt_name == "adamW":
