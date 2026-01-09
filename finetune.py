@@ -157,7 +157,7 @@ def make_optimizer_and_scheduler(model, cfg):
     lr = float(cfg.get("lr", 1e-3))
     wd = float(cfg.get("weight_decay", 5e-4))
     opt_name = str(cfg.get("optimizer", "adamW")).lower()
-    if opt_name == "adamW":
+    if opt_name == "adamw":
         optimizer = torch.optim.AdamW(params, lr=lr, weight_decay=wd)
     elif opt_name == "adam":
         optimizer = torch.optim.Adam(params, lr=lr, betas=(0.9, 0.999), eps=1e-8, weight_decay=wd)
