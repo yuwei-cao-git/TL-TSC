@@ -98,28 +98,23 @@ def train(config):
 
     print("start setting dataset")
     # Initialize the DataModule
-    if config["task"] in ["tsc", "lsc", "tsc_mid", "tsca", "top2"]:
-        if config["dataset"] in ["ovf", "rmf"]:
-            from dataset.balanced_dataset import BalancedDataModule
-            data_module = BalancedDataModule(config)
-        elif config["dataset"] == 'multi':
-            from dataset.multidataset import MultiSourceDataModule
-            data_module = MultiSourceDataModule(train_sources=("ovf","rmf"),  # train on both
-                                                val_sources=("ovf",),         # validate on OVF only
-                                                test_sources=("ovf",),        # test on OVF only
-                                            )
-        elif config["dataset"] in ["rmf_common", "wrf_common", "rmf_msp", "wrf_msp"]:
+    if config["task"] in ["tsc", "lsc", "tsc_mid", "tsca"]:
+        if config["dataset"] in ["rmf_common", "wrf_common", "rmf_msp", "wrf_msp"]:
             from dataset.common import SuperpixelDataModule
             data_module = SuperpixelDataModule(config)
         else:
             from dataset.superpixel import SuperpixelDataModule
             data_module = SuperpixelDataModule(config)
-    elif config["task"] in ["pc_tsc", "pc_lsc"]:
+    elif config["task"] == "pc_tsc":
         from dataset.pc import PcDataModule
         data_module = PcDataModule(config)
+        from model.pc_model import PCModel
+        model = PCModel(config, n_classes=config["n_classes"])
     else:
         from dataset.s2 import S2DataModule
         data_module = S2DataModule(config)
+        from model.s2_model import S2Model
+        model = S2Model(config, n_classes=config["n_classes"])
 
     # Use the calculated input channels from the DataModule to initialize the model
     if config["task"] == "tsc_mid":
@@ -130,25 +125,10 @@ def train(config):
         model = FusionModel(config, n_classes=config["n_classes"])
     elif config["task"] == "tsca":
         from model.decision_fusion_aligned import FusionModel
-
         model = FusionModel(config, n_classes=config["n_classes"])
-    elif config["task"] == "pc_tsc":
-        from model.pc_model import PCModel
-        model = PCModel(config, n_classes=config["n_classes"])
-    elif config["task"] == "img_tsc":
-        from model.s2_model import S2Model
-        model = S2Model(config, n_classes=config["n_classes"])
-
     elif config["task"] == "lsc":
         from model.decison_fuse_aligned_lsc import FusionModel
         model = FusionModel(config, n_classes=config["n_classes"])
-    """ 
-    elif config["task"] == "pc_lsc":
-        from model.lsc_pc import PCModel
-        model = PCModel(config, n_classes=config["n_classes"])
-    elif config["task"] == "top2":
-        from model.top2 import FusionModel
-        model = FusionModel(config, n_classes=config["n_classes"]) """
 
     if config["pretrained_ckpt"] != "None":
         # load backbone weights only, ignore head mismatch
@@ -167,8 +147,11 @@ def train(config):
         strategy="auto",  # DDPStrategy(find_unused_parameters=False)
     )
 
-    # Train the model
-    trainer.fit(model, data_module)
+    if config["mode"] == "train":
+        # Train the model
+        trainer.fit(model, data_module)
 
-    # Test the model after training
-    trainer.test(model, data_module)
+        # Test the model after training
+        trainer.test(model, data_module)
+    else:
+        trainer.test(model, data_module)

@@ -17,8 +17,8 @@ class S2Transformer(nn.Module):
         res.fc = fc
         self.backbone = res
         if self.aligned:
-            from .decoder import DisAlignLinear
-            self.disalign_head = DisAlignLinear(num_classes, num_classes)
+            from .decoder import PCCAHead
+            self.disalign_head = PCCAHead(num_classes, num_classes)
             
     def forward(self, x):
         out = self.backbone(x)

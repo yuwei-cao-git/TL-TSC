@@ -1,14 +1,9 @@
 import math
 import os
-import shutil
-import sys
-import zipfile
 
 import fiona
 import geopandas as gpd
-import matplotlib.pyplot as plt
 import numpy as np
-import pandas as pd
 import rasterio
 from rasterio import features
 from rasterio.enums import Resampling
@@ -18,15 +13,10 @@ from rasterio.merge import merge
 from rasterio.warp import Resampling, calculate_default_transform, reproject
 from rasterio.windows import Window
 
-# from s2cloudless import S2PixelCloudDetector
-from scipy.ndimage import zoom
-from shapely.geometry import Point, Polygon
-from shapely.ops import unary_union
-
 # from skimage import exposure
 # from skimage.transform import AffineTransform, rotate, warp
 from tqdm import tqdm
-from utils import (
+from .utils import (
     unzip_directory,
     unzip_folder,
     print_color,

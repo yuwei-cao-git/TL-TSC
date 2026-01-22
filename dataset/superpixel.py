@@ -149,7 +149,7 @@ class SuperpixelDataModule(LightningDataModule):
             "test": join(
                 config["data_dir"],
                 "tile_128",
-                "test",
+                "test" if config['mode'] == 'train' else "vis",
                 f"{config['dataset']}"
             ),
         }

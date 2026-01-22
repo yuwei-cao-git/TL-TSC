@@ -379,10 +379,10 @@ class DecisionLevelFusion(nn.Module):
         else:
             raise ValueError(f"Unknown fusion method: {self.method}")
 
-class DisAlignFCNHead(nn.Module):
-    """Fully Convolution Networks for Semantic Segmentation.
+class PCAHead(nn.Module):
+    """
 
-    This head is implemented of `FCNNet <https://arxiv.org/abs/1411.4038>`_.
+    This head is reimplemented of `DisAlign (https://github.com/Megvii-BaseDetection/DisAlign)`_.
 
     Args:
         num_convs (int): Number of convs in the head. Default: 2.
@@ -409,7 +409,7 @@ class DisAlignFCNHead(nn.Module):
         self.kernel_size = kernel_size
         self.channels = channels
         self.num_classes = n_classes
-        super(DisAlignFCNHead, self).__init__(**kwargs)
+        super(PCAHead, self).__init__(**kwargs)
         if num_convs == 0:
             assert self.in_channels == self.channels
 
@@ -443,8 +443,6 @@ class DisAlignFCNHead(nn.Module):
 
         # Magnitude and Margin of DisAlign
         self.logit_scale = nn.Parameter(torch.ones(1,self.num_classes, 1, 1))
-        # 🌟 CRITICAL FIX 1: Use log-scale for stability
-        # self.log_logit_scale = nn.Parameter(torch.zeros(1, self.num_classes, 1, 1))
         self.logit_bias = nn.Parameter(torch.zeros(1,self.num_classes, 1, 1))
         # Confidence function
         self.confidence_layer = ConvBNReLU(
@@ -465,17 +463,13 @@ class DisAlignFCNHead(nn.Module):
         output = self.dropout(output)
         output = self.conv_seg(output)
 
-        # 🌟 CRITICAL FIX 2: Compute the safe scale
-        # safe_logit_scale = torch.exp(self.log_logit_scale)
-        # only adjust the foreground classification scores
-        # scores_tmp = confidence * (output * safe_logit_scale + self.logit_bias)
         scores_tmp = confidence * (output * self.logit_scale + self.logit_bias)
         output = scores_tmp + (1 - confidence) * output
 
         return output
 
 
-class DisAlignLinear(nn.Linear):
+class PCCAHead(nn.Linear):
     def __init__(self, in_features, out_features, bias = True):
         super().__init__(in_features=in_features, out_features=out_features, bias=bias)
         self.confidence_layer = nn.Linear(in_features, 1)
@@ -489,34 +483,3 @@ class DisAlignLinear(nn.Linear):
         logit_after = (1 + confidence * self.logit_scale) * logit_before + \
             confidence * self.logit_bias
         return logit_after
-
-"""
-class DisAlignLinear(nn.Linear):
-    def __init__(self, in_features, out_features, bias=True):
-        super().__init__(in_features=in_features, out_features=out_features, bias=bias)
-        self.confidence_layer = nn.Linear(in_features, 1)
-
-        # 🌟 CRITICAL FIX 1: Replace unstable logit_scale with log_logit_scale
-        # Initialize to zero, so exp(0) = 1, maintaining the original starting behavior
-        self.log_logit_scale = nn.Parameter(torch.zeros(1, out_features))
-
-        # logit_bias can also be constrained if it causes issues, but we'll leave it
-        # as is for now, as the scale is the more dangerous term.
-        self.logit_bias = nn.Parameter(torch.zeros(1, out_features))
-
-        nn.init.constant_(self.confidence_layer.weight, 0.1)
-
-    def forward(self, input):
-        logit_before = F.linear(input, self.weight, self.bias)
-        confidence = self.confidence_layer(input).sigmoid()
-
-        # 🌟 CRITICAL FIX 2: Compute the safe, positive-only scale
-        safe_logit_scale = torch.exp(self.log_logit_scale)
-
-        # Apply the scaled logit and bias
-        logit_after = (
-            1 + confidence * safe_logit_scale
-        ) * logit_before + confidence * self.logit_bias
-
-        return logit_after
-"""

@@ -80,6 +80,7 @@ def parse_args():
     parser.add_argument('--use_ms', type=bool, default=False) 
     parser.add_argument('--level', type=str)
     parser.add_argument('--align_header', type=str)
+    parser.add_argument("--mode", default='train', type=str)
     return parser.parse_args()
 
 def main():
@@ -88,6 +89,7 @@ def main():
     cfg = load_config(args.config)
     cfg = override_config(cfg, args)
     cfg['log_name'] = args.log_name
+    cfg['mode'] = args.mode
     cfg['save_dir'] = os.path.join(os.getcwd(), 'tl_logs')
     cfg["data_dir"] = (
         args.data_dir
@@ -106,14 +108,9 @@ def main():
         cfg[f'{args.dataset}_class_weights'] = None
 
     os.makedirs(cfg['save_dir'], exist_ok=True)
-    print(cfg)
-    # Call the train function with parsed arguments
-    if cfg['task'] == 'tsc_cd':
-        from utils.cd_trainer import train
-        train(cfg, args.level)
-    else:
-        from utils.trainer import train
-        train(cfg)
+    print(cfg)   # Call the train function with parsed arguments
+    from utils.trainer import train
+    train(cfg)
 
 
 if __name__ == "__main__":

@@ -64,8 +64,8 @@ class UNet(nn.Module):
         if decoder:
             self.decoder = UNetDecoder(bilinear)
             if self.align_header:
-                from .decoder import DisAlignFCNHead
-                self.classifier = DisAlignFCNHead(64, 64, n_classes, num_convs=1)
+                from .decoder import PCAHead
+                self.classifier = PCAHead(64, 64, n_classes, num_convs=1)
             else:
                 self.classifier = UNetClassifier(64, n_classes, return_type)
 

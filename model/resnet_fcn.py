@@ -44,8 +44,8 @@ class FCNResNet50Decoder(nn.Module):
         self.align_header = aligned
         if self.decoder_upsample == 'bilinear':
             if self.align_header:
-                from .decoder import DisAlignFCNHead
-                self.classifier = DisAlignFCNHead(encoder_channels, encoder_channels, n_classes, num_convs=1)
+                from .decoder import PCAHead
+                self.classifier = PCAHead(encoder_channels, encoder_channels, n_classes, num_convs=1)
             else:
                 from torchvision.models.segmentation.fcn import FCNHead
                 self.classifier = FCNHead(encoder_channels, n_classes)
