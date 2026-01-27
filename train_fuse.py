@@ -2,6 +2,7 @@ import argparse
 import os
 import torch
 import yaml
+from utils.trainer import train
 
 def load_config(config_path):
     with open(config_path, 'r') as f:
@@ -109,7 +110,7 @@ def main():
 
     os.makedirs(cfg['save_dir'], exist_ok=True)
     print(cfg)   # Call the train function with parsed arguments
-    from utils.trainer import train
+    
     train(cfg)
 
 

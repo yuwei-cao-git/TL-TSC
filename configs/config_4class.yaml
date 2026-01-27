@@ -1,35 +1,45 @@
-# config_rmf_4class.yaml
+# config_4class.yaml
 
 # General
-dataset: rmf_4class                        # Options: rmf, rmf_superpixel_dataset
-data_dir: "/mnt/g/rmf/rmf_superpixel_dataset"
+dataset: wrf_4class
+test_dataset: rmf_4class
+data_dir: "./data/wrf_superpixel_dataset"
+test_data_dir: "./data/rmf_superpixel_dataset"
 tile_size: 128
 n_bands: 9
 n_classes: 4
 class_names: ['hardwood', 'conifer', 'pine', 'spruce']
+
+wrf_4class_class_weights: [0.22331874, 0.38801031, 0.26605442, 0.12261653]
+wrf_4class_season_map: ["img_s2_spring", "img_s2_summer", "img_s2_fall", "img_s2_winter"]
+wrf_4class_img_mean: [0.138865203036642, 0.1529494752635894, 0.1452076337326764, 0.1789684238655694, 0.257279019578921, 0.2776631398492534, 0.18027623410673327, 0.14481445257625447, 0.29361277770115296]
+wrf_4class_img_std: [0.062490793646216306, 0.05821868286223772, 0.05966964061846237, 0.058297096406689335, 0.059233637009967685, 0.06090862201084382, 0.038170925441069155, 0.018007529417898224, 0.06124493752674275]
+
 rmf_4class_class_weights: [0.16036762, 0.30442361, 0.44757267, 0.0876361]
 rmf_4class_season_map: ["img_s2_spring", "img_s2_summer", "img_s2_fall", "img_s2_winter"]
 rmf_4class_img_mean: [0.031451026289739746, 0.0460215415128974, 0.038534002229654404, 0.07082990355783647, 0.1557033622611771, 0.178768115942029, 0.07712028601084073, 0.040865396628608774, 0.1938075313304886]
 rmf_4class_img_std: [0.06352883737833503, 0.061442410219332784, 0.06319373449137498, 0.06287210384707287, 0.06701780647147014, 0.07105475936140851, 0.03420919493554232, 0.015304264209902033, 0.07220147417048647]
 
 # Training parameters
-task: tsc
-head:  all_head # Options: no_pc_head, fuse_head, all_head, no_img_head
+task: tsca
+head:  fuse_head # Options: no_pc_head, fuse_head, all_head, no_img_head
 pretrained_ckpt: None
 fix_backbone: false
 batch_size: 64
-max_epochs: 300
+max_epochs: 100
 optimizer: adamW                 # Options: adam, adamW, sgd
 scheduler: steplr         # Options: plateau, steplr, asha, cosine, cosinewarmup
-lr: 0.0001
+pc_lr: 0.0005
+img_lr: 0.0005
+fuse_lr: 0.0005
 patience: 10
 step_size: 10
 momentum: 0.9
 weight_decay: 0.0001
-decision_fuse_type: weighted #average, weighted, mlp
+decision_fuse_type: mlp #average, weighted, mlp
 
 # Loss weights
-multitasks_uncertain_loss: false
+multitasks_uncertain_loss: true
 loss_func: mse
 
 # Model architecture
@@ -38,7 +48,7 @@ emb_dims: 768
 num_points: 7168
 encoder: b                      # Options: s, b, l, xl
 fusion_dim: 128
-dp_fuse: 0.6
+dp_fuse: 0.3
 dp_pc: 0.3
 use_ms: false
 linear_layers_dims: [512, 256]
