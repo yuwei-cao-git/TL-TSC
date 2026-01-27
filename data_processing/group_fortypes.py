@@ -4,7 +4,7 @@ from glob import glob
 from sklearn.model_selection import train_test_split
 import argparse
 from tqdm import tqdm
-from .mapping_species import (
+from mapping_species import (
     group_to_coarser,
     iterative_split_superpixels,
     save_split_files
@@ -17,7 +17,7 @@ from .mapping_species import (
 DATASETS = {
     "rmf": {
         "species_names": ["BF", "BW", "CE", "LA", "PT", "PJ", "PO", "SB", "SW"],
-        "species_to_fortypes": {
+        "species_to_genus": {
             "PO": "hardwood",
             "SW": "spruce",
             "SB": "spruce",
@@ -28,9 +28,25 @@ DATASETS = {
             "PT": "hardwood",
             "LA": "conifer",
         },
-        "fortype_order": ["hardwood", "conifer", "pine", "spruce"],
+        "genus_order": ["hardwood", "conifer", "pine", "spruce"],
         "subfolder": "rmf_sp",
-        "save_prefix": "rmf_4class",
+        "output_subfolder": "rmf_4class",
+    },
+    "wrf": {
+        "species_names": ["SB", "LA", "PJ", "BW", "PT", "BF", "CW", "SW"],
+        "species_to_genus": {
+            "CW": "conifer",
+            "SW": "spruce",
+            "SB": "spruce",
+            "BW": "hardwood",
+            "BF": "conifer",
+            "PJ": "pine",
+            "PT": "hardwood",
+            "LA": "conifer",
+        },
+        "genus_order": ["hardwood", "conifer", "pine", "spruce"],
+        "subfolder": "wrf_sp",
+        "output_subfolder": "wrf_4class",
     },
     "ovf": {
         "species_names": [
@@ -46,7 +62,7 @@ DATASETS = {
             "OR",
             "PR",
         ],
-        "species_to_fortypes": {
+        "species_to_genus": {
             "AB": "hardwood",
             "PO": "poplar",
             "SW": "conifer",
@@ -59,9 +75,9 @@ DATASETS = {
             "PR": "pine",
             "OR": "hardwood",
         },
-        "fortype_order": ["hardwood", "poplar", "conifer", "pine"],
+        "genus_order": ["hardwood", "poplar", "conifer", "pine"],
         "subfolder": "ovf_sp",
-        "save_prefix": "ovf_4class",
+        "output_subfolder": "ovf_4class",
     },
 }
 
@@ -99,8 +115,8 @@ def main(args):
             d["label"],
             d["per_pixel_labels"],
             cfg["species_names"],
-            cfg["species_to_fortypes"],
-            cfg["fortype_order"],
+            cfg["species_to_genus"],
+            cfg["genus_order"],
         )
         fortype_labels.append(g)
 
@@ -110,7 +126,6 @@ def main(args):
     print("\nGenerating balanced splits...")
     train_idx, val_idx, test_idx = iterative_split_superpixels(
         fortype_labels,
-        target=args.split,
         tolerance=args.tolerance,
         max_iter=args.max_iter,
     )
@@ -131,7 +146,7 @@ def main(args):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
 
-    parser.add_argument("--dataset", choices=["rmf", "ovf"], required=True)
+    parser.add_argument("--dataset", choices=["rmf", "ovf", "wrf"], required=True)
     parser.add_argument(
         "--root",
         default="/mnt/g",
@@ -144,5 +159,6 @@ if __name__ == "__main__":
     args = parser.parse_args()
     main(args)
 
-    # python fortype_split.py --dataset rmf
-    # python fortype_split.py --dataset ovf
+    # python group_fortypes.py --dataset rmf
+    # python group_fortypes.py --dataset ovf
+    # python group_fortypes.py --dataset wrf

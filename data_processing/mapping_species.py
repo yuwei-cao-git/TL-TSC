@@ -150,7 +150,7 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--dataset", choices=["ovf", "rmf", "wrf"], required=True)
     parser.add_argument("--src", required=True, help="Input root folder")
-    parser.add_argument("--out", required=True, help="Output folder")
+    parser.add_argument("--output_subfolder", required=True, help="Output folder")
     args = parser.parse_args()
 
     cfg = DATASET_CONFIG[args.dataset]

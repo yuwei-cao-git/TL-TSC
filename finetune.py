@@ -114,40 +114,9 @@ def mode_adapters(model, s2_channels=32, pc_channels=768, use_ms_fusion=True,
     if use_ms_fusion: train += MF_BLOCK
     _set_requires_grad(model, train)
 
-# --------------------------
-# L2-SP (optional)
-# --------------------------
 def snapshot_source_state(model):
     model._src_state = {k: v.detach().clone().to("cpu") for k, v in model.state_dict().items()}
     model._src_param_keys = set(dict(model.named_parameters()).keys()) & set(model._src_state.keys())
-
-def l2sp_loss(model, alpha=5e-5):
-    try: alpha = float(alpha)
-    except Exception: alpha = 5e-5
-    dev  = next(model.parameters()).device
-    dtype= next(model.parameters()).dtype
-    reg = torch.zeros((), device=dev, dtype=dtype)
-    if not hasattr(model, "_src_state") or not hasattr(model, "_src_param_keys"): return reg
-    for k, p in model.named_parameters():
-        if not p.requires_grad: continue
-        if k not in model._src_param_keys: continue
-        src = model._src_state[k]
-        if src.shape != p.shape: continue
-        reg = reg + (p - src.to(device=dev, dtype=p.dtype)).pow(2).sum()
-    return reg * torch.tensor(alpha, device=dev, dtype=dtype)
-
-def monkeypatch_l2sp(model, alpha):
-    if alpha is None or alpha == 0: return
-    orig_training_step = model.training_step
-    def training_step_with_l2sp(*args, **kwargs):
-        loss = orig_training_step(*args, **kwargs)
-        if isinstance(loss, torch.Tensor):
-            return loss + l2sp_loss(model, alpha=alpha)
-        if isinstance(loss, dict) and "loss" in loss:
-            loss["loss"] = loss["loss"] + l2sp_loss(model, alpha=alpha)
-            return loss
-        return loss
-    model.training_step = training_step_with_l2sp
 
 # --------------------------
 # Optimizer & Scheduler
@@ -163,16 +132,6 @@ def make_optimizer_and_scheduler(model, cfg):
         optimizer = torch.optim.Adam(params, lr=lr, betas=(0.9, 0.999), eps=1e-8, weight_decay=wd)
     else:
         optimizer = torch.optim.SGD(params, lr=lr, momentum=float(cfg.get("momentum", 0.9)), weight_decay=wd)
-    """
-    from torch.optim.lr_scheduler import LinearLR, CosineAnnealingLR, SequentialLR
-    max_epochs = int(cfg["max_epochs"])
-    warmup_epochs = max(1, int(0.1 * max_epochs))
-    warmup = LinearLR(optimizer, start_factor=0.1, end_factor=1.0, total_iters=warmup_epochs)
-    cosine = CosineAnnealingLR(optimizer, T_max=max_epochs - warmup_epochs, eta_min=1e-6)
-    scheduler = SequentialLR(optimizer, [warmup, cosine], milestones=[warmup_epochs])
-    
-    return optimizer, {"scheduler": scheduler, "interval": "epoch"}
-    """
     from torch.optim.lr_scheduler import StepLR
     scheduler = StepLR(optimizer, 10)
     return optimizer, scheduler
@@ -266,9 +225,6 @@ def train(cfg, ft_mode_cli=None):
     else:
         k_last=int(ft_mode.split('_')[-1])
         mode_freeze_last_k(model, k=k_last)
-
-    # --- optional L2-SP (set l2sp_alpha in YAML; works with any mode) ---
-    monkeypatch_l2sp(model, cfg.get("l2sp_alpha", None))
 
     # --- optimizer & scheduler (single LR on trainables) ---
     optimizer, scheduler = make_optimizer_and_scheduler(model, cfg)
