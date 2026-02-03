@@ -3,7 +3,7 @@ import argparse
 import numpy as np
 from glob import glob
 from sklearn.model_selection import train_test_split
-from .mapping_species import (
+from mapping_species import (
     group_to_coarser,
     iterative_split_superpixels,
     save_split_files,
@@ -56,21 +56,20 @@ DATASET_CONFIG = {
         "src_pattern": "**/ovf_2s_sp/*.npz",
         "output_subfolder": "ovf_2s_genus",
     },
-    "rmf": {
-        "species_names": ["BF", "BW", "CE", "LA", "PT", "PJ", "PO", "SB", "SW"],
+    "wrf": {
+        "species_names": ["SB", "LA", "PJ", "BW", "PT", "BF", "CW", "SW"],
         "species_to_genus": {
-            "PO": "poplar",
             "SW": "spruce",
             "BW": "birch",
             "BF": "fir",
-            "CE": "cedar",
+            "CW": "cedar",
             "PT": "poplar",
             "PJ": "pine",
             "SB": "spruce",
             "LA": "larch",
         },
         "genus_order": ["poplar", "spruce", "birch", "fir", "cedar", "pine", "larch"],
-        "src_pattern": "**/rmf_sp/*.npz",
+        "src_pattern": "**/wrf_sp/*.npz",
         "output_subfolder": "",  # RMF uses raw split folder
     },
 }
@@ -84,7 +83,7 @@ DATASET_CONFIG = {
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--dataset", choices=["ovf", "rmf"], required=True)
+    parser.add_argument("--dataset", choices=["ovf", "rmf", "wrf"], required=True)
     parser.add_argument("--src", required=True, help="Input root folder")
     parser.add_argument("--out", required=True, help="Output folder")
     args = parser.parse_args()
@@ -153,4 +152,8 @@ if __name__ == "__main__":
         --dataset rmf \
         --src /mnt/g/rmf/rmf_superpixel_dataset/tile_128 \
         --out /mnt/g/rmf/rmf_genus
+    python process_genus.py \
+        --dataset wrf \
+        --src /mnt/g/wrf/wrf_superpixel_dataset/tile_128 \
+        --out /mnt/g/wrf/wrf_genus
     """

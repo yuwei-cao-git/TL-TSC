@@ -99,11 +99,11 @@ def train(config):
     print("start setting dataset")
     # Initialize the DataModule
     if config["task"] in ["tsc", "lsc", "tsc_mid", "tsca"]:
-        if config["dataset"] in ["rmf_common", "wrf_common", "rmf_msp", "wrf_msp", "rmf_4class", "wrf_4class"]:
-            from dataset.common import SuperpixelDataModule
+        if config["dataset"] in ["rmf_sp", "wrf_sp"]:
+            from dataset.superpixel import SuperpixelDataModule
             data_module = SuperpixelDataModule(config)
         else:
-            from dataset.superpixel import SuperpixelDataModule
+            from dataset.common import SuperpixelDataModule
             data_module = SuperpixelDataModule(config)
     elif config["task"] == "pc_tsc":
         from dataset.pc import PcDataModule

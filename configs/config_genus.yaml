@@ -1,0 +1,63 @@
+# config_genus.yaml
+
+# General
+dataset: wrf_genus
+test_dataset: rmf_genus
+data_dir: "./data/wrf_superpixel_dataset"
+test_data_dir: "./data/rmf_superpixel_dataset"
+tile_size: 128
+n_bands: 9
+n_classes: 7
+class_names: ['poplar', 'spruce', 'birch', 'fir', 'cedar', 'pine', 'larch']
+rmf_genus_class_weights: [0.07031139, 0.01921179, 0.07409001, 0.42451091, 0.17147074, 0.10330588, 0.13709928]
+
+rmf_genus_season_map: ["img_s2_spring", "img_s2_summer", "img_s2_fall", "img_s2_winter"]
+rmf_genus_img_mean: [0.03160664256098236, 0.04618838721108558, 0.03861428583377172, 0.07090616520613562, 0.15561610097045714, 0.17856626457839184, 0.07710683671201311, 0.040927769735820005, 0.19361669481592234]
+rmf_genus_img_std: [0.06414650556729361, 0.06203337034833279, 0.06376456568086916, 0.06340872677237001, 0.06740255021568313, 0.07126848402911938, 0.03439929642996024, 0.015347019413382483, 0.07240695848487705]
+
+wrf_genus_class_weights: [0.10463823, 0.02355183, 0.07269389, 0.20206347, 0.37322265, 0.05110298, 0.17272695]
+wrf_genus_season_map: ["img_s2_spring", "img_s2_summer", "img_s2_fall", "img_s2_winter"]
+wrf_genus_img_mean: [0.138865203036642, 0.1529494752635894, 0.1452076337326764, 0.1789684238655694, 0.257279019578921, 0.2776631398492534, 0.18027623410673327, 0.14481445257625447, 0.29361277770115296]
+wrf_genus_img_std:  [0.062490793646216306, 0.05821868286223772, 0.05966964061846237, 0.058297096406689335, 0.059233637009967685, 0.06090862201084382, 0.038170925441069155, 0.018007529417898224, 0.06124493752674275]
+# Training parameters
+task: tsca
+head:  fuse_head # Options: no_pc_head, fuse_head, all_head, no_img_head
+pretrained_ckpt: None
+fix_backbone: false
+batch_size: 64
+max_epochs: 100
+optimizer: adamW                 # Options: adam, adamW, sgd
+scheduler: steplr         # Options: plateau, steplr, asha, cosine, cosinewarmup
+pc_lr: 0.0005
+img_lr: 0.0005
+fuse_lr: 0.0005
+patience: 10
+step_size: 10
+momentum: 0.9
+weight_decay: 0.0001
+decision_fuse_type: mlp #average, weighted, mlp
+
+# Loss weights
+multitasks_uncertain_loss: true
+loss_func: mse
+
+# Model architecture
+network: ResUnet
+emb_dims: 768
+num_points: 7168
+encoder: b                      # Options: s, b, l, xl
+fusion_dim: 128
+dp_fuse: 0.3
+dp_pc: 0.3
+use_ms: false
+linear_layers_dims: [512, 256]
+align_header: img
+
+# Data transforms
+image_transform: compose
+point_cloud_transform: true
+rotate: false
+pc_normal: false
+
+# Hardware
+gpus: 1
