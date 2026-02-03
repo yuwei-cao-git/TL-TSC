@@ -368,7 +368,7 @@ class DecisionLevelFusion(nn.Module):
 
         if method == "gate":
             self.gate_mlp = nn.Sequential(
-                nn.Linear(2 * n_classes, 128), nn.ReLU(), nn.Linear(128, n_classes)
+                nn.Linear(2 * n_classes, 64), nn.ReLU(), nn.Linear(64, n_classes)
             )
             self.refine_mlp = nn.Sequential(
                 nn.Linear(n_classes, 128), nn.ReLU(), nn.Linear(128, n_classes)
