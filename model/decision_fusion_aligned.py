@@ -111,7 +111,10 @@ class FusionModel(pl.LightningModule):
 
         img_logits_list = apply_mask_per_batch(image_preds, img_masks, multi_class=True)
         image_preds = torch.stack([p.mean(dim=0) if p.numel() > 0 else torch.zeros(image_preds.shape[1], device=image_preds.device) for p in img_logits_list], dim=0)
-        fuse_preds = self.fuse_head(image_preds, pc_preds)
+        if self.cfg["decision_fuse_type"] == "gate":
+            fuse_preds, gate_reg = self.fuse_head(image_preds, pc_preds)
+        else:
+            fuse_preds = self.fuse_head(image_preds, pc_preds)
 
         if not (
             torch.isfinite(fuse_preds).all()
@@ -127,6 +130,8 @@ class FusionModel(pl.LightningModule):
 
         # classification loss
         loss = calc_masked_loss(self.loss_func, fuse_preds, labels, weights)
+        if self.cfg["decision_fuse_type"] == "gate":
+            loss += gate_reg
         # consistency_loss
         # avg_preds = valid_pixel_preds.mean(dim=0, keepdim=True)
         # consistency_loss = nn.KLDivLoss(reduction='batchmean')(valid_pixel_preds.log_softmax(dim=1), avg_preds.softmax(dim=1).expand_as(valid_pixel_preds))

@@ -31,6 +31,8 @@ def override_config(cfg, args):
         cfg['align_header'] = args.align_header
     if args.scheduler is not None:
         cfg['scheduler'] = args.scheduler
+    if args.df_method is not None:
+        cfg["decision_fuse_type"] = args.df_method
     # hps
     if args.pc_lr is not None:
         cfg["pc_lr"] = args.pc_lr
@@ -38,6 +40,8 @@ def override_config(cfg, args):
         cfg["img_lr"] = args.img_lr
     if args.fuse_lr is not None:
         cfg["fuse_lr"] = args.fuse_lr
+    if args.dp_pc is not None:
+        cfg["dp_pc"] = args.dp_pc
     if args.emb_dims is not None:
         cfg['emb_dims'] = args.emb_dims
     if args.optimizer is not None:
@@ -71,6 +75,7 @@ def parse_args():
     parser.add_argument('--pc_lr', type=float)
     parser.add_argument("--img_lr", type=float)
     parser.add_argument("--fuse_lr", type=float)
+    parser.add_argument("--dp_pc", type=float)
     parser.add_argument('--multitasks_uncertain_loss', type=bool, default=False)
     parser.add_argument('--loss_func', type=str)
     parser.add_argument('--emb_dims', type=int)
@@ -82,6 +87,7 @@ def parse_args():
     parser.add_argument('--level', type=str)
     parser.add_argument('--align_header', type=str)
     parser.add_argument("--mode", default='train', type=str)
+    parser.add_argument("--df_method", type=str)
     return parser.parse_args()
 
 def main():
