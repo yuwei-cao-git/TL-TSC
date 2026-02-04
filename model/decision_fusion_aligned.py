@@ -24,7 +24,7 @@ class FusionModel(pl.LightningModule):
         self.ms_fusion = self.cfg["use_ms"]
         # Learning rates for different parts
         self.img_lr = self.cfg.get("img_lr", 5e-4)
-        self.pc_lr = self.cfg.get("pc_lr", 5e-4)
+        self.pc_lr = self.cfg.get("pc_lr", 1e-4)
         self.fusion_lr = self.cfg.get("fuse_lr", 5e-4)
 
         if self.ms_fusion:
@@ -37,22 +37,30 @@ class FusionModel(pl.LightningModule):
         # Image stream
         if self.cfg["network"] == "Unet":
             from .unet import UNet
-            self.s2_model = UNet(n_channels=total_input_channels, n_classes=n_classes, aligned=(True if self.cfg['align_header'] in ['img', 'both'] else False))
+            self.s2_model = UNet(
+                n_channels=total_input_channels,
+                return_type=("logits" if self.cfg['decision_fuse_type']=='gate_refine' else "softmax"),
+                n_classes=n_classes,
+                aligned=(
+                    True if self.cfg["align_header"] in ["img", "both"] else False
+                ),
+            )
         elif self.cfg["network"] == "ResUnet":
             from .ResUnet import ResUnet
             self.s2_model = ResUnet(n_channels=total_input_channels, n_classes=n_classes, aligned=(True if self.cfg['align_header'] in ['img', 'both'] else False))
-        elif self.cfg["network"] == "FCNResNet":
-            from .resnet_fcn import FCNResNet50
-            self.s2_model = FCNResNet50(n_channels=total_input_channels, n_classes=n_classes, aligned=(True if self.cfg['align_header'] in ['img', 'both'] else False))
-        elif self.cfg["network"] == "ResNet":
-            from .resnet import Resnet
-            self.s2_model = Resnet(n_channels=total_input_channels, num_classes=n_classes, aligned=(True if self.cfg['align_header'] in ['img', 'both'] else False))
-        elif self.cfg["network"] == "Vit":
-            from .VitCls import S2Transformer
-            self.s2_model = S2Transformer(num_classes=n_classes, usehead=True, aligned=(True if self.cfg['align_header'] in ['img', 'both'] else False))
 
         # Point cloud stream
-        self.pc_model = PointNextModel(self.cfg, in_dim=3, n_classes=n_classes, aligned=(True if self.cfg['align_header'] in ['pc', 'both'] else False))
+        self.pc_model = PointNextModel(
+            self.cfg,
+            in_dim=3,
+            return_type=(
+                "logits"
+                if self.cfg["decision_fuse_type"] == "gate_refine"
+                else "softmax"
+            ),
+            n_classes=n_classes,
+            aligned=(True if self.cfg["align_header"] in ["pc", "both"] else False),
+        )
 
         # Decision-level fusion module
         self.fuse_head = DecisionLevelFusion(
@@ -111,7 +119,7 @@ class FusionModel(pl.LightningModule):
 
         img_logits_list = apply_mask_per_batch(image_preds, img_masks, multi_class=True)
         image_preds = torch.stack([p.mean(dim=0) if p.numel() > 0 else torch.zeros(image_preds.shape[1], device=image_preds.device) for p in img_logits_list], dim=0)
-        if self.cfg["decision_fuse_type"] == "gate":
+        if self.cfg["decision_fuse_type"] == "gate_refine":
             fuse_preds, gate_reg = self.fuse_head(image_preds, pc_preds)
         else:
             fuse_preds = self.fuse_head(image_preds, pc_preds)
@@ -130,7 +138,7 @@ class FusionModel(pl.LightningModule):
 
         # classification loss
         loss = calc_masked_loss(self.loss_func, fuse_preds, labels, weights)
-        if self.cfg["decision_fuse_type"] == "gate":
+        if self.cfg["decision_fuse_type"] == "gate_refine":
             loss += gate_reg
         # consistency_loss
         # avg_preds = valid_pixel_preds.mean(dim=0, keepdim=True)
