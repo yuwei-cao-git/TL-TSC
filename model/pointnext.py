@@ -36,15 +36,15 @@ class PointNextClassifier(nn.Module):
         self.n_classes = n_classes
         self.return_type = return_type
         self.aligned = aligned
-        
+
         self.cls_head = nn.Sequential(
             nn.Linear(config["emb_dims"], 512),
             nn.BatchNorm1d(512),
-            nn.ReLU(),
+            nn.LeakyReLU(),
             nn.Dropout(config["dp_pc"]),
             nn.Linear(512, 256),
             nn.BatchNorm1d(256),
-            nn.ReLU(),
+            nn.LeakyReLU(),
             nn.Dropout(config["dp_pc"]),
             nn.Linear(256, self.n_classes),
         )
@@ -64,7 +64,7 @@ class PointNextClassifier(nn.Module):
             return preds
         else:
             return logits
-        
+
 class PointNextModel(nn.Module):
     def __init__(self, config, in_dim, n_classes, decoder=True, return_type='softmax', aligned=False):
         super(PointNextModel, self).__init__()
