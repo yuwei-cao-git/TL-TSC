@@ -135,6 +135,9 @@ def train(config):
         model = load_backbone_weights(model, config["pretrained_ckpt"])
     else:
         initialize_weights(model)
+        if config["decision_fuse_type"] in ["gate", "mlp", "gate_refine"]:
+            nn.init.zeros_(model.fuse_head.mlp[-1].weight)
+            nn.init.zeros_(model.fuse_head.mlp[-1].bias)
 
     # Create a PyTorch Lightning Trainer
     trainer = Trainer(

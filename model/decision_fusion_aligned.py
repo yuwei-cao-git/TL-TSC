@@ -70,10 +70,6 @@ class FusionModel(pl.LightningModule):
             weight_pc=self.cfg.get("decision_weight_pc", 0.3)
         )
 
-        if self.cfg["decision_fuse_type"] != "weighted":
-            nn.init.zeros_(self.fuse_head[-1].weight)
-            nn.init.zeros_(self.fuse_head[-1].bias)
-
         self.loss_func = self.cfg["loss_func"]
         # self.criterion = nn.MSELoss()
         if self.loss_func in ["wmse", "wrmse", "wkl", "ewmse"]:

@@ -360,16 +360,16 @@ class DecisionLevelFusion(nn.Module):
         self.weight_pc = weight_pc
 
         if method == "mlp":
-            self.fuse_mlp = nn.Sequential(
+            self.mlp = nn.Sequential(
                 nn.Linear(2 * n_classes, 128), nn.LeakyReLU(), nn.Linear(128, n_classes)
             )
 
         if method == "gate":
-            self.gate_mlp = nn.Sequential(
+            self.mlp = nn.Sequential(
                 nn.Linear(2 * n_classes, 64), nn.LeakyReLU(), nn.Linear(64, n_classes)
             )
         if method == "gate_refine":
-            self.gate_mlp = nn.Sequential(
+            self.mlp = nn.Sequential(
                 nn.Linear(2 * n_classes, 64), nn.LeakyReLU(), nn.Linear(64, n_classes)
             )
             self.refine_mlp = nn.Sequential(
@@ -385,11 +385,11 @@ class DecisionLevelFusion(nn.Module):
             return self.weight_img * img_logits + self.weight_pc * pc_logits
         elif self.method == "mlp":
             fused_input = torch.cat([img_logits, pc_logits], dim=1)
-            return self.fuse_mlp(fused_input)
+            return self.mlp(fused_input)
         elif self.method == "gate_refine":
             fused_input = torch.cat([img_logits, pc_logits], dim=1)
             temperature = 2.0  # try 1.5–3.0
-            w = torch.sigmoid(self.gate_mlp(fused_input) / temperature)
+            w = torch.sigmoid(self.mlp(fused_input) / temperature)
             # w = torch.sigmoid(self.gate_mlp(fused_input))  # [B, 1] in (0,1)
             fused_logits = w * img_logits + (1.0 - w) * pc_logits
             fused_logits = fused_logits + self.refine_mlp(fused_logits)
@@ -397,7 +397,7 @@ class DecisionLevelFusion(nn.Module):
             return fused_logits, gate_reg
         elif self.method == "gate":
             fused_input = torch.cat([img_logits, pc_logits], dim=1)
-            w = torch.sigmoid(self.gate_mlp(fused_input))  # [B, 1] in (0,1)
+            w = torch.sigmoid(self.mlp(fused_input))  # [B, 1] in (0,1)
             fused_logits = w * img_logits + (1.0 - w) * pc_logits
             return fused_logits
         elif self.method == "entropy":
