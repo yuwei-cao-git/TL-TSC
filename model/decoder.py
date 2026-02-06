@@ -365,15 +365,15 @@ class DecisionLevelFusion(nn.Module):
             )
 
         if method == "gate":
-            self.mlp = nn.Sequential(
-                nn.Linear(2 * n_classes, 64), nn.LeakyReLU(), nn.Linear(64, n_classes)
+            self.gate_mlp = nn.Sequential(
+                nn.Linear(2 * n_classes, 64), nn.ReLU(), nn.Linear(64, n_classes)
             )
         if method == "gate_refine":
-            self.mlp = nn.Sequential(
-                nn.Linear(2 * n_classes, 64), nn.LeakyReLU(), nn.Linear(64, n_classes)
+            self.gate_mlp = nn.Sequential(
+                nn.Linear(2 * n_classes, 64), nn.ReLU(), nn.Linear(64, n_classes)
             )
             self.refine_mlp = nn.Sequential(
-                nn.Linear(n_classes, 128), nn.LeakyReLU(), nn.Linear(128, n_classes)
+                nn.Linear(n_classes, 128), nn.ReLU(), nn.Linear(128, n_classes)
             )
 
     def forward(self, img_logits, pc_logits):
@@ -385,7 +385,7 @@ class DecisionLevelFusion(nn.Module):
             return self.weight_img * img_logits + self.weight_pc * pc_logits
         elif self.method == "mlp":
             fused_input = torch.cat([img_logits, pc_logits], dim=1)
-            return self.mlp(fused_input)
+            return self.fuse_mlp(fused_input)
         elif self.method == "gate_refine":
             fused_input = torch.cat([img_logits, pc_logits], dim=1)
             temperature = 2.0  # try 1.5–3.0
@@ -397,7 +397,7 @@ class DecisionLevelFusion(nn.Module):
             return fused_logits, gate_reg
         elif self.method == "gate":
             fused_input = torch.cat([img_logits, pc_logits], dim=1)
-            w = torch.sigmoid(self.mlp(fused_input))  # [B, 1] in (0,1)
+            w = torch.sigmoid(self.gate_mlp(fused_input))  # [B, 1] in (0,1)
             fused_logits = w * img_logits + (1.0 - w) * pc_logits
             return fused_logits
         elif self.method == "entropy":
