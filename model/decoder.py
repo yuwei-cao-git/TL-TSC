@@ -389,7 +389,7 @@ class DecisionLevelFusion(nn.Module):
         elif self.method == "gate_refine":
             fused_input = torch.cat([img_logits, pc_logits], dim=1)
             temperature = 2.0  # try 1.5–3.0
-            w = torch.sigmoid(self.mlp(fused_input) / temperature)
+            w = torch.sigmoid(self.gate_mlp(fused_input) / temperature)
             # w = torch.sigmoid(self.gate_mlp(fused_input))  # [B, 1] in (0,1)
             fused_logits = w * img_logits + (1.0 - w) * pc_logits
             fused_logits = fused_logits + self.refine_mlp(fused_logits)
