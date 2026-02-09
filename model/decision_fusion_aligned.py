@@ -131,7 +131,7 @@ class FusionModel(pl.LightningModule):
         # classification loss
         loss = calc_masked_loss(self.loss_func, fuse_preds, labels, weights)
 
-        if self.cfg["decision_fuse_type"] == "gate_refine":
+        if self.cfg["decision_fuse_type"] == "gate":
             loss += gate_reg
 
         r2 = r2_metric(torch.round(fuse_preds, decimals=2).view(-1), labels.view(-1))
