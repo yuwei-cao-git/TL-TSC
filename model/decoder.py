@@ -361,14 +361,10 @@ class DecisionLevelFusion(nn.Module):
 
         if method == "mlp":
             self.mlp = nn.Sequential(
-                nn.Linear(2 * n_classes, 128), nn.LeakyReLU(), nn.Linear(128, n_classes)
+                nn.Linear(2 * n_classes, 128), nn.ReLU(), nn.Linear(128, n_classes)
             )
 
         if method == "gate":
-            self.gate_mlp = nn.Sequential(
-                nn.Linear(2 * n_classes, 64), nn.ReLU(), nn.Linear(64, n_classes)
-            )
-        if method == "gate_refine":
             self.gate_mlp = nn.Sequential(
                 nn.Linear(2 * n_classes, 64), nn.ReLU(), nn.Linear(64, n_classes)
             )
@@ -386,34 +382,13 @@ class DecisionLevelFusion(nn.Module):
         elif self.method == "mlp":
             fused_input = torch.cat([img_logits, pc_logits], dim=1)
             return self.fuse_mlp(fused_input)
-        elif self.method == "gate_refine":
-            fused_input = torch.cat([img_logits, pc_logits], dim=1)
-            temperature = 2.0  # try 1.5–3.0
-            w = torch.sigmoid(self.gate_mlp(fused_input) / temperature)
-            # w = torch.sigmoid(self.gate_mlp(fused_input))  # [B, 1] in (0,1)
-            fused_logits = w * img_logits + (1.0 - w) * pc_logits
-            fused_logits = fused_logits + self.refine_mlp(fused_logits)
-            gate_reg = 0.01 * ((w - 0.5) ** 2).mean()
-            return fused_logits, gate_reg
         elif self.method == "gate":
             fused_input = torch.cat([img_logits, pc_logits], dim=1)
             w = torch.sigmoid(self.gate_mlp(fused_input))  # [B, 1] in (0,1)
             fused_logits = w * img_logits + (1.0 - w) * pc_logits
-            return fused_logits
-        elif self.method == "entropy":
-            eps=1e-8
-            H_img = -(img_logits * (img_logits + eps).log()).sum(
-                dim=1, keepdim=True
-            )  # [B,1]
-            H_pc = -(pc_logits * (pc_logits + eps).log()).sum(dim=1, keepdim=True)
-
-            # convert entropy to confidence (lower entropy -> higher confidence)
-            conf_img = torch.exp(-H_img)
-            conf_pc  = torch.exp(-H_pc)
-
-            w = conf_img / (conf_img + conf_pc + eps)                        # [B,1]
-            fused_logits = w * img_logits + (1 - w) * pc_logits
-            return fused_logits
+            fused_logits = fused_logits + self.refine_mlp(fused_logits)
+            gate_reg = 0.01 * ((w - 0.5) ** 2).mean()
+            return fused_logits, gate_reg
         else:
             raise ValueError(f"Unknown fusion method: {self.method}")
 

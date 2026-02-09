@@ -46,11 +46,11 @@ def initialize_weights(m):
         # Kaiming/He initialization for linear layers followed by ReLU
         nn.init.kaiming_uniform_(m.weight, nonlinearity="relu")
         if m.bias is not None:
-            nn.init.zeros_(m.bias)
+            nn.init.constant_(m.bias, 0)
     elif isinstance(m, nn.Conv2d):
-        nn.init.xavier_uniform_(m.weight)
+        nn.init.kaiming_uniform_(m.weight, nonlinearity="relu")
         if m.bias is not None:
-            nn.init.zeros_(m.bias)
+            nn.init.constant_(m.bias, 0)
 
 
 def train(config):
