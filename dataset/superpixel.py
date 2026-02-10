@@ -87,19 +87,10 @@ class SuperpixelDataset(Dataset):
         normalized_coords = center_point_cloud(coords)
         # Apply point cloud transforms if any
         if self.normal:
-            if self.point_cloud_transform:
-                normalized_coords, _, label = pointCloudTransform(
-                    normalized_coords, pc_feat=None, target=label, rot=self.rotate
-                )
-            # Convert numpy array to Open3D PointCloud
-            pcd = o3d.geometry.PointCloud()
-            pcd.points = o3d.utility.Vector3dVector(normalized_coords)
-
-            # Estimate normals (change radius/knn depending on density)
-            pcd.estimate_normals(search_param=o3d.geometry.KDTreeSearchParamKNN(knn=16))
-            feats = np.asarray(pcd.normals)  # Shape: (N, 3)
+            feats = data["normals"]
         else:
             feats = normalize_point_cloud(coords)
+        
         if self.point_cloud_transform:
             normalized_coords, feats, label = pointCloudTransform(
                 normalized_coords, pc_feat=feats, target=label, rot=self.rotate

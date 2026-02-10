@@ -97,13 +97,6 @@ class FusionModel(pl.LightningModule):
         return img_preds, pc_preds
 
     def forward_and_metrics(self, images, img_masks, pc_feat, point_clouds, labels, pixel_labels, stage):
-        if not torch.isfinite(labels).all():
-            print(
-                f"\n[forward_and_metrics] Non-finite labels at epoch={self.current_epoch}"
-            )
-            print("  labels stats:", labels.min().item(), labels.max().item())
-            raise RuntimeError("NaN/Inf in labels")
-
         pc_feat = pc_feat.permute(0, 2, 1) if pc_feat is not None else None
         point_clouds = point_clouds.permute(0, 2, 1) if point_clouds is not None else None
 
@@ -115,15 +108,6 @@ class FusionModel(pl.LightningModule):
             fuse_preds, gate_reg = self.fuse_head(image_preds, pc_preds)
         else:
             fuse_preds = self.fuse_head(image_preds, pc_preds)
-
-        if not (
-            torch.isfinite(fuse_preds).all()
-        ):
-            print("\n[fuse_head output] Non-finite values detected!")
-            print("image_preds stats:", image_preds.min().item(), image_preds.max().item())
-            print("pc_preds stats:", pc_preds.min().item(), pc_preds.max().item())
-            print("fuse_preds stats:", fuse_preds.min().item(), fuse_preds.max().item())
-            raise RuntimeError("NaN/Inf generated in self.fuse_head")
 
         r2_metric = getattr(self, f"{stage}_r2")
         weights = self.weights.to(fuse_preds.device) if self.weights is not None else None
