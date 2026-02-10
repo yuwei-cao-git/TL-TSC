@@ -382,13 +382,18 @@ class DecisionLevelFusion(nn.Module):
         elif self.method == "mlp":
             fused_input = torch.cat([img_logits, pc_logits], dim=1)
             return self.fuse_mlp(fused_input)
-        elif self.method == "gate":
+        elif self.method == "gate_refine":
             fused_input = torch.cat([img_logits, pc_logits], dim=1)
             w = torch.sigmoid(self.gate_mlp(fused_input))  # [B, 1] in (0,1)
             fused_logits = w * img_logits + (1.0 - w) * pc_logits
             fused_logits = fused_logits + self.refine_mlp(fused_logits)
             gate_reg = 0.01 * ((w - 0.5) ** 2).mean()
             return fused_logits, gate_reg
+        elif self.method == "gate":
+            fused_input = torch.cat([img_logits, pc_logits], dim=1)
+            w = torch.sigmoid(self.gate_mlp(fused_input))  # [B, 1] in (0,1)
+            fused_logits = w * img_logits + (1.0 - w) * pc_logits
+            return fused_logits
         else:
             raise ValueError(f"Unknown fusion method: {self.method}")
 
