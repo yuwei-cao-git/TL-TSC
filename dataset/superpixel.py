@@ -84,7 +84,7 @@ class SuperpixelDataset(Dataset):
             )
 
         coords = data["point_cloud"]  # Shape: (7168, 3)
-        normalized_coords = center_point_cloud(coords)
+        centered_coords = center_point_cloud(coords)
         # Apply point cloud transforms if any
         if self.normal:
             feats = data["normals"]
@@ -92,19 +92,19 @@ class SuperpixelDataset(Dataset):
             feats = normalize_point_cloud(coords)
         
         if self.point_cloud_transform:
-            normalized_coords, feats, label = pointCloudTransform(
-                normalized_coords, pc_feat=feats, target=label, rot=self.rotate
+            centered_coords, feats, label = pointCloudTransform(
+                centered_coords, pc_feat=feats, target=label, rot=self.rotate
             )
 
         # After applying transforms
         feats = torch.from_numpy(feats).float()  # Shape: (7168, 3)
-        normalized_coords = torch.from_numpy(normalized_coords).float()  # Shape: (7168, 3)
+        centered_coords = torch.from_numpy(centered_coords).float()  # Shape: (7168, 3)
 
         sample = {
             "images": superpixel_images,  # Padded images of shape [num_seasons, num_channels, 128, 128]
             "mask": nodata_mask,  # Padded masks of shape [num_seasons, 128, 128]
             "per_pixel_labels": per_pixel_labels,  # Tensor: (num_classes, 128, 128)
-            "point_cloud": normalized_coords,
+            "point_cloud": centered_coords,
             "pc_feat": feats,
             "label": label,
         }
