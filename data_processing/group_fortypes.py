@@ -101,10 +101,13 @@ def main(args):
     out_folder = src_folder
     os.makedirs(out_folder, exist_ok=True)
 
-    search_pattern = f"**/{cfg['subfolder']}/*.npz"
-    files = sorted(glob(os.path.join(src_folder, search_pattern)))
+    search_pattern = f"{cfg['subfolder']}/*.npz"
+    files = []
+    for split in ["train", "val", "test"]:
+        files.extend(glob(os.path.join(src_folder, split, search_pattern)))
 
-    print(f"Found {len(files)} files.")
+    files = sorted(files)
+    print("Unique samples across splits:", len(files))
 
     # ---- Group Each File to fortype ----
     fortype_labels = []

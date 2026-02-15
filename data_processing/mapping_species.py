@@ -150,7 +150,7 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--dataset", choices=["ovf", "rmf", "wrf"], required=True)
     parser.add_argument("--src", required=True, help="Input root folder")
-    parser.add_argument("--output_subfolder", required=True, help="Output folder")
+    parser.add_argument("--out", required=True, help="Output folder")
     args = parser.parse_args()
 
     cfg = DATASET_CONFIG[args.dataset]
@@ -188,6 +188,7 @@ def main():
     save_split_files(test_idx, "test", files, args.out, cfg)
 
     # Save file lists
+    """
     save_file_list(
         [os.path.basename(files[i]) for i in train_idx],
         os.path.join(args.out, "train_files.txt"),
@@ -200,6 +201,7 @@ def main():
         [os.path.basename(files[i]) for i in test_idx],
         os.path.join(args.out, "test_files.txt"),
     )
+    """
 
     print("Done!")
 

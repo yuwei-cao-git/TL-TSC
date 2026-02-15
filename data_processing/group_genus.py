@@ -53,7 +53,7 @@ DATASET_CONFIG = {
             "pine",
             "oak",
         ],
-        "src_pattern": "**/ovf_2s_sp/*.npz",
+        "src_pattern": "ovf_2s_sp/*.npz",
         "output_subfolder": "ovf_2s_genus",
     },
     "wrf": {
@@ -69,9 +69,26 @@ DATASET_CONFIG = {
             "LA": "larch",
         },
         "genus_order": ["poplar", "spruce", "birch", "fir", "cedar", "pine", "larch"],
-        "src_pattern": "**/wrf_sp/*.npz",
-        "output_subfolder": "",  # RMF uses raw split folder
+        "src_pattern": "wrf_sp/*.npz",
+        "output_subfolder": "wrf_genus",
     },
+    "rmf": {
+        "species_names": ["BF", "BW", "CE", "LA", "PT", "PJ", "PO", "SB", "SW"],
+        "species_to_genus": {
+            "PO": "poplar",
+            "SW": "spruce",
+            "BW": "birch",
+            "BF": "fir",
+            "CE": "cedar",
+            "PT": "poplar",
+            "PJ": "pine",
+            "SB": "spruce",
+            "LA": "larch",
+        },
+        "genus_order": ["poplar", "spruce", "birch", "fir", "cedar", "pine", "larch"],
+        "src_pattern": "rmf_sp/*.npz",
+        "output_subfolder": "rmf_genus",
+    }
 }
 
 # 2. import functions from mapping_species
@@ -92,9 +109,12 @@ def main():
     print(f"=== Processing {args.dataset.upper()} Dataset ===")
 
     # Find files
-    pattern = os.path.join(args.src, cfg["src_pattern"])
-    files = sorted(glob(pattern))
-    print(f"Found {len(files)} samples.")
+    files = []
+    for split in ["train", "val", "test"]:
+        files.extend(glob(os.path.join(args.src, split, cfg["src_pattern"])))
+
+    files = sorted(files)
+    print("Unique samples across splits:", len(files))
 
     # Group labels into genus
     print("Grouping labels...")
@@ -123,6 +143,7 @@ def main():
     save_split_files(test_idx, "test", files, args.out, cfg)
 
     # Save file lists
+    """
     save_file_list(
         [os.path.basename(files[i]) for i in train_idx],
         os.path.join(args.out, "train_files.txt"),
@@ -135,6 +156,7 @@ def main():
         [os.path.basename(files[i]) for i in test_idx],
         os.path.join(args.out, "test_files.txt"),
     )
+    """
 
     print("Done!")
 
@@ -155,5 +177,5 @@ if __name__ == "__main__":
     python process_genus.py \
         --dataset wrf \
         --src /mnt/g/wrf/wrf_superpixel_dataset/tile_128 \
-        --out /mnt/g/wrf/wrf_genus
+        --out /mnt/g/wrf/wrf_superpixel_dataset/tile_128
     """
