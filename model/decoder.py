@@ -363,8 +363,11 @@ class DecisionLevelFusion(nn.Module):
             self.mlp = nn.Sequential(
                 nn.Linear(2 * n_classes, 128), nn.ReLU(), nn.Linear(128, n_classes)
             )
-
         if method == "gate":
+            self.gate_mlp = nn.Sequential(
+                nn.Linear(2 * n_classes, 64), nn.ReLU(), nn.Linear(64, n_classes)
+            )
+        if method == "gate_refine":
             self.gate_mlp = nn.Sequential(
                 nn.Linear(2 * n_classes, 64), nn.ReLU(), nn.Linear(64, n_classes)
             )
@@ -381,7 +384,7 @@ class DecisionLevelFusion(nn.Module):
             return self.weight_img * img_logits + self.weight_pc * pc_logits
         elif self.method == "mlp":
             fused_input = torch.cat([img_logits, pc_logits], dim=1)
-            return self.fuse_mlp(fused_input)
+            return self.mlp(fused_input)
         elif self.method == "gate_refine":
             fused_input = torch.cat([img_logits, pc_logits], dim=1)
             w = torch.sigmoid(self.gate_mlp(fused_input))  # [B, 1] in (0,1)
