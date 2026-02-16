@@ -49,7 +49,7 @@ class SuperpixelDataModule(LightningDataModule):
                 img_mean = self.config[f"{self.config['dataset']}_img_mean"]
                 img_std = self.config[f"{self.config['dataset']}_img_std"]
             self.datasets[split] = SuperpixelDataset(
-                self.dataset if split == "test" else self.test_dataset,
+                self.test_dataset if split == "test" else self.dataset,
                 superpixel_files,
                 rotate=None,
                 pc_normal=self.aug_pc_norm,

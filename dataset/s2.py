@@ -19,13 +19,9 @@ class S2Dataset(Dataset):
     ):
         self.superpixel_files = superpixel_files
         self.image_transform = image_transform
-        self.transforms = transforms.Compose(
-            [
-                transforms.ToImage(), 
-                transforms.ToDtype(torch.float32, scale=False),
-                transforms.Normalize(mean=img_mean, std=img_std)
-            ]
-        )
+
+        self.img_mean = img_mean
+        self.img_std = img_std
 
     def __len__(self):
         return len(self.superpixel_files)
@@ -33,9 +29,7 @@ class S2Dataset(Dataset):
     def __getitem__(self, idx):
         data = np.load(self.superpixel_files[idx], allow_pickle=True)
         # Load data from the .npz file
-        superpixel_images = data[
-            "superpixel_images"
-        ].astype(np.float32)  # Shape: (num_seasons, num_channels, 128, 128)
+        superpixel_images = data["superpixel_images"].astype(np.float32) / 10000.0 # Shape: (num_seasons, num_channels, 128, 128)# Shape: (num_seasons, num_channels, 128, 128)
         label = data["label"]  # Shape: (num_classes,)
         per_pixel_labels = data["per_pixel_labels"]  # Shape: (num_classes, 128, 128)
         nodata_mask = data["nodata_mask"]  # Shape: (128, 128)
@@ -47,8 +41,27 @@ class S2Dataset(Dataset):
             per_pixel_labels
         ).float()  # Shape: (num_classes, 128, 128)
         nodata_mask = torch.from_numpy(nodata_mask).bool()
-        
-        superpixel_images = self.transforms(superpixel_images)
+        mask = nodata_mask
+        S, C, H, W = superpixel_images.shape
+        if mask.ndim == 2:
+            mask = mask.unsqueeze(0).expand(S, H, W)  # (S,H,W)
+        if mask.ndim == 3:
+            mask = mask.unsqueeze(1)  # (S,1,H,W)
+
+        # --- normalize (broadcast mean/std over seasons) ---
+        mean = torch.tensor(self.img_mean, dtype=torch.float32).view(1, C, 1, 1)
+        std = (
+            torch.tensor(self.img_std, dtype=torch.float32)
+            .view(1, C, 1, 1)
+            .clamp_min(1e-6)
+        )
+        # make nodata pixels equal to mean in raw space, and handle any existing Infs/NaNs before Aug)
+        superpixel_images = superpixel_images.clone()
+        superpixel_images = torch.where(mask, mean, superpixel_images)
+        superpixel_images = (superpixel_images - mean) / std
+        superpixel_images = torch.nan_to_num(
+            superpixel_images, nan=0.0, posinf=0.0, neginf=0.0
+        )
 
         # Apply transforms if needed
         if self.image_transform != None:
@@ -69,6 +82,8 @@ class S2DataModule(LightningDataModule):
     def __init__(self, config):
         super().__init__()
         self.config = config
+        self.dataset = config["dataset"]
+        self.test_dataset = config["test_dataset"]
         self.batch_size = config["batch_size"]
         self.num_workers = 8 #config["gpus"]*2
         self.image_transform = (
@@ -76,22 +91,11 @@ class S2DataModule(LightningDataModule):
         )
         self.data_dirs = {
             "train": join(
-                config["data_dir"],
-                "tile_128",
-                "train",
-                f"{config['dataset']}"
+                config["data_dir"], "tile_128", "train", f"{config['dataset']}"
             ),
-            "val": join(
-                config["data_dir"],
-                "tile_128",
-                "val",
-                f"{config['dataset']}"
-            ),
+            "val": join(config["data_dir"], "tile_128", "val", f"{config['dataset']}"),
             "test": join(
-                config["data_dir"],
-                "tile_128",
-                "test",
-                f"{config['dataset']}"
+                config["test_data_dir"], "tile_128", "test", f"{config['test_dataset']}"
             ),
         }
 
@@ -105,8 +109,12 @@ class S2DataModule(LightningDataModule):
                 for f in os.listdir(data_dir)
                 if f.endswith(".npz")
             ]
-            img_mean=self.config[f"{self.config['dataset']}_img_mean"]
-            img_std=self.config[f"{self.config['dataset']}_img_std"]
+            if split == "test":
+                img_mean = self.config[f"{self.config['test_dataset']}_img_mean"]
+                img_std = self.config[f"{self.config['test_dataset']}_img_std"]
+            else:
+                img_mean=self.config[f"{self.config['dataset']}_img_mean"]
+                img_std=self.config[f"{self.config['dataset']}_img_std"]
             self.datasets[split] = S2Dataset(
                 superpixel_files,
                 image_transform=None,

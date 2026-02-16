@@ -22,7 +22,7 @@ DATASET_CONFIG = {
             "SW": "SW",
         },
         "genus_order": ["poplar", "SW", "BW", "BF", "cedar", "PJ", "SB", "LA"],
-        "src_pattern": "**/wrf_sp/*.npz",
+        "src_pattern": "wrf_sp/*.npz",
         "output_subfolder": "wrf_msp",
     },
     "rmf": {
@@ -39,7 +39,7 @@ DATASET_CONFIG = {
             "LA": "LA",
         },
         "genus_order": ["poplar", "SW", "BW", "BF", "cedar", "PJ", "SB", "LA"],
-        "src_pattern": "**/rmf_sp/*.npz",
+        "src_pattern": "rmf_sp/*.npz",
         "output_subfolder": "rmf_msp", 
     },
 }
@@ -157,9 +157,12 @@ def main():
     print(f"=== Processing {args.dataset.upper()} Dataset ===")
 
     # Find files
-    pattern = os.path.join(args.src, cfg["src_pattern"])
-    files = sorted(glob(pattern))
-    print(f"Found {len(files)} samples.")
+    files = []
+    for split in ["train", "val", "test"]:
+        files.extend(glob(os.path.join(args.src, split, cfg["src_pattern"])))
+
+    files = sorted(files)
+    print("Unique samples across splits:", len(files))
 
     # Group labels into genus
     print("Grouping labels...")

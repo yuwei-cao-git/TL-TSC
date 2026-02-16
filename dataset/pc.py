@@ -65,6 +65,8 @@ class PcDataModule(LightningDataModule):
     def __init__(self, config):
         super().__init__()
         self.config = config
+        self.dataset = config["dataset"]
+        self.test_dataset = config["test_dataset"]
         self.batch_size = config["batch_size"]
         self.num_workers = config["gpus"]*2
         self.point_cloud_transform = config["point_cloud_transform"]
@@ -72,22 +74,11 @@ class PcDataModule(LightningDataModule):
         self.aug_pc_norm = config["pc_normal"]
         self.data_dirs = {
             "train": join(
-                config["data_dir"],
-                "tile_128",
-                "train",
-                f"{config['dataset']}"
+                config["data_dir"], "tile_128", "train", f"{config['dataset']}"
             ),
-            "val": join(
-                config["data_dir"],
-                "tile_128",
-                "val",
-                f"{config['dataset']}"
-            ),
+            "val": join(config["data_dir"], "tile_128", "val", f"{config['dataset']}"),
             "test": join(
-                config["data_dir"],
-                "tile_128",
-                "test",
-                f"{config['dataset']}"
+                config["test_data_dir"], "tile_128", "test", f"{config['test_dataset']}"
             ),
         }
 
@@ -101,7 +92,7 @@ class PcDataModule(LightningDataModule):
                 for f in os.listdir(data_dir)
                 if f.endswith(".npz")
             ]
-            
+
             self.datasets[split] = PcDataset(
                 superpixel_files,
                 rotate=None,

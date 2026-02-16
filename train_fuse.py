@@ -25,6 +25,9 @@ def override_config(cfg, args):
         cfg['dataset'] = args.dataset
     if args.test_dataset is not None:
         cfg["test_dataset"] = args.test_dataset
+    else:
+        cfg["test_dataset"] = args.dataset
+        cfg["test_data_dir"] = args.data_dir
     if args.pretrained_ckpt is not None:
         cfg['pretrained_ckpt'] = args.pretrained_ckpt
     if args.align_header is not None:
