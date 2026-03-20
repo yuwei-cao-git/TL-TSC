@@ -27,6 +27,7 @@ SPECIES_DICT = {
     "wrf": ["Sb", "La", "Pj", "Bw", "Pt", "Bf", "Cw", "Sw"],
     "rmf": ["BF", "BW", "CE", "LA", "PT", "PJ", "PO", "SB", "SW"],
     "ovf": ["AB", "PO", "MR", "BF", "CE", "PW", "MH", "BW", "SW", "OR", "PR"],
+    "nif": ["SB", "LA", "PW", "MH", "MR", "BY", "BW", "BF", "PT"],
 }
 
 

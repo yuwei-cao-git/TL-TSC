@@ -4,7 +4,7 @@
 PYTHON_EXEC="python"
 
 # Dataset argument
-DATASET="wrf"  # Change this as needed (e.g., wrf, rmf, ovf)
+DATASET="nif"  # Change this as needed (e.g., wrf, rmf, ovf)
 
 # Loop over all Python scripts and execute them with --dataset
 echo "Running generate_superpixels scripts with --dataset $DATASET ..."

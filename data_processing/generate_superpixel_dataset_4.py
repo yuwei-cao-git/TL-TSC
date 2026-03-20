@@ -173,6 +173,7 @@ def process_one_combined_tile(args):
 
         laz_path = os.path.join(point_cloud_dir, f"{polyid}.laz")
         if not os.path.exists(laz_path):
+            print(f"[MISS LAZ] {polyid}")
             continue
 
         pc = load_point_cloud(laz_path)
@@ -241,18 +242,18 @@ if __name__ == "__main__":
     for season in seasons:
         season_dir = f"{base}/{season}/tiles_128"
         out_dir = f"{base}/{season}/compressed"
-        process_season(season_dir, out_dir, workers)
+        # process_season(season_dir, out_dir, workers)
 
     # ---------------------- STEP 2 ----------------------
     season_npz_dirs = [f"{base}/{s}/compressed" for s in seasons]
     superpixel_npz_dir = f"{base}/fall/superpixel"
     combined_dir = f"/mnt/d/Sync/research/tree_species_estimation/tree_dataset/{dataset}/processed/{dataset}_img_combined"
-    combine_all_tiles(season_npz_dirs, superpixel_npz_dir, combined_dir, workers)
+    #combine_all_tiles(season_npz_dirs, superpixel_npz_dir, combined_dir, workers)
 
     # ---------------------- STEP 3 ----------------------
     splits = ["train", "val", "test"]
     polygon_path = f"/mnt/d/Sync/research/tree_species_estimation/tree_dataset/{dataset}/processed/{dataset}_plots/superpixel_plots_Tilename.gpkg"
-    point_cloud_dir = f"/mnt/g/{dataset}/superpxiel_plots/"
+    point_cloud_dir = f"/mnt/g/{dataset}/superpixel_plots/"
 
     for split in splits:
         split_file = f"/mnt/d/Sync/research/tree_species_estimation/tree_dataset/{dataset}/processed/dataset/{split}_tiles.txt"

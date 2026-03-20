@@ -21,7 +21,7 @@ def create_points(polygon, number, distance=25, max_attempts=1000):
     return points
 
 
-def random_plots(polygons, n, distance=50):
+def random_plots(polygons, n, distance=25):
     random.seed(73)
     crs = polygons.crs
     all_points = []
@@ -29,7 +29,7 @@ def random_plots(polygons, n, distance=50):
     for _, row in polygons.iterrows():
         pts = create_points(row.geometry, n, distance)
         if len(pts) > 0:
-            pts_gdf = gpd.GeoDataFrame({"geometry": pts})
+            pts_gdf = gpd.GeoDataFrame({"geometry": pts}, crs=crs)
             # Copy desired attributes
             for attribute in ["POLYID", "perc_specs"]:
                 pts_gdf[attribute] = row[attribute]
@@ -58,10 +58,12 @@ def get_tilename(plots, dataset):
         FMU_name = "Romeo Mallate Forest"
     elif dataset == "ovf":
         FMU_name = "Ottawa Valley Forest"
+    elif dataset == "nif":
+        FMU_name = "Nipissing Forest"
 
     fmu = gpd.read_file(
         r"/mnt/d/Sync/research/tree_species_estimation/tree_dataset/data_processing/FORMGMT/LIO-2023-08-19/FOREST_MANAGEMENT_UNIT.shp",
-        where=f"FMU_NAME={FMU_name}",
+        where=f"FMU_NAME='{FMU_name}'",
     ).to_crs(plots.crs)
 
     # SPL tile index
@@ -98,7 +100,7 @@ def get_tilename(plots, dataset):
 # --------------------------------------------------
 
 if __name__ == "__main__":
-    dataset = "wrf"
+    dataset = "nif"
 
     polygons_gdf = gpd.read_file(
         f"/mnt/d/Sync/research/tree_species_estimation/tree_dataset/{dataset}/processed/{dataset}_fri/superpixel.shp"

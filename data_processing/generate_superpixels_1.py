@@ -84,7 +84,7 @@ def generate_superpixels(tile_path, size_threshold, shapefile, output_dir):
 
     superpixel_mask[nodata_mask] = 0
 
-    num_classes = 8
+    num_classes = 9
     label_array = np.zeros((num_classes, tile_height, tile_width), dtype=np.float32)
 
     intersecting_polygons["perc_specs"] = intersecting_polygons["perc_specs"].apply(
@@ -143,8 +143,8 @@ def parse_args():
         "--dataset",
         type=str,
         required=True,
-        choices=["wrf", "rmf", "ovf"],
-        help="Which dataset to process (wrf/rmf/ovf)",
+        choices=["wrf", "rmf", "ovf", "nif"],
+        help="Which dataset to process (wrf/rmf/ovf/nif)",
     )
     parser.add_argument(
         "--size_threshold",
@@ -172,7 +172,7 @@ if __name__ == "__main__":
     out_shapefile = f"/mnt/d/Sync/research/tree_species_estimation/tree_dataset/{dataset}/processed/{dataset}_fri/superpixel.shp"
 
     all_pids = set()
-    seasons = ["spring", "summer", "fall", "winter"]
+    seasons = ["fall"]  # "spring", "summer", "winter",
 
     for season in seasons:
         tile_dir = f"/mnt/d/Sync/research/tree_species_estimation/tree_dataset/{dataset}/processed/{dataset}_s2/{season}/tiles_128"
@@ -195,8 +195,8 @@ if __name__ == "__main__":
     # Save filtered FRI only once
     filter_fri_shapefile(shapefile, out_shapefile, all_pids)
 
-
     # --------------------------
-    # python superpixel_gen.py --dataset wrf
-    # python superpixel_gen.py --dataset rmf
-    # python superpixel_gen.py --dataset ovf
+    # python generate_superpixels_1.py --dataset wrf
+    # python generate_superpixels_1.py --dataset rmf
+    # python generate_superpixels_1.py --dataset ovf
+    # python generate_superpixels_1.py --dataset nif

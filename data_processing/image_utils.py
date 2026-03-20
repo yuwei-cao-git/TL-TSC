@@ -12,11 +12,9 @@ from rasterio.mask import mask
 from rasterio.merge import merge
 from rasterio.warp import Resampling, calculate_default_transform, reproject
 from rasterio.windows import Window
-
-# from skimage import exposure
-# from skimage.transform import AffineTransform, rotate, warp
 from tqdm import tqdm
-from .utils import (
+
+from utils import (
     unzip_directory,
     unzip_folder,
     print_color,
@@ -96,6 +94,62 @@ def tile_raster(input_path, output_dir, tile_size, overlap_percent=0, nodata_val
                     dst.write(tile_data)
 
         print("Raster Tiled")
+
+
+def generate_tile_windows(ref_path, tile_size, overlap_percent=0.0):
+    with rasterio.open(ref_path) as ref:
+        width, height = ref.width, ref.height
+
+        tile_overlap = int(tile_size * overlap_percent)
+        step = tile_size - tile_overlap
+
+        windows = []
+        for ty in range(math.ceil((height - tile_overlap) / step)):
+            for tx in range(math.ceil((width - tile_overlap) / step)):
+                x = int(tx * step)
+                y = int(ty * step)
+
+                w = min(tile_size, width - x)
+                h = min(tile_size, height - y)
+
+                windows.append((tx, ty, Window(x, y, w, h)))
+
+    return windows
+
+
+def tile_with_windows(src_path, windows, out_dir, tile_size, nodata_value=0):
+    os.makedirs(out_dir, exist_ok=True)
+
+    with rasterio.open(src_path) as src:
+        nodata = src.nodata if src.nodata is not None else nodata_value
+
+        pad = np.full((src.count, tile_size, tile_size), nodata, dtype=src.dtypes[0])
+
+        for tx, ty, window in windows:
+
+            data = src.read(window=window, boundless=True, fill_value=nodata)
+
+            # if not data.any():
+                # continue
+
+            h, w = data.shape[1:]
+
+            if h != tile_size or w != tile_size:
+                tmp = pad.copy()
+                tmp[:, :h, :w] = data
+                data = tmp
+
+            profile = src.profile.copy()
+            profile.update(
+                width=tile_size,
+                height=tile_size,
+                transform=src.window_transform(window),
+            )
+
+            out_path = os.path.join(out_dir, f"tile_{tx}_{ty}.tif")
+
+            with rasterio.open(out_path, "w", **profile) as dst:
+                dst.write(data)
 
 
 def create_hls_folders(out_dir, file_path):
