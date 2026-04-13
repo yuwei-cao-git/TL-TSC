@@ -159,18 +159,6 @@ def train(cfg, ft_mode_cli=None):
     ckpt  = ModelCheckpoint(monitor=metric, filename="best", dirpath=chk_dir, save_top_k=1, mode="max")
     callbacks = [early, ckpt]
 
-    # --- datamodule ---
-    print("[finetune] init dataset")
-    from dataset.superpixel import SuperpixelDataModule
-    data_module = SuperpixelDataModule(cfg)
-
-    # --- model ---
-    task = cfg["task"]
-    if task == "tsca":
-        from model.decision_fusion_aligned import FusionModel
-    elif task == "tsc_mid":
-        from model.fuse import FusionModel
-
     if cfg["loss_func"] in ["wmse", "wrmse", "wkl", "ewmse"]:
         class_weights = cfg.get(f"{cfg['dataset']}_class_weights", None)
 
@@ -178,13 +166,34 @@ def train(cfg, ft_mode_cli=None):
             raise ValueError(f"No class weight found for dataset: {args.dataset}")
 
         # Convert list to torch tensor
-        cfg[f"{cfg['dataset']}_class_weights"] = torch.tensor(class_weights, dtype=torch.float32)
+        cfg[f"{cfg['dataset']}_class_weights"] = torch.tensor(
+            class_weights, dtype=torch.float32
+        )
 
     else:
         # Loss functions that do NOT use class weights
         cfg[f"{cfg['dataset']}_class_weights"] = None
 
-    model = FusionModel(cfg, n_classes=cfg["n_classes"])
+    # --- datamodule ---
+    print("[finetune] init dataset")
+    task = cfg["task"]
+    if task in ["tsc_mid", "tsca"]:
+        from dataset.superpixel import SuperpixelDataModule
+        data_module = SuperpixelDataModule(cfg)
+    elif task == "pc_tsc":
+        from dataset.pc import PcDataModule
+        data_module = PcDataModule(cfg)
+
+    # --- model --
+    if task == "tsca":
+        from model.decision_fusion_aligned import FusionModel
+        model = FusionModel(cfg, n_classes=cfg["n_classes"])
+    elif task == "tsc_mid":
+        from model.fuse import FusionModel
+        model = FusionModel(cfg, n_classes=cfg["n_classes"])
+    elif task == "pc_tsc":
+        from model.pc_model import PCModel
+        model = PCModel(cfg, n_classes=cfg["n_classes"])
 
     # heads fresh for B; then load A-weights (backbone-only)
     # (keep even when training from scratch; it just re-inits heads cleanly)
@@ -205,7 +214,7 @@ def train(cfg, ft_mode_cli=None):
 
     if str(cfg.get("pretrained_ckpt", "None")) != "None":
         model = _load_backbone_weights(model, cfg["pretrained_ckpt"])
-        snapshot_source_state(model)  # for optional L2-SP
+        # snapshot_source_state(model)  # for optional L2-SP
 
     # --- choose finetune mode ---
     ft_mode = (ft_mode_cli or cfg.get("ft_mode", "linear_probe")).lower()
@@ -241,7 +250,7 @@ def train(cfg, ft_mode_cli=None):
 
     # --- go ---
     trainer.fit(model, data_module)
-    trainer.test(model, data_module)
+    # trainer.test(model, data_module)
 
 # --------------------------
 # CLI
@@ -263,11 +272,11 @@ if __name__ == "__main__":
     cfg.setdefault("save_dir", "tl_logs")
     cfg.setdefault("log_name", "finetune")
     cfg.setdefault("optimizer", "adamW")
-    cfg.setdefault("pc_lr", 5e-4)
-    cfg.setdefault("img_lr", 5e-4)
-    cfg.setdefault("fuse_lr", 5e-4)
+    cfg.setdefault("pc_lr", 1e-4)
+    cfg.setdefault("img_lr", 1e-4)
+    cfg.setdefault("fuse_lr", 1e-4)
     cfg.setdefault("max_epochs", 100)
-    cfg.setdefault("patience", 10)
+    cfg.setdefault("patience", 5)
     cfg.setdefault("s2_head_in_ch", 1024)
     cfg.setdefault("pc_head_in_ch", 768)
     cfg.setdefault("task", args.task)
@@ -287,10 +296,30 @@ if __name__ == "__main__":
         cfg["ft_mode"] = args.ft_mode
     if args.network is not None:
         cfg["network"] = args.network
-    prefix = "rmf" if args.dataset == "rmf_sp" else "wrf"
+    
     cfg["dataset"] = args.dataset
-    # cfg["data_dir"] = os.path.join(args.data_dir, f"{prefix}_superpixel_dataset")
     cfg["data_dir"] = args.data_dir
-    cfg["n_classes"] = 8 if args.dataset == "wrf_sp" else 9
-    cfg["class_names"] = ["SB", "LA", "PJ", "BW", "PT", "BF", "CW", "SW"] if args.dataset == "wrf_sp" else ["BF", "BW", "CE", "LA", "PT", "PJ", "PO", "SB", "SW"]
+
+    if args.dataset == "wrf_sp":
+        cfg["class_names"] = ["SB", "LA", "PJ", "BW", "PT", "BF", "CW", "SW"]
+    elif args.dataset == "rmf_sp":
+        cfg["class_names"] = ["BF", "BW", "CE", "LA", "PT", "PJ", "PO", "SB", "SW"]
+    elif args.dataset == "ovf_sp":
+        cfg["class_names"] = [
+            "AB",
+            "PO",
+            "MR",
+            "BF",
+            "CE",
+            "PW",
+            "MH",
+            "BW",
+            "SW",
+            "OR",
+            "PR",
+        ]
+    elif args.dataset == "nif_sp":
+        cfg["class_names"] = ["SB", "LA", "PW", "MH", "MR", "BY", "BW", "BF", "PT"]
+    cfg["n_classes"] = len(cfg["class_names"])
+    
     train(cfg, ft_mode_cli=args.ft_mode)

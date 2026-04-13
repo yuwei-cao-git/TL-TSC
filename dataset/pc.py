@@ -66,7 +66,7 @@ class PcDataModule(LightningDataModule):
         super().__init__()
         self.config = config
         self.dataset = config["dataset"]
-        self.test_dataset = config["test_dataset"]
+        self.test_dataset = config.get("test_dataset", config["dataset"])
         self.batch_size = config["batch_size"]
         self.num_workers = config["gpus"]*2
         self.point_cloud_transform = config["point_cloud_transform"]
@@ -74,11 +74,11 @@ class PcDataModule(LightningDataModule):
         self.aug_pc_norm = config["pc_normal"]
         self.data_dirs = {
             "train": join(
-                config["data_dir"], "tile_128", "train", f"{config['dataset']}"
+                config["data_dir"], "tile_128", "train", config['dataset']
             ),
-            "val": join(config["data_dir"], "tile_128", "val", f"{config['dataset']}"),
+            "val": join(config["data_dir"], "tile_128", "val", config['dataset']),
             "test": join(
-                config["test_data_dir"], "tile_128", "test", f"{config['test_dataset']}"
+                config.get("test_data_dir", config["data_dir"]), "tile_128", "test", config.get("test_dataset", config["dataset"])
             ),
         }
 

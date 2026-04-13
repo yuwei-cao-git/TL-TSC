@@ -184,7 +184,7 @@ def process_one_combined_tile(args):
             continue
 
         out_path = os.path.join(output_dir, f"{polyid}.npz")
-        np.savez_compressed(
+        np.savez(
             out_path,
             superpixel_images=superpixel_img,
             point_cloud=pc,
@@ -247,8 +247,8 @@ if __name__ == "__main__":
     # ---------------------- STEP 2 ----------------------
     season_npz_dirs = [f"{base}/{s}/compressed" for s in seasons]
     superpixel_npz_dir = f"{base}/fall/superpixel"
-    combined_dir = f"/mnt/d/Sync/research/tree_species_estimation/tree_dataset/{dataset}/processed/{dataset}_img_combined"
-    #combine_all_tiles(season_npz_dirs, superpixel_npz_dir, combined_dir, workers)
+    combined_dir = f"/mnt/d/Sync/research/tree_species_estimation/tree_dataset/{dataset}/processed/{dataset}_s2/{dataset}_img_combined"
+    combine_all_tiles(season_npz_dirs, superpixel_npz_dir, combined_dir, workers)
 
     # ---------------------- STEP 3 ----------------------
     splits = ["train", "val", "test"]
@@ -257,7 +257,7 @@ if __name__ == "__main__":
 
     for split in splits:
         split_file = f"/mnt/d/Sync/research/tree_species_estimation/tree_dataset/{dataset}/processed/dataset/{split}_tiles.txt"
-        output_dir = f"/mnt/d/Sync/research/tree_species_estimation/tree_dataset/{dataset}/processed/{dataset}_superpixel_dataset/{split}"
+        output_dir = f"/mnt/d/Sync/research/tree_species_estimation/tree_dataset/{dataset}/processed/{dataset}_superpixel_dataset/tile_128/{split}/{dataset}_sp"
 
         generate_superpixel_dataset(
             combined_dir, point_cloud_dir, polygon_path, split_file, output_dir, workers

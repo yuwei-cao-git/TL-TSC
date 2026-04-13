@@ -1,0 +1,56 @@
+# config_nif.yaml
+
+# General
+dataset: nif_sp
+tile_size: 128
+n_bands: 9
+data_dir: "./data/nif_superpixel_dataset"
+n_classes: 9
+class_names: ["SB", "LA", "PW", "MH", "MR", "BY", "BW", "BF", "PT"]
+nif_sp_class_weights: [0.01336019, 0.06994183, 0.08378996, 0.05661675, 0.17902111, 0.24095274, 0.09358207, 0.19145136, 0.07128399]
+
+# s2 data /10000
+nif_sp_season_map: ["img_s2_spring", "img_s2_summer", "img_s2_fall", "img_s2_winter"]
+nif_sp_img_mean: [0.16987409636334858, 0.18232310689997708, 0.1747640902276705, 0.21164166457444136, 0.2903066065197379, 0.31200130559406464, 0.19371248776503036, 0.15247657503629555, 0.32869137903117235]
+nif_sp_img_std: [0.11056640686366147, 0.10427949113971036, 0.10845440934189735, 0.10318024194130265, 0.09764621701853216, 0.10062373331662167, 0.04253600700478904, 0.01675340432209254, 0.09839563697737505]
+
+# Training parameters
+task: tsc
+head:  fuse_head # Options: no_pc_head, fuse_head, all_head, no_img_head
+pretrained_ckpt: None #tl_logs/no_img_head_unet_pointnet_rmf_cosine/wandblogs/TL-TSC/28g98vp3/checkpoints/epoch=0-step=3246.ckpt
+fix_backbone: false
+batch_size: 64
+max_epochs: 100
+optimizer: adamW                 # Options: adam, adamW, sgd
+scheduler: steplr         # Options: plateau, steplr, asha, cosine, cosinewarmup
+lr: 0.0001
+patience: 10
+step_size: 10
+momentum: 0.9
+weight_decay: 0.0001
+decision_fuse_type: weighted #average, weighted, mlp
+
+# Loss weights
+multitasks_uncertain_loss: false
+loss_func: mse
+
+# Model architecture
+network: ResUnet
+emb_dims: 768
+num_points: 7168
+encoder: b                      # Options: s, b, l, xl
+fusion_dim: 128
+dp_fuse: 0.3
+dp_pc: 0.3
+use_ms: false
+linear_layers_dims: [512, 256]
+align_header: img
+
+# Data transforms
+image_transform: compose
+point_cloud_transform: true
+rotate: false
+pc_normal: false
+
+# Hardware
+gpus: 1

@@ -292,8 +292,8 @@ def main():
         f"{dataset}/processed/{dataset}_superpixel_dataset"
     )
     output_dir = (
-        f"/mnt/d/Sync/research/tree_species_estimation/tree_dataset/"
-        f"{dataset}/processed/{dataset}_sp_{int(args.subsample_rate*100)}"
+        f"/mnt/g/"
+        f"{dataset}/{dataset}_sp_{int(args.subsample_rate*100)}/tile_128"
     )
     os.makedirs(output_dir, exist_ok=True)
 
@@ -355,11 +355,18 @@ def main():
     # Optionally move/copy files
     if args.move_files:
         print("Copying .npz files into split folders...")
-        move_files_to_split(train_files, folder_path, os.path.join(output_dir, "train"))
-        move_files_to_split(val_files, folder_path, os.path.join(output_dir, "val"))
-        move_files_to_split(test_files, folder_path, os.path.join(output_dir, "test"))
+        move_files_to_split(
+            train_files, folder_path, os.path.join(output_dir, "train", f"{dataset}_sp")
+        )
+        move_files_to_split(
+            val_files, folder_path, os.path.join(output_dir, "val", f"{dataset}_sp")
+        )
+        move_files_to_split(
+            test_files, folder_path, os.path.join(output_dir, "test", f"{dataset}_sp")
+        )
         print("Files copied successfully.")
 
 
 if __name__ == "__main__":
     main()
+    # python data_processing/superpixel_resplit_5.py --dataset "rmf" --move_files --subsample_rate 0.5

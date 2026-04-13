@@ -152,6 +152,6 @@ def train(config):
         trainer.fit(model, data_module)
 
         # Test the model after training
-        trainer.test(model, data_module)
+        # trainer.test(model, data_module)
     else:
         trainer.test(model, data_module)

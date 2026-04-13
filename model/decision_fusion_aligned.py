@@ -157,7 +157,8 @@ class FusionModel(pl.LightningModule):
             self.best_test_outputs = {"preds_all": test_pred, "true_labels_all": test_true}
 
             cm = self.confmat(torch.argmax(test_pred, dim=1), torch.argmax(test_true, dim=1))
-            print("Confusion Matrix at best R²:", cm)
+            print("Confusion Matrix at best R²:")
+            print(cm)
             print(f"R2 Score: {sys_r2}")
             print(f"Class R²: {r2_score(torch.round(test_pred, decimals=1), test_true, multioutput='raw_values')}")
 
