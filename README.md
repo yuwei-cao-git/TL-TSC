@@ -43,10 +43,11 @@ README.md
 
 ## Example Use Case
 
-1.  Run 'data_processing/superpixel_gen.sh' to generate dataset
-2.  Run 'superpixel_resplit_5.py' to generate varying proportions of dataset (1% to 100%)
+1.  Run 'data_processing/superpixel_gen.sh' to generate dataset.
+2.  Run 'superpixel_resplit_5.py' to generate varying proportions of dataset (1% to 100%).
 3.  Run `train_fuse.py` to train the multi-modal fusion model from scratch on the training site and evaluate its direct cross-site performance on the new site.
 4.  Use `finetune.py` to apply the pre-trained weights to the new site and fine-tune the model using varying reference data budgets (1% to 100%).
+5.  For training on cluster, run 'sbatch scripts/tl_job_sub.sh' to submit tasks.
 
 ## Acknowledgments
 
